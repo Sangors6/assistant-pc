@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PC Helper — Connexion</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #080c12;
+      color: #dcddde;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0, 120, 255, 0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    #card {
+      background: #080e18;
+      border: 1px solid #0e1a2a;
+      border-radius: 18px;
+      padding: 40px;
+      width: 100%;
+      max-width: 400px;
+      z-index: 1;
+    }
+
+    #logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 32px;
+      justify-content: center;
+    }
+
+    #logo-icon {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, #0078ff, #0050c8);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 0 20px rgba(0, 120, 255, 0.3);
+    }
+
+    #logo-text {
+      font-size: 20px;
+      font-weight: 600;
+      color: #ffffff;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 28px;
+      background: #060a10;
+      border-radius: 10px;
+      padding: 4px;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 8px;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 500;
+      color: #2a4060;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .tab.active {
+      background: #0e1a2a;
+      color: #ffffff;
+    }
+
+    .champ {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: #2a4060;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    input {
+      width: 100%;
+      background: #060a10;
+      border: 1px solid #0e1a2a;
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: #dcddde;
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    input:focus {
+      border-color: #0078ff;
+      box-shadow: 0 0 16px rgba(0, 120, 255, 0.1);
+    }
+
+    #bouton {
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(135deg, #0078ff, #0050c8);
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-size: 15px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: all 0.2s ease;
+      box-shadow: 0 0 20px rgba(0, 120, 255, 0.25);
+    }
+
+    #bouton:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 0 30px rgba(0, 120, 255, 0.4);
+    }
+
+    #message {
+      margin-top: 16px;
+      font-size: 13px;
+      text-align: center;
+      min-height: 20px;
+      color: #ff4444;
+    }
+
+    #message.succes { color: #00c853; }
+
+    .gratuit-info {
+      margin-top: 20px;
+      padding: 12px;
+      background: #060a10;
+      border: 1px solid #0e1a2a;
+      border-radius: 10px;
+      font-size: 12px;
+      color: #2a4060;
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    .gratuit-info span { color: #0078ff; font-weight: 500; }
+  </style>
+</head>
+<body>
+  <div id="card">
+    <div id="logo">
+      <div id="logo-icon">🖥️</div>
+      <div id="logo-text">PC Helper</div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" onclick="changerTab('connexion')">Connexion</div>
+      <div class="tab" onclick="changerTab('inscription')">Inscription</div>
+    </div>
+
+    <div class="champ">
+      <label>Email</label>
+      <input type="email" id="email" placeholder="ton@email.com">
+    </div>
+
+    <div class="champ">
+      <label>Mot de passe</label>
+      <input type="password" id="mdp" placeholder="••••••••">
+    </div>
+
+    <button id="bouton" onclick="soumettre()">Se connecter</button>
+    <div id="message"></div>
+
+    <div class="gratuit-info">
+      Gratuit : <span>10 messages</span> · Pro : <span>illimité</span>
+    </div>
+  </div>
+
+  <script>
+    let modeActuel = 'connexion'
+
+    function changerTab(mode) {
+      modeActuel = mode
+      document.querySelectorAll('.tab').forEach((t, i) => {
+        t.classList.toggle('active', (mode === 'connexion' && i === 0) || (mode === 'inscription' && i === 1))
+      })
+      document.getElementById('bouton').textContent = mode === 'connexion' ? 'Se connecter' : "S'inscrire"
+      document.getElementById('message').textContent = ''
+    }
+
+    async function soumettre() {
+      const email = document.getElementById('email').value.trim()
+      const mdp = document.getElementById('mdp').value
+      const msg = document.getElementById('message')
+
+      if (!email || !mdp) {
+        msg.textContent = 'Remplis tous les champs'
+        msg.className = ''
+        return
+      }
+
+      const url = modeActuel === 'connexion' ? '/auth/connexion' : '/auth/inscription'
+
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, motDePasse: mdp })
+        })
+
+        const data = await res.json()
+
+        if (!res.ok) {
+          msg.textContent = data.erreur
+          msg.className = ''
+          return
+        }
+
+        if (modeActuel === 'inscription') {
+          msg.textContent = 'Compte créé ! Connecte-toi maintenant.'
+          msg.className = 'succes'
+          changerTab('connexion')
+        } else {
+          localStorage.setItem('token', data.token)
+          localStorage.setItem('email', data.email)
+          window.location.href = '/index.html'
+        }
+
+      } catch {
+        msg.textContent = 'Erreur de connexion au serveur'
+        msg.className = ''
+      }
+    }
+
+    // Connexion avec Entrée
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') soumettre()
+    })
+
+    // Si déjà connecté, redirige vers le chat
+    if (localStorage.getItem('token')) {
+      window.location.href = '/index.html'
+    }
+  </script>
+</body>
+</html>
