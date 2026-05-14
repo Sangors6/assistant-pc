@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Assistant PC</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: system-ui, sans-serif;
+      background: #0f0f0f;
+      color: #f0f0f0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #app {
+      width: 100%;
+      max-width: 720px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #a0a0a0;
+      margin-bottom: 20px;
+      text-align: center;
+      letter-spacing: 0.5px;
+    }
+
+    #chat {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding-bottom: 20px;
+    }
+
+    .message {
+      max-width: 85%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 15px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    .message.user {
+      background: #1e1e2e;
+      border: 1px solid #2a2a3e;
+      align-self: flex-end;
+      color: #c0c0f0;
+    }
+
+    .message.assistant {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      align-self: flex-start;
+      color: #f0f0f0;
+    }
+
+    .message.typing {
+      color: #555;
+      font-style: italic;
+    }
+
+    #zone-saisie {
+      display: flex;
+      gap: 10px;
+      padding-top: 16px;
+      border-top: 1px solid #222;
+    }
+
+    #input {
+      flex: 1;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 10px;
+      padding: 12px 16px;
+      color: #f0f0f0;
+      font-size: 15px;
+      outline: none;
+      resize: none;
+      height: 50px;
+      font-family: inherit;
+    }
+
+    #input:focus { border-color: #555; }
+
+    #bouton {
+      background: #2a2a4a;
+      border: 1px solid #3a3a6a;
+      border-radius: 10px;
+      color: #a0a0f0;
+      font-size: 15px;
+      padding: 0 20px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    #bouton:hover { background: #3a3a6a; }
+    #bouton:disabled { opacity: 0.4; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <h1>🖥️ Assistant PC</h1>
+
+    <div id="chat">
+      <div class="message assistant">
+        Bonjour ! Je suis ton assistant informatique. Décris-moi ton problème PC, réseau ou gaming et je vais t'aider à le résoudre étape par étape.
+      </div>
+    </div>
+
+    <div id="zone-saisie">
+      <textarea id="input" placeholder="Décris ton problème..."></textarea>
+      <button id="bouton" onclick="envoyer()">Envoyer</button>
+    </div>
+  </div>
+
+  <script>
+    const chat = document.getElementById('chat')
+    const input = document.getElementById('input')
+    const bouton = document.getElementById('bouton')
+
+    // Envoyer avec la touche Entrée (Shift+Entrée pour sauter une ligne)
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault()
+        envoyer()
+      }
+    })
+
+    function ajouterMessage(texte, role) {
+      const div = document.createElement('div')
+      div.className = `message ${role}`
+      div.textContent = texte
+      chat.appendChild(div)
+      chat.scrollTop = chat.scrollHeight
+      return div
+    }
+
+    async function envoyer() {
+      const texte = input.value.trim()
+      if (!texte) return
+
+      // Affiche le message utilisateur
+      ajouterMessage(texte, 'user')
+      input.value = ''
+      bouton.disabled = true
+
+      // Affiche l'indicateur "en train d'écrire..."
+      const typing = ajouterMessage('En train de réfléchir...', 'assistant typing')
+
+      try {
+        const res = await fetch('/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: texte })
+        })
+
+        const data = await res.json()
+
+        // Remplace l'indicateur par la vraie réponse
+        typing.textContent = data.reponse
+        typing.classList.remove('typing')
+
+      } catch (erreur) {
+        typing.textContent = 'Erreur de connexion. Vérifie que le serveur tourne.'
+        typing.classList.remove('typing')
+      }
+
+      bouton.disabled = false
+      input.focus()
+    }
+  </script>
+</body>
+</html>
