@@ -481,92 +481,102 @@
     </div>
   </div>
 
-  <script>
-    const chat = document.getElementById('chat')
-    const input = document.getElementById('input')
-    const bouton = document.getElementById('bouton')
-    const welcome = document.getElementById('welcome')
+ <script>
+  const chat = document.getElementById('chat')
+  const input = document.getElementById('input')
+  const bouton = document.getElementById('bouton')
+  const welcome = document.getElementById('welcome')
 
-    input.addEventListener('input', () => {
-      input.style.height = 'auto'
-      input.style.height = Math.min(input.scrollHeight, 120) + 'px'
-    })
+  // Récupère ou crée un sessionId dans le navigateur
+  let sessionId = localStorage.getItem('sessionId')
 
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault()
-        envoyer()
-      }
-    })
+  input.addEventListener('input', () => {
+    input.style.height = 'auto'
+    input.style.height = Math.min(input.scrollHeight, 120) + 'px'
+  })
 
-    function suggerer(el) {
-      input.value = el.textContent
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
       envoyer()
     }
+  })
 
-    function ajouterMessage(texte, role) {
-      if (welcome) welcome.style.display = 'none'
+  function suggerer(el) {
+    input.value = el.textContent
+    envoyer()
+  }
 
-      const row = document.createElement('div')
-      row.className = `message-row ${role}`
+  function ajouterMessage(texte, role) {
+    if (welcome) welcome.style.display = 'none'
 
-      const avatar = document.createElement('div')
-      avatar.className = `avatar ${role}`
-      avatar.textContent = role === 'assistant' ? '🖥️' : 'Moi'
+    const row = document.createElement('div')
+    row.className = `message-row ${role}`
 
-      const content = document.createElement('div')
-      content.style.display = 'flex'
-      content.style.flexDirection = 'column'
+    const avatar = document.createElement('div')
+    avatar.className = `avatar ${role}`
+    avatar.textContent = role === 'assistant' ? '🖥️' : 'Moi'
 
-      const name = document.createElement('div')
-      name.className = 'message-name'
-      name.textContent = role === 'assistant' ? 'PC Helper' : 'Vous'
+    const content = document.createElement('div')
+    content.style.display = 'flex'
+    content.style.flexDirection = 'column'
 
-      const bubble = document.createElement('div')
-      bubble.className = `bubble ${role}`
-      bubble.textContent = texte
+    const name = document.createElement('div')
+    name.className = 'message-name'
+    name.textContent = role === 'assistant' ? 'PC Helper' : 'Vous'
 
-      content.appendChild(name)
-      content.appendChild(bubble)
-      row.appendChild(avatar)
-      row.appendChild(content)
-      chat.appendChild(row)
-      chat.scrollTop = chat.scrollHeight
+    const bubble = document.createElement('div')
+    bubble.className = `bubble ${role}`
+    bubble.textContent = texte
 
-      return bubble
-    }
+    content.appendChild(name)
+    content.appendChild(bubble)
+    row.appendChild(avatar)
+    row.appendChild(content)
+    chat.appendChild(row)
+    chat.scrollTop = chat.scrollHeight
 
-    async function envoyer() {
-      const texte = input.value.trim()
-      if (!texte) return
+    return bubble
+  }
 
-      ajouterMessage(texte, 'user')
-      input.value = ''
-      input.style.height = 'auto'
-      bouton.disabled = true
+  async function envoyer() {
+    const texte = input.value.trim()
+    if (!texte) return
 
-      const typing = ajouterMessage('En train de réfléchir...', 'assistant')
-      typing.classList.add('typing')
+    ajouterMessage(texte, 'user')
+    input.value = ''
+    input.style.height = 'auto'
+    bouton.disabled = true
 
-      try {
-        const res = await fetch('/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: texte })
-        })
+    const typing = ajouterMessage('En train de réfléchir...', 'assistant')
+    typing.classList.add('typing')
 
-        const data = await res.json()
-        typing.textContent = data.reponse
-        typing.classList.remove('typing')
+    try {
+      const res = await fetch('/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: texte, sessionId })
+      })
 
-      } catch (erreur) {
-        typing.textContent = 'Erreur de connexion. Vérifie que le serveur tourne.'
-        typing.classList.remove('typing')
+      const data = await res.json()
+
+      // Sauvegarde le sessionId dans le navigateur
+      if (data.sessionId) {
+        sessionId = data.sessionId
+        localStorage.setItem('sessionId', sessionId)
       }
 
-      bouton.disabled = false
-      input.focus()
+      typing.textContent = data.reponse
+      typing.classList.remove('typing')
+
+    } catch (erreur) {
+      typing.textContent = 'Erreur de connexion. Vérifie que le serveur tourne.'
+      typing.classList.remove('typing')
     }
-  </script>
+
+    bouton.disabled = false
+    input.focus()
+  }
+</script>
 </body>
 </html>

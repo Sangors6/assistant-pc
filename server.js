@@ -1,5 +1,6 @@
 const express = require('express')
 const Anthropic = require('@anthropic-ai/sdk')
+const crypto = require('crypto')
 
 const app = express()
 const claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -19,37 +20,48 @@ Ton style :
 - Tu donnes des étapes numérotées et concrètes
 - Si tu ne sais pas, tu le dis honnêtement`
 
-let historique = []
+// Un objet qui contient un historique par sessionId
+const sessions = {}
 
-app.get('/test', async (req, res) => {
-  const reponse = await claude.messages.create({
-    model: 'claude-sonnet-4-5',
-    max_tokens: 1024,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: 'user', content: 'Dis juste : je fonctionne !' }]
-  })
-  res.send(reponse.content[0].text)
-})
+// Nettoie les sessions inactives depuis plus de 2h
+setInterval(() => {
+  const maintenant = Date.now()
+  for (const id in sessions) {
+    if (maintenant - sessions[id].dernierAcces > 2 * 60 * 60 * 1000) {
+      delete sessions[id]
+    }
+  }
+}, 30 * 60 * 1000)
 
 app.post('/chat', async (req, res) => {
-  console.log('Message reçu :', req.body)
-  const messageUtilisateur = req.body.message
+  const { message, sessionId } = req.body
+
+  // Si pas de sessionId ou session inconnue, on en crée une nouvelle
+  if (!sessionId || !sessions[sessionId]) {
+    const nouvelId = crypto.randomUUID()
+    sessions[nouvelId] = { historique: [], dernierAcces: Date.now() }
+    if (!message) {
+      return res.json({ sessionId: nouvelId })
+    }
+  }
+
+  const id = sessionId && sessions[sessionId] ? sessionId : Object.keys(sessions).at(-1)
+  sessions[id].dernierAcces = Date.now()
 
   try {
-    historique.push({ role: 'user', content: messageUtilisateur })
+    sessions[id].historique.push({ role: 'user', content: message })
 
     const reponse = await claude.messages.create({
       model: 'claude-sonnet-4-5',
       max_tokens: 1024,
       system: SYSTEM_PROMPT,
-      messages: historique
+      messages: sessions[id].historique
     })
 
     const texteReponse = reponse.content[0].text
-    console.log('Réponse Claude :', texteReponse)
+    sessions[id].historique.push({ role: 'assistant', content: texteReponse })
 
-    historique.push({ role: 'assistant', content: texteReponse })
-    res.json({ reponse: texteReponse })
+    res.json({ reponse: texteReponse, sessionId: id })
 
   } catch (erreur) {
     console.log('Erreur :', erreur.message)
