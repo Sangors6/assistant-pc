@@ -169,7 +169,24 @@ app.use((req, res, next) => {
 })
 
 app.use(express.json({ limit: '10mb' }))
-app.use(express.static('public'))
+
+// Service des fichiers statiques avec une politique de cache stricte.
+// HTML : 'no-cache' = le navigateur DOIT revalider auprès du serveur avant
+// de réutiliser sa copie (304 si inchangé, sinon nouvelle version). Sans ça,
+// un déploiement peut rester invisible : le navigateur affiche l'ancienne
+// page tant que son cache n'a pas expiré. Les autres assets (svg, mp3)
+// changent rarement : cache court d'une heure, suffisant et sûr.
+app.use(express.static('public', {
+  etag: true,
+  lastModified: true,
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache')
+    } else {
+      res.setHeader('Cache-Control', 'public, max-age=3600')
+    }
+  }
+}))
 
 const SYSTEM_PROMPT = `Tu es un technicien informatique expérimenté intégré à PC Helper.
 
@@ -544,13 +561,27 @@ const HTTP_PORT = Number(process.env.PORT) || 3000
 const KEY_PATH = process.env.SSL_KEY || path.join(__dirname, 'certs', 'key.pem')
 const CERT_PATH = process.env.SSL_CERT || path.join(__dirname, 'certs', 'cert.pem')
 
+// Derrière un hébergeur (Render, Railway, Vercel...), c'est le proxy de
+// l'hébergeur qui assure TLS : l'app DOIT rester en HTTP simple sur PORT.
+// Si on activait notre propre HTTPS + redirection 301 ici, l'URL publique
+// renverrait un 301 PERMANENT vers https://<host>:3443 (port non exposé) —
+// 301 que les navigateurs mettent en cache quasi indéfiniment : le site
+// serait cassé durablement, même après correctif. On neutralise donc tout
+// HTTPS auto en production, quelle que soit la présence de certificats.
+const DERRIERE_PROXY =
+  process.env.NODE_ENV === 'production' ||
+  !!process.env.RENDER ||
+  !!process.env.WEBSITE_HOSTNAME
+
 let creds = null
-try {
-  if (fs.existsSync(KEY_PATH) && fs.existsSync(CERT_PATH)) {
-    creds = { key: fs.readFileSync(KEY_PATH), cert: fs.readFileSync(CERT_PATH) }
+if (!DERRIERE_PROXY) {
+  try {
+    if (fs.existsSync(KEY_PATH) && fs.existsSync(CERT_PATH)) {
+      creds = { key: fs.readFileSync(KEY_PATH), cert: fs.readFileSync(CERT_PATH) }
+    }
+  } catch (e) {
+    console.error('Lecture des certificats impossible :', e.message)
   }
-} catch (e) {
-  console.error('Lecture des certificats impossible :', e.message)
 }
 
 // On ne démarre les serveurs qu'une fois le schéma de base prêt :
@@ -569,7 +600,11 @@ initDb().then(() => {
       console.log(`HTTP (redirection -> HTTPS) sur le port ${HTTP_PORT}`)
     })
   } else {
-    console.warn('AVERTISSEMENT : aucun certificat trouvé, démarrage en HTTP non chiffré (dev uniquement).')
+    if (DERRIERE_PROXY) {
+      console.log('Mode production : HTTP simple, TLS assuré par le proxy de l\'hébergeur.')
+    } else {
+      console.warn('AVERTISSEMENT : aucun certificat trouvé, démarrage en HTTP non chiffré (dev uniquement).')
+    }
     app.listen(HTTP_PORT, () => {
       console.log(`Serveur démarré sur le port ${HTTP_PORT}`)
     })
