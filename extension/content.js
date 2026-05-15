@@ -86,7 +86,7 @@
         0%   { border-radius: 50%; }
         35%  { border-radius: 46% 54% 60% 40% / 55% 45% 58% 42%; }
         70%  { border-radius: 32% 30% 28% 30% / 30% 28% 32% 30%; }
-        100% { border-radius: 26px; }
+        100% { border-radius: 24px; }
       }
       .pch-launch {
         position: fixed; right: 22px; bottom: 22px; width: 66px; height: 66px;
@@ -118,11 +118,13 @@
       /* ---- Panneau : morph liquide depuis le lanceur ---- */
       .pch-wrap {
         position: fixed; left: 0; top: 0; width: 66px; height: 66px;
-        border-radius: 50%; overflow: hidden; display: none;
+        border-radius: 24px; overflow: hidden; display: none;
         box-shadow: 0 30px 90px rgba(0,0,0,.55), 0 2px 10px rgba(0,0,0,.4);
         background: #06090f; opacity: 0;
         will-change: left, top, width, height, border-radius, opacity;
       }
+      .pch-wrap iframe { opacity: 0; transition: opacity .3s ease .12s; }
+      .pch-wrap.revealed iframe { opacity: 1; }
       .pch-wrap.show { display: block; }
       .pch-wrap.open {
         opacity: 1;
@@ -154,6 +156,7 @@
   const launch = shadow.getElementById('launch')
   let monte = false
   let anime = false
+  let iframe = null
 
   try {
     chrome.storage.local.get('pchGeo', (v) => {
@@ -161,9 +164,17 @@
     })
   } catch {}
 
+  // Position STABLE du lanceur, calculée depuis sa position CSS fixe
+  // (right/bottom/taille). On n'utilise pas getBoundingClientRect : quand
+  // le lanceur est `.gone` (scale .2), le rect renvoyé est faux et le morph
+  // de fermeture visait alors un mauvais point.
+  const LAN = { size: 66, right: 22, bottom: 22 }
   function rectLanceur() {
-    const r = launch.getBoundingClientRect()
-    return { left: r.left, top: r.top, w: r.width, h: r.height }
+    return {
+      left: window.innerWidth - LAN.right - LAN.size,
+      top: window.innerHeight - LAN.bottom - LAN.size,
+      w: LAN.size, h: LAN.size
+    }
   }
 
   function ouvrir() {
@@ -173,6 +184,7 @@
       const f = document.createElement('iframe')
       f.src = chrome.runtime.getURL('panel/panel.html')
       f.allow = 'clipboard-write'
+      iframe = f
       wrap.appendChild(f)
       monte = true
     }
@@ -180,7 +192,8 @@
     const fin = cible()
 
     // État initial : à l'emplacement du lanceur, en pastille ronde.
-    wrap.classList.remove('closing', 'open')
+    // Contenu masqué (revealed retiré) pour éviter le flash écrasé.
+    wrap.classList.remove('closing', 'open', 'revealed')
     wrap.classList.add('show')
     wrap.style.left = dep.left + 'px'
     wrap.style.top = dep.top + 'px'
@@ -198,7 +211,14 @@
       wrap.style.top = fin.top + 'px'
       wrap.style.width = fin.w + 'px'
       wrap.style.height = fin.h + 'px'
-      setTimeout(() => { anime = false }, 620)
+      // Le contenu apparaît une fois la bulle suffisamment ouverte.
+      setTimeout(() => wrap.classList.add('revealed'), 220)
+      setTimeout(() => {
+        // On retire le rayon inline : la base CSS (24px) gouverne ensuite,
+        // donc le drag (animation:none) ne refait plus un cercle.
+        wrap.style.borderRadius = ''
+        anime = false
+      }, 640)
     })
   }
 
@@ -206,7 +226,7 @@
     if (anime || !wrap.classList.contains('open')) return
     anime = true
     const dep = rectLanceur()
-    wrap.classList.remove('open')
+    wrap.classList.remove('open', 'revealed') // contenu masqué pendant le repli
     wrap.classList.add('closing')
     wrap.style.left = dep.left + 'px'
     wrap.style.top = dep.top + 'px'
@@ -214,7 +234,7 @@
     wrap.style.height = dep.h + 'px'
     setTimeout(() => {
       wrap.classList.remove('show', 'closing')
-      wrap.style.borderRadius = '50%'
+      wrap.style.borderRadius = '' // la base CSS reprend la main
       launch.classList.remove('gone')
       anime = false
     }, 420)
@@ -232,6 +252,9 @@
   window.addEventListener('message', (e) => {
     const d = e.data
     if (!d || d.__pchelper == null) return
+    // Sécurité : ces commandes (déplacer/fermer/redimensionner) ne sont
+    // acceptées QUE depuis notre propre panneau, jamais depuis la page hôte.
+    if (!iframe || e.source !== iframe.contentWindow) return
 
     if (d.__pchelper === 'closePanel') {
       fermer()

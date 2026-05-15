@@ -256,7 +256,7 @@ html, body {
 /* ---- Suggestions + analyse (écran d'accueil) ---- */
 #suggestions {
   display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
-  margin: 16px 0 12px; width: 100%; max-width: 300px;
+  margin: 16px auto 12px; width: 100%; max-width: 300px;
 }
 .sug {
   cursor: pointer; padding: 10px 8px; border-radius: 14px;
