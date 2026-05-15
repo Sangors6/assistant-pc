@@ -37,7 +37,10 @@ app.disable('x-powered-by') // ne pas révéler la stack (Express)
 // pour que req.ip (rate-limit, verrouillage) et req.secure (HSTS) soient justes.
 // '1' = on fait confiance au premier proxy uniquement. Inoffensif en local.
 app.set('trust proxy', 1)
-const claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+// .trim() indispensable : une clé collée dans un dashboard d'hébergeur
+// embarque souvent un espace ou un retour-ligne final invisible, ce qui
+// provoque un 401 « marche en local, échoue en ligne ».
+const claude = new Anthropic({ apiKey: (process.env.ANTHROPIC_API_KEY || '').trim() })
 
 // Normalisation d'email : SQLite est sensible à la casse, donc sans ça
 // "A@x.com" et "a@x.com" créent deux comptes distincts.
@@ -50,6 +53,12 @@ if (!JWT_SECRET || JWT_SECRET.length < 32) {
 }
 if (!process.env.ANTHROPIC_API_KEY) {
   console.error('ERREUR FATALE : ANTHROPIC_API_KEY manquante. Arrêt du serveur.')
+  process.exit(1)
+}
+// Une clé au mauvais format ne sera détectée qu'au premier message sinon :
+// on échoue tôt et clairement (visible dans les logs de l'hébergeur).
+if (!/^sk-ant-/.test(process.env.ANTHROPIC_API_KEY.trim())) {
+  console.error('ERREUR FATALE : ANTHROPIC_API_KEY invalide (doit commencer par "sk-ant-"). Vérifie la variable chez l\'hébergeur.')
   process.exit(1)
 }
 
@@ -533,9 +542,38 @@ app.post('/chat', limiteurChat, authentifier, async (req, res) => {
 
   } catch (erreur) {
     if (clientParti || ac.signal.aborted) return // déconnexion volontaire, pas une vraie erreur
-    console.error('Erreur chat :', erreur.message)
+
+    // Diagnostic complet côté serveur (visible dans les logs de l'hébergeur).
+    // Les erreurs du SDK Anthropic exposent .status (code HTTP) et .error.
+    const status = erreur?.status
+    const typeApi = erreur?.error?.error?.type
+    console.error(
+      'Erreur chat :',
+      'status=' + (status ?? 'n/a'),
+      '| name=' + (erreur?.name ?? 'n/a'),
+      '| type=' + (typeApi ?? 'n/a'),
+      '| message=' + (erreur?.message ?? 'n/a')
+    )
+
+    // Message client adapté : on aide l'utilisateur sans fuiter de détail
+    // sensible, et on distingue une vraie panne de config d'un aléa réseau.
+    let messageClient = 'Une erreur est survenue. Réessaie.'
+    if (status === 401) {
+      messageClient = "Le service IA est mal configuré (clé API invalide). Contacte l'administrateur."
+    } else if (status === 403) {
+      messageClient = "Accès au service IA refusé. Contacte l'administrateur."
+    } else if (status === 400 && /credit|billing/i.test(erreur?.message || '')) {
+      messageClient = "Le service IA est temporairement indisponible (crédits épuisés)."
+    } else if (status === 404) {
+      messageClient = "Le modèle IA configuré est introuvable. Contacte l'administrateur."
+    } else if (status === 429) {
+      messageClient = 'Trop de demandes en ce moment. Réessaie dans un instant.'
+    } else if (status >= 500 || erreur?.name === 'APIConnectionError') {
+      messageClient = 'Le service IA est momentanément indisponible. Réessaie dans un instant.'
+    }
+
     if (!res.writableEnded) {
-      res.write(`data: ${JSON.stringify({ type: 'erreur', message: 'Une erreur est survenue. Réessaie.' })}\n\n`)
+      res.write(`data: ${JSON.stringify({ type: 'erreur', message: messageClient })}\n\n`)
       res.end()
     }
   }
