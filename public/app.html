@@ -373,16 +373,12 @@
       </div>
 
       <div class="pc-panel">
-        <div class="pc-row"><span class="pc-label">CPU</span><span class="pc-val" id="s-cpu">— %</span></div>
-        <div class="pc-bar"><div class="pc-bar-fill" id="b-cpu" style="width:0%"></div></div>
-        <div class="pc-row"><span class="pc-label">RAM</span><span class="pc-val" id="s-ram">— %</span></div>
-        <div class="pc-bar"><div class="pc-bar-fill" id="b-ram" style="width:0%"></div></div>
-        <div class="pc-row"><span class="pc-label">GPU</span><span class="pc-val" id="s-gpu">— %</span></div>
-        <div class="pc-bar"><div class="pc-bar-fill" id="b-gpu" style="width:0%"></div></div>
-        <div class="pc-row"><span class="pc-label">Temp CPU</span><span class="pc-val" id="s-temp">— °C</span></div>
-        <div class="pc-bar"><div class="pc-bar-fill" id="b-temp" style="width:0%"></div></div>
+        <div class="pc-row"><span class="pc-label">CPU</span><span class="pc-val" id="s-cpu">—</span></div>
+        <div class="pc-row"><span class="pc-label">RAM</span><span class="pc-val" id="s-ram">—</span></div>
+        <div class="pc-row"><span class="pc-label">GPU</span><span class="pc-val" id="s-gpu" style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</span></div>
+        <div class="pc-row"><span class="pc-label">Écran</span><span class="pc-val" id="s-ecran">—</span></div>
         <div class="pc-row" style="margin-bottom:0">
-          <span class="pc-label">Réseau</span><span class="pc-val" id="s-ping">— ms</span>
+          <span class="pc-label">Réseau</span><span class="pc-val" id="s-ping">—</span>
         </div>
       </div>
 
@@ -626,28 +622,48 @@
   resizeCanvas(); createParticles(); drawParticles()
   window.addEventListener('resize', () => { resizeCanvas(); createParticles() })
 
-async function animStats() {
+// Détection du GPU via WebGL (chaîne du pilote de rendu).
+function detecterGPU() {
   try {
-    const res = await fetch('/stats', { headers: { 'Authorization': `Bearer ${token}` } })
-    if (!res.ok) return
-    const data = await res.json()
-    document.getElementById('s-cpu').textContent = data.cpu + ' %'
-    document.getElementById('s-ram').textContent = data.ram + ' %'
-    document.getElementById('s-gpu').textContent = data.gpu + ' %'
-    document.getElementById('s-ping').textContent = data.ping + ' ms'
-    document.getElementById('b-cpu').style.width = data.cpu + '%'
-    document.getElementById('b-ram').style.width = data.ram + '%'
-    document.getElementById('b-gpu').style.width = data.gpu + '%'
-    if (data.temp > 0) {
-      const tempEl = document.getElementById('s-temp')
-      tempEl.textContent = data.temp + ' °C'
-      tempEl.style.color = data.temp > 85 ? 'var(--danger)' : data.temp > 70 ? '#f59e0b' : '#60a5fa'
-      document.getElementById('b-temp').style.width = Math.min(data.temp, 100) + '%'
-    }
-  } catch {}
+    const c = document.createElement('canvas')
+    const gl = c.getContext('webgl') || c.getContext('experimental-webgl')
+    if (!gl) return 'n/a'
+    const dbg = gl.getExtension('WEBGL_debug_renderer_info')
+    return (dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)
+                : gl.getParameter(gl.RENDERER)) || 'n/a'
+  } catch { return 'n/a' }
 }
-animStats()
-setInterval(animStats, 5000)
+
+// Infos matérielles RÉELLES du visiteur, lues côté navigateur (le serveur
+// distant ne peut pas voir le matériel du client). Lecture unique.
+function infoSysteme() {
+  const cpu = navigator.hardwareConcurrency
+  document.getElementById('s-cpu').textContent = cpu ? cpu + ' cœurs' : 'n/a'
+  const ram = navigator.deviceMemory
+  document.getElementById('s-ram').textContent = ram ? '≈ ' + ram + ' Go' : 'n/a'
+  const gpu = detecterGPU()
+  const gpuEl = document.getElementById('s-gpu')
+  gpuEl.textContent = gpu; gpuEl.title = gpu
+  document.getElementById('s-ecran').textContent =
+    window.screen.width + '×' + window.screen.height
+}
+
+// Latence réelle visiteur -> serveur (aller-retour d'une petite requête)
+// + type de connexion si l'API le permet.
+async function mesurerPing() {
+  const el = document.getElementById('s-ping')
+  try {
+    const t0 = performance.now()
+    await fetch('/favicon.svg', { cache: 'no-store' })
+    const ms = Math.round(performance.now() - t0)
+    const conn = navigator.connection && navigator.connection.effectiveType
+    el.textContent = ms + ' ms' + (conn ? ' · ' + conn : '')
+  } catch { el.textContent = 'hors ligne' }
+}
+
+infoSysteme()
+mesurerPing()
+setInterval(mesurerPing, 10000)
 chargerRecents()
 chargerPeripheriques()
 
@@ -890,6 +906,18 @@ chargerPeripheriques()
   }
 
   /* Conversations */
+  // Session expirée : on nettoie et on renvoie au login. Centralisé pour
+  // un comportement identique partout (avant : seul supprimerConv le gérait,
+  // d'où des conversations qui semblaient "disparues" sur token expiré).
+  function sessionExpiree(res) {
+    if (res.status === 401) {
+      localStorage.removeItem('token')
+      window.location.href = '/login.html'
+      return true
+    }
+    return false
+  }
+
   async function ouvrirConv() {
     welcomeCard.style.display = 'none'; sugGrid.style.display = 'none'
     document.querySelectorAll('.msg-row').forEach(m => m.remove())
@@ -897,6 +925,8 @@ chargerPeripheriques()
     document.getElementById('session-title').textContent = 'Conversations'
     try {
       const res = await fetch('/sessions', { headers: { 'Authorization': `Bearer ${token}` } })
+      if (sessionExpiree(res)) return
+      if (!res.ok) { panelConv.innerHTML = '<div class="conv-empty">Erreur de chargement</div>'; return }
       const sessions = await res.json()
       if (!sessions.length) { panelConv.innerHTML = '<div class="conv-empty">Aucune conversation sauvegardée</div>'; return }
       panelConv.innerHTML = ''
@@ -923,6 +953,8 @@ chargerPeripheriques()
     setNav(document.querySelectorAll('.nav-item')[0])
     try {
       const res = await fetch(`/historique/${sid}`, { headers: { 'Authorization': `Bearer ${token}` } })
+      if (sessionExpiree(res)) return
+      if (!res.ok) { ajouterMsg('Erreur de chargement.', 'assistant'); return }
       const msgs = await res.json(); msgCount = msgs.length
       document.getElementById('msg-counter').textContent = msgCount + ' msg'
       msgs.forEach(m => ajouterMsg(m.contenu, m.role))
@@ -933,10 +965,8 @@ chargerPeripheriques()
   async function supprimerConv(sid, div) {
     try {
       const res = await fetch(`/sessions/${sid}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } })
-      if (!res.ok) {
-        if (res.status === 401) { localStorage.removeItem('token'); window.location.href = '/login.html'; return }
-        return
-      }
+      if (sessionExpiree(res)) return
+      if (!res.ok) return
       div.style.transition = 'all 0.2s ease'
       div.style.opacity = '0'
       div.style.transform = 'translateX(12px)'
@@ -951,6 +981,7 @@ chargerPeripheriques()
   async function chargerRecents() {
     try {
       const res = await fetch('/sessions', { headers: { 'Authorization': `Bearer ${token}` } })
+      if (sessionExpiree(res)) return
       if (!res.ok) return
       const sessions = await res.json()
       const recentsEl = document.getElementById('sidebar-recents')
@@ -969,15 +1000,36 @@ chargerPeripheriques()
     } catch {}
   }
 
+  // Périphériques média détectables côté navigateur (sans permission, les
+  // noms ne sont pas exposés : on présente les types et quantités). Le bus
+  // USB complet n'est pas accessible depuis une page web — c'est une limite
+  // de sécurité du navigateur, pas un bug.
+  const PERIPH_MAP = {
+    audioinput: { nom: 'Microphone', icone: '🎤' },
+    audiooutput: { nom: 'Sortie audio', icone: '🎧' },
+    videoinput: { nom: 'Caméra', icone: '📷' }
+  }
+
+  async function listerPeripheriques() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return null
+    const devices = await navigator.mediaDevices.enumerateDevices()
+    const compte = {}
+    devices.forEach(d => { if (PERIPH_MAP[d.kind]) compte[d.kind] = (compte[d.kind] || 0) + 1 })
+    return Object.keys(compte).map(k => ({
+      nom: PERIPH_MAP[k].nom + (compte[k] > 1 ? ' ×' + compte[k] : ''),
+      type: PERIPH_MAP[k].nom,
+      icone: PERIPH_MAP[k].icone
+    }))
+  }
+
   async function chargerPeripheriques() {
     const listEl = document.getElementById('sidebar-periph-list')
     try {
-      const res = await fetch('/peripheriques', { headers: { 'Authorization': `Bearer ${token}` } })
-      if (!res.ok) { listEl.innerHTML = '<div class="periph-loading">Non disponible</div>'; return }
-      const periphs = await res.json()
-      if (!periphs.length) { listEl.innerHTML = '<div class="periph-loading">Aucun détecté</div>'; return }
+      const items = await listerPeripheriques()
+      if (!items) { listEl.innerHTML = '<div class="periph-loading">Non disponible</div>'; return }
+      if (!items.length) { listEl.innerHTML = '<div class="periph-loading">Aucun détecté</div>'; return }
       listEl.innerHTML = ''
-      periphs.slice(0, 5).forEach(p => {
+      items.slice(0, 5).forEach(p => {
         const item = document.createElement('div'); item.className = 'periph-item'
         const icon = document.createElement('span'); icon.className = 'periph-icon'; icon.textContent = p.icone
         const name = document.createElement('span'); name.className = 'periph-name'; name.textContent = p.nom
@@ -988,14 +1040,28 @@ chargerPeripheriques()
     } catch { listEl.innerHTML = '<div class="periph-loading">Erreur détection</div>' }
   }
 
+  // Envoie au chat un récapitulatif matériel RÉEL du visiteur (lu par le
+  // navigateur) pour analyse par l'assistant.
   async function analyserPeripheriques() {
     try {
-      const res = await fetch('/peripheriques', { headers: { 'Authorization': `Bearer ${token}` } })
-      if (!res.ok) return
-      const periphs = await res.json()
-      if (!periphs.length) { ajouterMsg('assistant', 'Aucun périphérique détecté sur ce poste.'); return }
-      const liste = periphs.map(p => `- ${p.nom} (${p.type})`).join('\n')
-      const msg = `Voici mes périphériques connectés :\n${liste}\n\nPeux-tu analyser ces périphériques et me donner des informations utiles : compatibilité, drivers recommandés, problèmes connus ?`
+      const cpu = navigator.hardwareConcurrency || '?'
+      const ram = navigator.deviceMemory ? '≈ ' + navigator.deviceMemory + ' Go' : 'inconnue'
+      const gpu = detecterGPU()
+      const ecran = window.screen.width + '×' + window.screen.height
+      let periphs = []
+      try {
+        const items = await listerPeripheriques()
+        if (items && items.length) periphs = items.map(p => p.nom)
+      } catch {}
+      const msg = `Voici la configuration de ma machine (lue par le navigateur) :
+- Processeur : ${cpu} cœurs logiques
+- Mémoire : ${ram}
+- Carte graphique : ${gpu}
+- Résolution écran : ${ecran}
+- Périphériques média : ${periphs.length ? periphs.join(', ') : 'non communiqués'}
+- Navigateur / OS : ${navigator.userAgent}
+
+Analyse cette configuration : est-elle équilibrée ? Quels sont les points faibles, les recommandations (drivers, mises à niveau) et les problèmes de compatibilité connus ?`
       nouveauChat()
       setTimeout(() => { inputEl.value = msg; envoyer() }, 150)
     } catch {}

@@ -4,7 +4,6 @@ const Anthropic = require('@anthropic-ai/sdk')
 const crypto = require('crypto')
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
-const si = require('systeminformation')
 const fs = require('fs')
 const path = require('path')
 const http = require('http')
@@ -23,12 +22,6 @@ const limiteurChat = rateLimit({
   windowMs: 60 * 1000,
   max: 20,
   message: { erreur: 'Trop de messages. Attends un moment.' }
-})
-
-const limiteurStats = rateLimit({
-  windowMs: 10 * 1000,
-  max: 5,
-  message: { erreur: 'Trop de requêtes.' }
 })
 
 const app = express()
@@ -347,63 +340,11 @@ app.post('/profil/mot-de-passe', authentifier, async (req, res) => {
   res.json({ message: 'Mot de passe modifié avec succès' })
 })
 
-app.get('/peripheriques', limiteurStats, authentifier, async (req, res) => {
-  try {
-    const [usbs, audios] = await Promise.all([si.usb(), si.audio()])
-    const categoriser = (nom) => {
-      const n = (nom || '').toLowerCase()
-      if (n.includes('mouse') || n.includes('souris')) return { type: 'souris', icone: '🖱️' }
-      if (n.includes('keyboard') || n.includes('clavier')) return { type: 'clavier', icone: '⌨️' }
-      if (n.includes('headset') || n.includes('headphone') || n.includes('casque') || n.includes('audio') || n.includes('sound') || n.includes('speaker') || n.includes('microphone') || n.includes('realtek') || n.includes('stereo') || n.includes('high definition')) return { type: 'audio', icone: '🎧' }
-      if (n.includes('camera') || n.includes('webcam')) return { type: 'camera', icone: '📷' }
-      if (n.includes('hub')) return { type: 'hub', icone: '🔗' }
-      return { type: 'autre', icone: '🔌' }
-    }
-    const vus = new Set()
-    const peripheriques = []
-    for (const u of usbs) {
-      const nom = (u.name || u.deviceName || '').trim()
-      if (!nom) continue
-      const cle = nom.toLowerCase()
-      if (vus.has(cle)) continue
-      vus.add(cle)
-      const { type, icone } = categoriser(nom)
-      peripheriques.push({ nom, type, icone })
-    }
-    for (const a of audios) {
-      const nom = (a.name || '').trim()
-      if (!nom) continue
-      const cle = nom.toLowerCase()
-      if (vus.has(cle)) continue
-      vus.add(cle)
-      peripheriques.push({ nom, type: 'audio', icone: '🎧' })
-    }
-    res.json(peripheriques)
-  } catch {
-    res.status(500).json({ erreur: 'Impossible de détecter les périphériques' })
-  }
-})
-
-app.get('/stats', limiteurStats, authentifier, async (req, res) => {
-  try {
-    const [load, mem, graphics, latency, temp] = await Promise.all([
-      si.currentLoad(),
-      si.mem(),
-      si.graphics(),
-      si.inetLatency(),
-      si.cpuTemperature()
-    ])
-    res.json({
-      cpu: Math.round(load.currentLoad),
-      ram: Math.round((mem.used / mem.total) * 100),
-      gpu: Math.round(graphics.controllers[0]?.utilizationGpu ?? 0),
-      ping: Math.round(latency),
-      temp: Math.round(temp.main ?? 0)
-    })
-  } catch {
-    res.status(500).json({ erreur: 'Stats non disponibles' })
-  }
-})
+// Note : les anciennes routes /stats et /peripheriques (lecture du
+// matériel via systeminformation) ont été retirées. Côté hébergeur, elles
+// lisaient le conteneur du serveur, pas le PC du visiteur — donc des
+// valeurs vides ou incohérentes. Ces informations sont désormais lues
+// côté navigateur (API Web) dans public/app.html.
 
 app.get('/historique/:sessionId', authentifier, async (req, res) => {
   if (!UUID_REGEX.test(req.params.sessionId)) return res.status(400).json({ erreur: 'Session invalide' })
