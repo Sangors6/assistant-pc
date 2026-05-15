@@ -33,6 +33,10 @@ const limiteurStats = rateLimit({
 
 const app = express()
 app.disable('x-powered-by') // ne pas révéler la stack (Express)
+// Derrière le proxy de l'hébergeur (Render/Railway/Vercel...) : indispensable
+// pour que req.ip (rate-limit, verrouillage) et req.secure (HSTS) soient justes.
+// '1' = on fait confiance au premier proxy uniquement. Inoffensif en local.
+app.set('trust proxy', 1)
 const claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 // Normalisation d'email : SQLite est sensible à la casse, donc sans ça
@@ -528,7 +532,6 @@ app.use((err, req, res, next) => {
   res.status(500).json({ erreur: 'Erreur serveur' })
 })
 
-// app.set('trust proxy', ...) seulement si déployé derrière un proxy de confiance.
 
 const HTTPS_PORT = Number(process.env.HTTPS_PORT) || 3443
 const HTTP_PORT = Number(process.env.PORT) || 3000
