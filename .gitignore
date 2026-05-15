@@ -1,3 +1,8 @@
 node_modules
 .env
 key.env
+pchelper.db
+pchelper.db-shm
+pchelper.db-wal
+certs
+.claude

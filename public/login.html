@@ -4,25 +4,118 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PC Helper</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/favicon.svg">
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
+    html { background: #03070d; }
+
     body {
       font-family: 'Inter', system-ui, sans-serif;
-      height: 100vh;
+      min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
       overflow: hidden;
-      background: #080c12;
+      background: radial-gradient(circle at 70% 38%, #071a32 0%, #03070d 50%, #02050a 100%);
+      color: #f5f8ff;
     }
 
-    body::before {
-      content: '';
+    /* Fondu d'entrée (transition douce depuis l'accueil) */
+    body { animation: loginIn .6s ease both; }
+    @keyframes loginIn { from { opacity: 0; } to { opacity: 1; } }
+    body.leaving, body.home-out { animation: none; }
+
+    /* Décor de fond (cohérent avec l'accueil / le chargement) */
+    .bg-grid, .bg-noise, .bg-glow, .bg-orb {
       position: fixed;
       inset: 0;
-      background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0, 120, 255, 0.08) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .bg-grid {
+      opacity: .14;
+      background:
+        linear-gradient(rgba(64, 128, 255, .12) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(64, 128, 255, .12) 1px, transparent 1px);
+      background-size: 70px 70px;
+      transform: perspective(760px) rotateX(70deg) translateY(34vh) scale(1.5);
+      transform-origin: bottom;
+    }
+
+    .bg-noise {
+      opacity: .10;
+      background-image: radial-gradient(rgba(255,255,255,.18) 1px, transparent 1px);
+      background-size: 3px 3px;
+      mask-image: linear-gradient(to bottom, transparent 0%, black 16%, black 86%, transparent 100%);
+    }
+
+    .bg-orb {
+      background:
+        radial-gradient(circle at 78% 42%, rgba(39, 127, 255, .20), transparent 24%),
+        radial-gradient(circle at 12% 60%, rgba(21, 90, 198, .14), transparent 26%);
+    }
+
+    .bg-glow {
+      background: radial-gradient(ellipse 70% 55% at 50% -16%, rgba(45, 130, 255, .14) 0%, transparent 70%);
+      animation: glowBreathe 5s ease-in-out infinite;
+    }
+    @keyframes glowBreathe { 0%,100% { opacity: .7; } 50% { opacity: 1; } }
+
+    /* Bouton retour accueil */
+    .home-btn {
+      position: fixed;
+      top: 26px;
+      left: 28px;
+      z-index: 20;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      height: 40px;
+      padding: 0 16px;
+      border-radius: 11px;
+      border: 1px solid rgba(98, 166, 255, .22);
+      background: rgba(8, 18, 35, .55);
+      backdrop-filter: blur(10px);
+      color: #b9c6de;
+      font-size: 13px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: .22s ease;
+    }
+    .home-btn:hover {
+      transform: translateY(-2px);
+      border-color: rgba(111, 178, 255, .45);
+      color: #fff;
+      background: rgba(13, 30, 55, .7);
+    }
+    .home-btn svg { width: 15px; height: 15px; fill: currentColor; }
+
+    /* Transition de sortie calée sur la durée du swoosh (~1.15 s) */
+    #card { transition: opacity 1.05s cubic-bezier(.7,0,.84,0), transform 1.05s cubic-bezier(.7,0,.84,0), filter 1.05s ease; }
+
+    body.leaving { background: #02040a; }
+    body.leaving .bg-glow,
+    body.leaving .home-btn { opacity: 0; transition: opacity .6s ease; }
+    body.leaving #card {
+      opacity: 0;
+      transform: translateY(-14px) scale(.955);
+      filter: blur(3px);
+      pointer-events: none;
+    }
+
+    /* Retour accueil : fondu rapide sans son */
+    body.home-out #card { transition: opacity .46s cubic-bezier(.7,0,.84,0), transform .46s cubic-bezier(.7,0,.84,0), filter .46s ease; }
+    body.home-out { background: #02040a; }
+    body.home-out .bg-glow,
+    body.home-out .home-btn { opacity: 0; transition: opacity .42s ease; }
+    body.home-out #card {
+      opacity: 0;
+      transform: translateY(10px) scale(.97);
+      filter: blur(3px);
       pointer-events: none;
     }
 
@@ -227,6 +320,18 @@
 </head>
 <body>
 
+  <audio id="snd-swoosh" src="/swoosh.mp3" preload="auto"></audio>
+
+  <div class="bg-grid"></div>
+  <div class="bg-noise"></div>
+  <div class="bg-orb"></div>
+  <div class="bg-glow"></div>
+
+  <a class="home-btn" href="/" aria-label="Retour à l'accueil">
+    <svg viewBox="0 0 24 24"><path d="M12 3.2 2.5 11h2.3v9h5v-6h4.4v6h5v-9h2.3L12 3.2Z"/></svg>
+    Accueil
+  </a>
+
   <div id="card">
     <div id="logo">
       <div id="logo-icon">🖥️</div>
@@ -331,7 +436,28 @@
         } else {
           localStorage.setItem('token', data.token)
           localStorage.setItem('email', data.email)
-          window.location.href = '/index.html'
+          document.body.classList.add('leaving')
+
+          var partiVers = false
+          function versChargement() {
+            if (partiVers) return
+            partiVers = true
+            window.location.href = '/chargement.html'
+          }
+
+          try {
+            var sw = document.getElementById('snd-swoosh')
+            sw.volume = 0.35
+            sw.currentTime = 0
+            // On ne quitte la page qu'à la fin réelle du son -> pas de coupure.
+            sw.addEventListener('ended', versChargement)
+            var p = sw.play()
+            if (p && p.catch) p.catch(function () { setTimeout(versChargement, 460) })
+            // Sécurité si l'événement 'ended' ne se déclenche pas.
+            setTimeout(versChargement, 5000)
+          } catch (e) {
+            setTimeout(versChargement, 460)
+          }
         }
 
       } catch {
@@ -344,8 +470,19 @@
       if (e.key === 'Enter') soumettre()
     })
 
+    // Retour vers l'accueil avec transition (sans son)
+    var btnAccueil = document.querySelector('.home-btn')
+    if (btnAccueil) {
+      btnAccueil.addEventListener('click', function (e) {
+        e.preventDefault()
+        if (document.body.classList.contains('home-out') || document.body.classList.contains('leaving')) return
+        document.body.classList.add('home-out')
+        setTimeout(function () { window.location.href = '/' }, 480)
+      })
+    }
+
     if (localStorage.getItem('token')) {
-      window.location.href = '/index.html'
+      window.location.href = '/app.html'
     }
   </script>
 </body>

@@ -4,9 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PC Helper</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/favicon.svg">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -148,6 +151,39 @@
     .typing-anim span { width: 5px; height: 5px; border-radius: 50%; background: var(--blue-light); opacity: 0.4; animation: tdot 1.2s infinite; }
     .typing-anim span:nth-child(2) { animation-delay: 0.2s; } .typing-anim span:nth-child(3) { animation-delay: 0.4s; }
     @keyframes tdot { 0%, 60%, 100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-5px); opacity: 1; } }
+    @keyframes wordIn { from { opacity: 0; transform: translateY(3px); filter: blur(1px); } to { opacity: 1; transform: translateY(0); filter: blur(0); } }
+    .stream-chunk { animation: wordIn 0.2s ease-out forwards; display: inline; }
+    @keyframes cursor-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+    .bubble.streaming::after { content: '▋'; display: inline-block; animation: cursor-blink 0.6s steps(1) infinite; color: var(--blue-light); font-size: 0.8em; margin-left: 2px; vertical-align: baseline; }
+
+    /* Sidebar scrollable */
+    #sidebar-scroll { flex: 1; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(37,99,235,0.1) transparent; min-height: 0; }
+    #sidebar-scroll::-webkit-scrollbar { width: 2px; }
+    #sidebar-scroll::-webkit-scrollbar-thumb { background: rgba(37,99,235,0.2); border-radius: 2px; }
+
+    /* Récents sidebar */
+    .recent-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px; font-size: 11.5px; color: rgba(71,85,105,0.7); cursor: pointer; transition: all 0.15s; margin-bottom: 1px; }
+    .recent-item:hover { background: rgba(37,99,235,0.07); color: #93c5fd; }
+    .recent-icon { font-size: 11px; opacity: 0.45; flex-shrink: 0; }
+    .recent-title { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* Raccourcis */
+    .shortcut-section { padding: 10px 10px 6px; border-top: 1px solid var(--border); margin-top: 4px; }
+    .shortcut-row { display: flex; align-items: center; justify-content: space-between; padding: 3px 6px; margin-bottom: 3px; }
+    .shortcut-key { font-size: 9px; font-family: 'JetBrains Mono', monospace; background: rgba(59,130,246,0.06); border: 1px solid rgba(59,130,246,0.12); color: #3b82f6; padding: 2px 5px; border-radius: 4px; white-space: nowrap; }
+    .shortcut-label { font-size: 10.5px; color: rgba(71,85,105,0.45); }
+
+    /* Périphériques */
+    .periph-section { padding: 10px 10px 8px; border-top: 1px solid var(--border); margin-top: 4px; }
+    .periph-list { display: flex; flex-direction: column; gap: 3px; margin: 6px 0 4px; }
+    .periph-item { display: flex; align-items: center; gap: 7px; padding: 4px 6px; border-radius: 6px; transition: background 0.15s; }
+    .periph-item:hover { background: rgba(59,130,246,0.05); }
+    .periph-icon { font-size: 12px; flex-shrink: 0; }
+    .periph-name { font-size: 10.5px; color: rgba(71,85,105,0.7); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .periph-dot { width: 5px; height: 5px; border-radius: 50%; background: #22c55e; flex-shrink: 0; box-shadow: 0 0 6px rgba(34,197,94,0.5); animation: blink 3s infinite; }
+    .periph-analyse-btn { width: 100%; padding: 6px 8px; background: rgba(59,130,246,0.07); border: 1px solid rgba(59,130,246,0.15); border-radius: 6px; color: #3b82f6; font-size: 10.5px; cursor: pointer; transition: background 0.2s; text-align: center; }
+    .periph-analyse-btn:hover { background: rgba(59,130,246,0.15); }
+    .periph-loading { font-size: 10px; color: rgba(71,85,105,0.4); padding: 3px 6px; }
 
     /* Image dans chat */
     .msg-image { max-width: 280px; max-height: 200px; border-radius: 10px; object-fit: cover; border: 1px solid rgba(59,130,246,0.2); display: block; margin-bottom: 6px; cursor: pointer; transition: opacity 0.15s; }
@@ -253,6 +289,41 @@
 </head>
 <body>
 
+<style>
+  #entry-veil {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    background: radial-gradient(circle at 50% 42%, #061018 0%, #03070d 46%, #010205 100%);
+    pointer-events: none;
+    opacity: 1;
+    animation: veilOut 1.05s cubic-bezier(.16,1,.3,1) .08s forwards;
+  }
+  @keyframes veilOut {
+    0% { opacity: 1; }
+    100% { opacity: 0; visibility: hidden; }
+  }
+
+  #exit-veil {
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    background: radial-gradient(circle at 50% 42%, #061018 0%, #03070d 46%, #010205 100%);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity .5s ease, visibility 0s linear .5s;
+  }
+  #exit-veil.show {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: all;
+    transition: opacity .5s ease;
+  }
+</style>
+<div id="entry-veil"></div>
+<div id="exit-veil"></div>
+
 <canvas id="bg-canvas"></canvas>
 
 <div id="app">
@@ -267,43 +338,70 @@
       </div>
     </div>
 
-    <div class="nav-group">
-      <div class="nav-label">Navigation</div>
-      <div class="nav-item active" onclick="nouveauChat(); setNav(this)">
-        <span class="nav-icon">💬</span> Nouveau chat
-      </div>
-      <div class="nav-item" onclick="ouvrirConv(); setNav(this)">
-        <span class="nav-icon">🗂️</span> Conversations
-      </div>
-      <div class="nav-item">
-        <span class="nav-icon">🧑‍💻</span> Contacter un technicien
-      </div>
-      <div class="nav-item">
-        <span class="nav-icon">🔬</span> Diagnostics
-      </div>
-      <div class="nav-item">
-        <span class="nav-icon">🛠️</span> Outils
-      </div>
-    </div>
+    <div id="sidebar-scroll">
 
-    <div class="sys-section">
-      <div class="nav-label">Système</div>
-      <div class="sys-row">
-        <span>🖥️</span> État du PC
-        <span class="badge-ok">Optimal</span>
+      <div class="nav-group">
+        <div class="nav-label">Navigation</div>
+        <div class="nav-item active" onclick="nouveauChat(); setNav(this)">
+          <span class="nav-icon">💬</span> Nouveau chat
+        </div>
+        <div class="nav-item" onclick="ouvrirConv(); setNav(this)">
+          <span class="nav-icon">🗂️</span> Conversations
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon">🧑‍💻</span> Contacter un technicien
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon">🔬</span> Diagnostics
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon">🛠️</span> Outils
+        </div>
       </div>
-    </div>
 
-    <div class="pc-panel">
-      <div class="pc-row"><span class="pc-label">CPU</span><span class="pc-val" id="s-cpu">— %</span></div>
-      <div class="pc-bar"><div class="pc-bar-fill" id="b-cpu" style="width:45%"></div></div>
-      <div class="pc-row"><span class="pc-label">RAM</span><span class="pc-val" id="s-ram">— %</span></div>
-      <div class="pc-bar"><div class="pc-bar-fill" id="b-ram" style="width:62%"></div></div>
-      <div class="pc-row"><span class="pc-label">GPU</span><span class="pc-val" id="s-gpu">— %</span></div>
-      <div class="pc-bar"><div class="pc-bar-fill" id="b-gpu" style="width:30%"></div></div>
-      <div class="pc-row" style="margin-bottom:0">
-        <span class="pc-label">Réseau</span><span class="pc-val" id="s-ping">— ms</span>
+      <div class="nav-group" id="recents-group" style="display:none">
+        <div class="nav-label">Récents</div>
+        <div id="sidebar-recents"></div>
       </div>
+
+      <div class="sys-section">
+        <div class="nav-label">Système</div>
+        <div class="sys-row">
+          <span>🖥️</span> État du PC
+          <span class="badge-ok">Optimal</span>
+        </div>
+      </div>
+
+      <div class="pc-panel">
+        <div class="pc-row"><span class="pc-label">CPU</span><span class="pc-val" id="s-cpu">— %</span></div>
+        <div class="pc-bar"><div class="pc-bar-fill" id="b-cpu" style="width:0%"></div></div>
+        <div class="pc-row"><span class="pc-label">RAM</span><span class="pc-val" id="s-ram">— %</span></div>
+        <div class="pc-bar"><div class="pc-bar-fill" id="b-ram" style="width:0%"></div></div>
+        <div class="pc-row"><span class="pc-label">GPU</span><span class="pc-val" id="s-gpu">— %</span></div>
+        <div class="pc-bar"><div class="pc-bar-fill" id="b-gpu" style="width:0%"></div></div>
+        <div class="pc-row"><span class="pc-label">Temp CPU</span><span class="pc-val" id="s-temp">— °C</span></div>
+        <div class="pc-bar"><div class="pc-bar-fill" id="b-temp" style="width:0%"></div></div>
+        <div class="pc-row" style="margin-bottom:0">
+          <span class="pc-label">Réseau</span><span class="pc-val" id="s-ping">— ms</span>
+        </div>
+      </div>
+
+      <div class="shortcut-section">
+        <div class="nav-label">Raccourcis</div>
+        <div class="shortcut-row"><span class="shortcut-key">Ctrl+K</span><span class="shortcut-label">Nouveau chat</span></div>
+        <div class="shortcut-row"><span class="shortcut-key">Ctrl+/</span><span class="shortcut-label">Focus saisie</span></div>
+        <div class="shortcut-row"><span class="shortcut-key">Esc</span><span class="shortcut-label">Fermer fenêtre</span></div>
+        <div class="shortcut-row"><span class="shortcut-key">Shift+↵</span><span class="shortcut-label">Saut de ligne</span></div>
+      </div>
+
+      <div class="periph-section">
+        <div class="nav-label">Périphériques</div>
+        <div id="sidebar-periph-list" class="periph-list">
+          <div class="periph-loading">Détection en cours…</div>
+        </div>
+        <button class="periph-analyse-btn" onclick="analyserPeripheriques()">Analyser mes périphériques</button>
+      </div>
+
     </div>
 
     <div id="user-bar" onclick="ouvrirProfil()">
@@ -471,7 +569,7 @@
     <div id="mo-sub">Es-tu sûr de vouloir supprimer cette conversation ? Elle sera définitivement supprimée.</div>
     <div id="mo-btns">
       <button id="mo-cancel" onclick="fermerModale()">Annuler</button>
-      <button id="mo-confirm" onclick="if(callbackModale){fermerModale();callbackModale();}">Supprimer</button>
+      <button id="mo-confirm" onclick="const cb = callbackModale; fermerModale(); if(cb) cb();">Supprimer</button>
     </div>
   </div>
 </div>
@@ -531,6 +629,7 @@
 async function animStats() {
   try {
     const res = await fetch('/stats', { headers: { 'Authorization': `Bearer ${token}` } })
+    if (!res.ok) return
     const data = await res.json()
     document.getElementById('s-cpu').textContent = data.cpu + ' %'
     document.getElementById('s-ram').textContent = data.ram + ' %'
@@ -539,12 +638,18 @@ async function animStats() {
     document.getElementById('b-cpu').style.width = data.cpu + '%'
     document.getElementById('b-ram').style.width = data.ram + '%'
     document.getElementById('b-gpu').style.width = data.gpu + '%'
-  } catch {
-    // Fallback si les stats ne sont pas disponibles
-  }
+    if (data.temp > 0) {
+      const tempEl = document.getElementById('s-temp')
+      tempEl.textContent = data.temp + ' °C'
+      tempEl.style.color = data.temp > 85 ? 'var(--danger)' : data.temp > 70 ? '#f59e0b' : '#60a5fa'
+      document.getElementById('b-temp').style.width = Math.min(data.temp, 100) + '%'
+    }
+  } catch {}
 }
 animStats()
 setInterval(animStats, 5000)
+chargerRecents()
+chargerPeripheriques()
 
   /* Input */
   const inputEl = document.getElementById('input')
@@ -582,7 +687,24 @@ setInterval(animStats, 5000)
 
   /* Nav */
   function setNav(el) { document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active')); el.classList.add('active') }
-  function deconnecter() { localStorage.clear(); window.location.href = '/login.html' }
+  function deconnecter() {
+    // Révocation serveur du token (keepalive : survit à la navigation)
+    try {
+      fetch('/auth/deconnexion', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        keepalive: true
+      }).catch(function () {})
+    } catch (e) {}
+    localStorage.clear()
+    var veil = document.getElementById('exit-veil')
+    if (veil) {
+      veil.classList.add('show')
+      setTimeout(function () { window.location.href = '/login.html' }, 520)
+    } else {
+      window.location.href = '/login.html'
+    }
+  }
 
   function nouveauChat() {
     sessionId = null; msgCount = 0
@@ -636,13 +758,17 @@ setInterval(animStats, 5000)
     const av = document.createElement('div'); av.className = `msg-av ${role}`; av.textContent = role === 'assistant' ? '🖥️' : initiale
     const wrap = document.createElement('div'); wrap.className = 'msg-wrap'
     const meta = document.createElement('div'); meta.className = 'msg-meta'
-    meta.innerHTML = `<span class="msg-name">${role === 'assistant' ? 'PC Helper' : pseudo}</span><span class="msg-time">${now()}</span>`
+    const nameSpan = document.createElement('span'); nameSpan.className = 'msg-name'
+    nameSpan.textContent = role === 'assistant' ? 'PC Helper' : pseudo
+    const timeSpan = document.createElement('span'); timeSpan.className = 'msg-time'
+    timeSpan.textContent = now()
+    meta.appendChild(nameSpan); meta.appendChild(timeSpan)
     if (role === 'user') meta.style.flexDirection = 'row-reverse'
     const bub = document.createElement('div'); bub.className = `bubble ${role}`
     if (texte === '__typing__') {
       bub.classList.add('typing'); bub.innerHTML = '<div class="typing-anim"><span></span><span></span><span></span></div>'
     } else if (role === 'assistant') {
-      bub.innerHTML = marked.parse(texte); bub.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b))
+      bub.innerHTML = DOMPurify.sanitize(marked.parse(texte)); bub.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b))
     } else { bub.textContent = texte }
     if (role === 'assistant' && texte !== '__typing__') {
       const copyBtn = document.createElement('button'); copyBtn.className = 'copy-btn'; copyBtn.title = 'Copier'; copyBtn.textContent = '📋'
@@ -667,7 +793,9 @@ setInterval(animStats, 5000)
     const av = document.createElement('div'); av.className = 'msg-av user'; av.textContent = initiale
     const wrap = document.createElement('div'); wrap.className = 'msg-wrap'
     const meta = document.createElement('div'); meta.className = 'msg-meta'; meta.style.flexDirection = 'row-reverse'
-    meta.innerHTML = `<span class="msg-name">${pseudo}</span><span class="msg-time">${now()}</span>`
+    const mName = document.createElement('span'); mName.className = 'msg-name'; mName.textContent = pseudo
+    const mTime = document.createElement('span'); mTime.className = 'msg-time'; mTime.textContent = now()
+    meta.appendChild(mName); meta.appendChild(mTime)
     const bub = document.createElement('div'); bub.className = 'bubble user'
     if (imageJointe && imageJointe.mediaType.startsWith('image/')) {
       const img = document.createElement('img'); img.src = `data:${imageJointe.mediaType};base64,${imageJointe.data}`
@@ -691,19 +819,74 @@ setInterval(animStats, 5000)
     try {
       const body = { message: texte, sessionId }
       if (imageEnvoyee) body.image = { data: imageEnvoyee.data, mediaType: imageEnvoyee.mediaType }
-      const res = await fetch('/chat', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(body) })
-      const data = await res.json()
+
+      const res = await fetch('/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(body)
+      })
+
       if (res.status === 401) { localStorage.removeItem('token'); window.location.href = '/login.html'; return }
-      if (res.status === 403 && data.erreur === 'limite_atteinte') { typingBub.classList.remove('typing'); typingBub.innerHTML = '🔒 Limite atteinte.'; sendBtn.disabled = false; return }
-      if (data.sessionId) { sessionId = data.sessionId; localStorage.setItem('sessionId', sessionId) }
-      typingBub.classList.remove('typing')
-      typingBub.innerHTML = marked.parse(data.reponse)
-      typingBub.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b))
-      msgCount++; document.getElementById('msg-counter').textContent = msgCount + ' msg'
+      if (res.status === 403) {
+        const data = await res.json()
+        if (data.erreur === 'limite_atteinte') { typingBub.classList.remove('typing'); typingBub.innerHTML = '🔒 Limite atteinte.'; return }
+      }
+      if (!res.ok) {
+        const data = await res.json()
+        typingBub.classList.remove('typing'); typingBub.textContent = data.erreur || 'Erreur de connexion.'
+        return
+      }
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let texteReponse = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop()
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          const json = line.slice(6).trim()
+          if (!json) continue
+          try {
+            const data = JSON.parse(json)
+            if (data.type === 'session') {
+              sessionId = data.sessionId
+              localStorage.setItem('sessionId', sessionId)
+            } else if (data.type === 'chunk') {
+              texteReponse += data.text
+              typingBub.classList.remove('typing')
+              typingBub.classList.add('streaming')
+              const span = document.createElement('span')
+              span.className = 'stream-chunk'
+              span.textContent = data.text
+              typingBub.appendChild(span)
+              chatArea.scrollTop = chatArea.scrollHeight
+            } else if (data.type === 'done') {
+              typingBub.classList.remove('streaming')
+              typingBub.innerHTML = DOMPurify.sanitize(marked.parse(texteReponse))
+              typingBub.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b))
+              msgCount++
+              document.getElementById('msg-counter').textContent = msgCount + ' msg'
+            } else if (data.type === 'erreur') {
+              typingBub.classList.remove('typing')
+              typingBub.textContent = data.message || 'Erreur de connexion.'
+            }
+          } catch {}
+        }
+      }
+
     } catch {
-      typingBub.classList.remove('typing'); typingBub.innerHTML = ''; typingBub.textContent = 'Erreur de connexion.'
+      typingBub.classList.remove('typing'); typingBub.textContent = 'Erreur de connexion.'
+    } finally {
+      sendBtn.disabled = false; inputEl.focus()
     }
-    sendBtn.disabled = false; inputEl.focus()
   }
 
   /* Conversations */
@@ -721,7 +904,11 @@ setInterval(animStats, 5000)
         const div = document.createElement('div'); div.className = 'conv-item'
         const dot = document.createElement('div'); dot.className = 'conv-dot'
         const body = document.createElement('div'); body.className = 'conv-body'
-        body.innerHTML = `<div class="conv-title">${s.premier_message.substring(0,55)}${s.premier_message.length>55?'...':''}</div><div class="conv-date">${new Date(s.derniere_activite).toLocaleDateString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>`
+        const convTitle = document.createElement('div'); convTitle.className = 'conv-title'
+        convTitle.textContent = s.premier_message.substring(0, 55) + (s.premier_message.length > 55 ? '...' : '')
+        const convDate = document.createElement('div'); convDate.className = 'conv-date'
+        convDate.textContent = new Date(s.derniere_activite).toLocaleDateString('fr-FR', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})
+        body.appendChild(convTitle); body.appendChild(convDate)
         body.onclick = () => chargerConv(s.session_id)
         const del = document.createElement('button'); del.className = 'btn-del'; del.textContent = '🗑️'
         del.onclick = e => { e.stopPropagation(); ouvrirModale(() => supprimerConv(s.session_id, div)) }
@@ -745,10 +932,73 @@ setInterval(animStats, 5000)
 
   async function supprimerConv(sid, div) {
     try {
-      await fetch(`/sessions/${sid}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } })
-      div.style.opacity = '0'; div.style.transform = 'translateX(12px)'; div.style.transition = 'all 0.2s ease'
-      setTimeout(() => { div.remove(); if (!panelConv.querySelector('.conv-item')) panelConv.innerHTML = '<div class="conv-empty">Aucune conversation sauvegardée</div>' }, 200)
-    } catch(e) { console.log(e) }
+      const res = await fetch(`/sessions/${sid}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } })
+      if (!res.ok) {
+        if (res.status === 401) { localStorage.removeItem('token'); window.location.href = '/login.html'; return }
+        return
+      }
+      div.style.transition = 'all 0.2s ease'
+      div.style.opacity = '0'
+      div.style.transform = 'translateX(12px)'
+      setTimeout(() => {
+        div.remove()
+        if (!panelConv.querySelector('.conv-item')) panelConv.innerHTML = '<div class="conv-empty">Aucune conversation sauvegardée</div>'
+        chargerRecents()
+      }, 200)
+    } catch(e) { console.error(e) }
+  }
+
+  async function chargerRecents() {
+    try {
+      const res = await fetch('/sessions', { headers: { 'Authorization': `Bearer ${token}` } })
+      if (!res.ok) return
+      const sessions = await res.json()
+      const recentsEl = document.getElementById('sidebar-recents')
+      const recentsGroup = document.getElementById('recents-group')
+      if (!sessions.length) { recentsGroup.style.display = 'none'; return }
+      recentsGroup.style.display = 'block'
+      recentsEl.innerHTML = ''
+      sessions.slice(0, 3).forEach(s => {
+        const item = document.createElement('div'); item.className = 'recent-item'
+        const icon = document.createElement('span'); icon.className = 'recent-icon'; icon.textContent = '💬'
+        const title = document.createElement('span'); title.className = 'recent-title'
+        title.textContent = (s.premier_message || 'Sans titre').substring(0, 28)
+        item.onclick = () => { chargerConv(s.session_id); setNav(document.querySelectorAll('.nav-item')[0]) }
+        item.appendChild(icon); item.appendChild(title); recentsEl.appendChild(item)
+      })
+    } catch {}
+  }
+
+  async function chargerPeripheriques() {
+    const listEl = document.getElementById('sidebar-periph-list')
+    try {
+      const res = await fetch('/peripheriques', { headers: { 'Authorization': `Bearer ${token}` } })
+      if (!res.ok) { listEl.innerHTML = '<div class="periph-loading">Non disponible</div>'; return }
+      const periphs = await res.json()
+      if (!periphs.length) { listEl.innerHTML = '<div class="periph-loading">Aucun détecté</div>'; return }
+      listEl.innerHTML = ''
+      periphs.slice(0, 5).forEach(p => {
+        const item = document.createElement('div'); item.className = 'periph-item'
+        const icon = document.createElement('span'); icon.className = 'periph-icon'; icon.textContent = p.icone
+        const name = document.createElement('span'); name.className = 'periph-name'; name.textContent = p.nom
+        const dot = document.createElement('span'); dot.className = 'periph-dot'
+        item.appendChild(icon); item.appendChild(name); item.appendChild(dot)
+        listEl.appendChild(item)
+      })
+    } catch { listEl.innerHTML = '<div class="periph-loading">Erreur détection</div>' }
+  }
+
+  async function analyserPeripheriques() {
+    try {
+      const res = await fetch('/peripheriques', { headers: { 'Authorization': `Bearer ${token}` } })
+      if (!res.ok) return
+      const periphs = await res.json()
+      if (!periphs.length) { ajouterMsg('assistant', 'Aucun périphérique détecté sur ce poste.'); return }
+      const liste = periphs.map(p => `- ${p.nom} (${p.type})`).join('\n')
+      const msg = `Voici mes périphériques connectés :\n${liste}\n\nPeux-tu analyser ces périphériques et me donner des informations utiles : compatibilité, drivers recommandés, problèmes connus ?`
+      nouveauChat()
+      setTimeout(() => { inputEl.value = msg; envoyer() }, 150)
+    } catch {}
   }
 
   /* Modale */
@@ -772,7 +1022,10 @@ setInterval(animStats, 5000)
       document.getElementById('stat-conv').textContent = data.nb_conversations
       document.getElementById('stat-msg').textContent = data.nb_messages
       document.getElementById('info-email').textContent = data.email
-      document.getElementById('info-plan').textContent = data.plan.charAt(0).toUpperCase() + data.plan.slice(1)
+      const planDisplay = data.plan.charAt(0).toUpperCase() + data.plan.slice(1)
+      document.getElementById('info-plan').textContent = planDisplay
+      document.getElementById('profil-plan-badge').textContent = planDisplay
+      document.getElementById('user-plan').textContent = planDisplay
 
       const dateCreation = data.cree_le ? new Date(data.cree_le) : null
       const dateActivite = data.derniere_activite ? new Date(data.derniere_activite) : null
