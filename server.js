@@ -286,6 +286,25 @@ app.post('/auth/deconnexion', authentifier, (req, res) => {
   res.json({ message: 'Déconnecté' })
 })
 
+// Refresh silencieux : prolonge la session d'un utilisateur déjà
+// authentifié (nouveau token, nouvelle expiration). L'ancien token reste
+// valide jusqu'à sa propre expiration (≤ 24 h) — pas de coupure en vol.
+app.post('/auth/refresh', authentifier, async (req, res) => {
+  try {
+    const u = await one('SELECT id, email, plan, mdp_version FROM utilisateurs WHERE id = $1', [req.utilisateur.id])
+    if (!u) return res.status(401).json({ erreur: 'Session expirée' })
+    const token = jwt.sign(
+      { id: u.id, email: u.email, plan: u.plan, mdp_version: u.mdp_version },
+      JWT_SECRET,
+      { expiresIn: TOKEN_TTL, jwtid: crypto.randomUUID(), algorithm: 'HS256' }
+    )
+    res.json({ token })
+  } catch (erreur) {
+    console.error('Refresh :', erreur.message)
+    res.status(500).json({ erreur: 'Service indisponible' })
+  }
+})
+
 app.get('/auth/moi', authentifier, async (req, res) => {
   try {
     const utilisateur = await one('SELECT id, email, plan, messages_utilises FROM utilisateurs WHERE id = $1', [req.utilisateur.id])
@@ -450,10 +469,14 @@ app.post('/chat', limiteurChat, authentifier, async (req, res) => {
 
   const id = sessionId || crypto.randomUUID()
 
+  // On n'envoie à l'IA que les 10 derniers messages (économie de tokens et
+  // de coût) : on prend les 10 plus récents puis on rétablit l'ordre
+  // chronologique. L'historique COMPLET reste persisté en base.
   const historique = await query(
-    'SELECT role, contenu as content FROM conversations WHERE utilisateur_id = $1 AND session_id = $2 ORDER BY cree_le ASC',
+    'SELECT role, contenu as content FROM conversations WHERE utilisateur_id = $1 AND session_id = $2 ORDER BY cree_le DESC LIMIT 10',
     [utilisateur.id, id]
   )
+  historique.reverse()
 
   let contenuMessage
   if (image) {
@@ -483,9 +506,18 @@ app.post('/chat', limiteurChat, authentifier, async (req, res) => {
   let clientParti = false
   res.on('close', () => { clientParti = true; ac.abort() })
 
-  try {
-    let texteReponse = ''
+  const TIMEOUT_MS = 30000
+  let texteReponse = ''
+  let premierChunk = false
+  let timedOut = false
+  // Coupe l'appel si l'IA ne répond pas dans les 30 s.
+  const minuteur = setTimeout(() => { timedOut = true; ac.abort() }, TIMEOUT_MS)
 
+  const estSurcharge = (e) =>
+    e?.status === 503 || e?.status === 529 ||
+    e?.error?.error?.type === 'overloaded_error'
+
+  async function consommerStream() {
     const stream = claude.messages.stream({
       model: 'claude-sonnet-4-5',
       max_tokens: 4096,
@@ -498,8 +530,26 @@ app.post('/chat', limiteurChat, authentifier, async (req, res) => {
       if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
         const chunk = event.delta.text
         texteReponse += chunk
+        premierChunk = true
         res.write(`data: ${JSON.stringify({ type: 'chunk', text: chunk })}\n\n`)
       }
+    }
+  }
+
+  try {
+    try {
+      await consommerStream()
+    } catch (e) {
+      // Surcharge temporaire de l'IA (503/529) : une seule nouvelle tentative
+      // après 3 s, et uniquement si rien n'a encore été envoyé au client.
+      if (estSurcharge(e) && !premierChunk && !clientParti && !timedOut) {
+        await new Promise((r) => setTimeout(r, 3000))
+        await consommerStream()
+      } else {
+        throw e
+      }
+    } finally {
+      clearTimeout(minuteur)
     }
 
     if (clientParti) return // rien à persister, réponse incomplète
@@ -512,10 +562,9 @@ app.post('/chat', limiteurChat, authentifier, async (req, res) => {
     res.end()
 
   } catch (erreur) {
-    if (clientParti || ac.signal.aborted) return // déconnexion volontaire, pas une vraie erreur
+    if (clientParti) return
+    if (ac.signal.aborted && !timedOut) return // déconnexion volontaire
 
-    // Diagnostic complet côté serveur (visible dans les logs de l'hébergeur).
-    // Les erreurs du SDK Anthropic exposent .status (code HTTP) et .error.
     const status = erreur?.status
     const typeApi = erreur?.error?.error?.type
     console.error(
@@ -523,13 +572,15 @@ app.post('/chat', limiteurChat, authentifier, async (req, res) => {
       'status=' + (status ?? 'n/a'),
       '| name=' + (erreur?.name ?? 'n/a'),
       '| type=' + (typeApi ?? 'n/a'),
+      '| timeout=' + timedOut,
       '| message=' + (erreur?.message ?? 'n/a')
     )
 
-    // Message client adapté : on aide l'utilisateur sans fuiter de détail
-    // sensible, et on distingue une vraie panne de config d'un aléa réseau.
+    // Message clair en français, sans fuite de détail sensible.
     let messageClient = 'Une erreur est survenue. Réessaie.'
-    if (status === 401) {
+    if (timedOut) {
+      messageClient = "Le service IA met trop de temps à répondre (plus de 30 s). Réessaie."
+    } else if (status === 401) {
       messageClient = "Le service IA est mal configuré (clé API invalide). Contacte l'administrateur."
     } else if (status === 403) {
       messageClient = "Accès au service IA refusé. Contacte l'administrateur."
@@ -538,7 +589,9 @@ app.post('/chat', limiteurChat, authentifier, async (req, res) => {
     } else if (status === 404) {
       messageClient = "Le modèle IA configuré est introuvable. Contacte l'administrateur."
     } else if (status === 429) {
-      messageClient = 'Trop de demandes en ce moment. Réessaie dans un instant.'
+      messageClient = "Le service IA est très sollicité (quota atteint). Réessaie dans un moment."
+    } else if (estSurcharge(erreur)) {
+      messageClient = "Le service IA est momentanément surchargé. Réessaie dans un instant."
     } else if (status >= 500 || erreur?.name === 'APIConnectionError') {
       messageClient = 'Le service IA est momentanément indisponible. Réessaie dans un instant.'
     }

@@ -572,8 +572,19 @@
 
 <script>
   /* Auth */
-  const token = localStorage.getItem('token')
+  let token = localStorage.getItem('token')
   if (!token) window.location.href = '/login.html'
+
+  // Refresh silencieux : prolonge la session à l'ouverture (token ≤ 24 h).
+  // Échec ignoré ici : les gestionnaires 401 existants gèrent l'expiration
+  // réelle (pas de boucle de redirection).
+  ;(function refreshSilencieux () {
+    if (!token) return
+    fetch('/auth/refresh', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } })
+      .then(function (r) { return r.ok ? r.json() : null })
+      .then(function (d) { if (d && d.token) { token = d.token; localStorage.setItem('token', d.token) } })
+      .catch(function () {})
+  })()
 
   const email = localStorage.getItem('email') || ''
   const pseudo = email.split('@')[0] || 'utilisateur'

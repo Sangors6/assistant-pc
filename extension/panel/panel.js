@@ -156,6 +156,7 @@ logoutBtn.addEventListener('click', async () => {
   sessionId = null
   await store.del('token')
   await store.del('sessionId')
+  await store.del('email')
   montrerLogin()
 })
 

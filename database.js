@@ -65,6 +65,9 @@ async function initDb() {
   await pool.query(`ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS mdp_version INTEGER DEFAULT 0`)
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_conv_user ON conversations(utilisateur_id)`)
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_conv_session ON conversations(utilisateur_id, session_id)`)
+  // Sert exactement les requêtes chaudes : historique et chargement du
+  // contexte (WHERE utilisateur_id, session_id ORDER BY cree_le). Idempotent.
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_conv_chrono ON conversations(utilisateur_id, session_id, cree_le)`)
 }
 
 module.exports = { pool, query, one, run, initDb }
