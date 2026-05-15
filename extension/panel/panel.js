@@ -219,7 +219,9 @@ function ajouterMsg(texte, role) {
   row.className = 'row ' + (role === 'user' ? 'user' : 'bot')
   const av = document.createElement('div')
   av.className = 'av'
-  av.textContent = role === 'user' ? '🙂' : '🖥️'
+  av.innerHTML = role === 'user'
+    ? '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 19.5a7 7 0 0 1 14 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>'
+    : '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="12" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9 20h6M12 16.5V20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>'
   const bub = document.createElement('div')
   bub.className = 'bub'
   if (texte === '__typing__') {

@@ -134,8 +134,18 @@
           width .56s cubic-bezier(.34,1.3,.5,1),
           height .56s cubic-bezier(.34,1.3,.5,1),
           opacity .3s ease;
-        animation: pch-liquid .62s cubic-bezier(.5,0,.2,1) forwards;
       }
+      /* Morph liquide UNIQUEMENT à l'ouverture, classe transitoire :
+         ainsi rien ne peut le rejouer (ex. fin de drag). */
+      .pch-wrap.morphing { animation: pch-liquid .62s cubic-bezier(.5,0,.2,1) forwards; }
+      /* Atterrissage subtil quand on relâche après un déplacement :
+         une micro-respiration élastique, voulue et discrète. */
+      @keyframes pch-settle {
+        0%   { transform: scale(1); }
+        38%  { transform: scale(1.015); }
+        100% { transform: scale(1); }
+      }
+      .pch-wrap.settle { animation: pch-settle .36s cubic-bezier(.34,1.56,.64,1); }
       .pch-wrap.closing {
         transition: left .4s ease, top .4s ease, width .4s ease,
                     height .4s ease, opacity .34s ease, border-radius .4s ease;
@@ -148,7 +158,13 @@
     </style>
     <div class="pch-wrap" id="wrap"></div>
     <button class="pch-launch" id="launch" title="Assistant PC Helper">
-      <span class="ic">🖥️</span>
+      <span class="ic">
+        <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="13" rx="2.5" fill="none" stroke="#fff" stroke-width="1.9"/>
+          <path d="M8.5 21h7M12 17v4" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round"/>
+          <path d="M7.5 10.5l2.4 2.4 4.6-4.8" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
     </button>
   `
 
@@ -193,7 +209,7 @@
 
     // État initial : à l'emplacement du lanceur, en pastille ronde.
     // Contenu masqué (revealed retiré) pour éviter le flash écrasé.
-    wrap.classList.remove('closing', 'open', 'revealed')
+    wrap.classList.remove('closing', 'open', 'revealed', 'settle')
     wrap.classList.add('show')
     wrap.style.left = dep.left + 'px'
     wrap.style.top = dep.top + 'px'
@@ -206,7 +222,7 @@
     // Reflow puis cible -> morph liquide.
     void wrap.offsetWidth
     requestAnimationFrame(() => {
-      wrap.classList.add('open')
+      wrap.classList.add('open', 'morphing')
       wrap.style.left = fin.left + 'px'
       wrap.style.top = fin.top + 'px'
       wrap.style.width = fin.w + 'px'
@@ -214,8 +230,10 @@
       // Le contenu apparaît une fois la bulle suffisamment ouverte.
       setTimeout(() => wrap.classList.add('revealed'), 220)
       setTimeout(() => {
-        // On retire le rayon inline : la base CSS (24px) gouverne ensuite,
-        // donc le drag (animation:none) ne refait plus un cercle.
+        // Fin du morph : on retire la classe d'animation transitoire et le
+        // rayon inline -> la base CSS (24px) gouverne, le morph ne peut
+        // plus être rejoué (fin de drag = plus de cercle).
+        wrap.classList.remove('morphing')
         wrap.style.borderRadius = ''
         anime = false
       }, 640)
@@ -274,6 +292,11 @@
     } else if (d.__pchelper === 'dragEnd' && drag) {
       drag = null
       wrap.classList.remove('dragging')
+      // Atterrissage : micro-respiration élastique, discrète et voulue.
+      wrap.classList.remove('settle')
+      void wrap.offsetWidth
+      wrap.classList.add('settle')
+      setTimeout(() => wrap.classList.remove('settle'), 380)
       persister()
     } else if (d.__pchelper === 'setSize' && TAILLES[d.preset]) {
       geo.preset = d.preset
