@@ -1,0 +1,20 @@
+# Déploiement Render (hébergeur lié à GitHub, redéploiement auto sur push main).
+# Les secrets ne sont PAS dans ce fichier : Render les demandera dans le
+# dashboard (sync: false) pour ne jamais les exposer dans le dépôt.
+services:
+  - type: web
+    name: assistant-pc
+    runtime: node
+    plan: free
+    region: frankfurt
+    branch: main
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
