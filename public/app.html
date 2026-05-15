@@ -634,18 +634,55 @@ function detecterGPU() {
   } catch { return 'n/a' }
 }
 
-// Infos matérielles RÉELLES du visiteur, lues côté navigateur (le serveur
-// distant ne peut pas voir le matériel du client). Lecture unique.
-function infoSysteme() {
-  const cpu = navigator.hardwareConcurrency
-  document.getElementById('s-cpu').textContent = cpu ? cpu + ' cœurs' : 'n/a'
-  const ram = navigator.deviceMemory
-  document.getElementById('s-ram').textContent = ram ? '≈ ' + ram + ' Go' : 'n/a'
+// Si l'extension PC Helper est installée, elle expose le VRAI matériel
+// (chrome.system.*). On la sollicite via postMessage avec un court délai ;
+// sans réponse, on retombe sur les API navigateur (approximatives).
+function materielExtension(timeout = 900) {
+  return new Promise((resolve) => {
+    const id = 'hw-' + Math.random().toString(36).slice(2)
+    let fini = false
+    const fin = (v) => { if (!fini) { fini = true; window.removeEventListener('message', onMsg); resolve(v) } }
+    function onMsg(e) {
+      if (e.source !== window) return
+      const d = e.data
+      if (d && d.__pchelper === 'hwRes' && d.id === id) fin(d.ok ? d.data : null)
+    }
+    window.addEventListener('message', onMsg)
+    window.postMessage({ __pchelper: 'hwReq', id }, window.location.origin)
+    setTimeout(() => fin(null), timeout)
+  })
+}
+
+// Infos matérielles du visiteur : réelles via l'extension, sinon repli
+// navigateur. Le serveur distant ne peut pas voir le matériel du client.
+async function infoSysteme() {
+  const hw = await materielExtension()
+  const elCpu = document.getElementById('s-cpu')
+  const elRam = document.getElementById('s-ram')
+  const elEcran = document.getElementById('s-ecran')
+
+  if (hw && hw.cpu) {
+    elCpu.textContent = `${hw.cpu.charge}% · ${hw.cpu.coeurs} cœurs`
+    elCpu.title = hw.cpu.modele || ''
+  } else {
+    const cpu = navigator.hardwareConcurrency
+    elCpu.textContent = cpu ? cpu + ' cœurs' : 'n/a'
+  }
+
+  if (hw && hw.memoire) {
+    elRam.textContent = `${hw.memoire.utiliseGo}/${hw.memoire.totalGo} Go`
+  } else {
+    const ram = navigator.deviceMemory
+    elRam.textContent = ram ? '≈ ' + ram + ' Go' : 'n/a'
+  }
+
   const gpu = detecterGPU()
   const gpuEl = document.getElementById('s-gpu')
   gpuEl.textContent = gpu; gpuEl.title = gpu
-  document.getElementById('s-ecran').textContent =
-    window.screen.width + '×' + window.screen.height
+
+  elEcran.textContent = (hw && hw.ecran)
+    ? hw.ecran
+    : window.screen.width + '×' + window.screen.height
 }
 
 // Latence réelle visiteur -> serveur (aller-retour d'une petite requête)
@@ -1040,21 +1077,32 @@ chargerPeripheriques()
     } catch { listEl.innerHTML = '<div class="periph-loading">Erreur détection</div>' }
   }
 
-  // Envoie au chat un récapitulatif matériel RÉEL du visiteur (lu par le
-  // navigateur) pour analyse par l'assistant.
+  // Envoie au chat un récapitulatif matériel du visiteur pour analyse.
+  // Données RÉELLES via l'extension si présente, sinon API navigateur.
   async function analyserPeripheriques() {
     try {
-      const cpu = navigator.hardwareConcurrency || '?'
-      const ram = navigator.deviceMemory ? '≈ ' + navigator.deviceMemory + ' Go' : 'inconnue'
+      const hw = await materielExtension()
+      let cpu, ram, ecran
+      if (hw && hw.cpu) {
+        cpu = `${hw.cpu.modele || 'CPU'} — ${hw.cpu.coeurs} cœurs (charge ${hw.cpu.charge}%)`
+      } else {
+        cpu = `${navigator.hardwareConcurrency || '?'} cœurs logiques`
+      }
+      if (hw && hw.memoire) {
+        ram = `${hw.memoire.utiliseGo} / ${hw.memoire.totalGo} Go utilisés`
+      } else {
+        ram = navigator.deviceMemory ? '≈ ' + navigator.deviceMemory + ' Go' : 'inconnue'
+      }
+      ecran = (hw && hw.ecran) ? hw.ecran : window.screen.width + '×' + window.screen.height
       const gpu = detecterGPU()
-      const ecran = window.screen.width + '×' + window.screen.height
+      const source = (hw && hw.cpu) ? 'extension PC Helper' : 'navigateur'
       let periphs = []
       try {
         const items = await listerPeripheriques()
         if (items && items.length) periphs = items.map(p => p.nom)
       } catch {}
-      const msg = `Voici la configuration de ma machine (lue par le navigateur) :
-- Processeur : ${cpu} cœurs logiques
+      const msg = `Voici la configuration de ma machine (lue via ${source}) :
+- Processeur : ${cpu}
 - Mémoire : ${ram}
 - Carte graphique : ${gpu}
 - Résolution écran : ${ecran}

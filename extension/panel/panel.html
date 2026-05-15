@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="panel.css">
+  <title>PC Helper</title>
+</head>
+<body>
+  <div id="app">
+    <div id="hdr">
+      <div class="logo">🖥️</div>
+      <div class="titles">
+        <div class="t1">PC Helper</div>
+        <div class="t2" id="hdr-sub">Expert support système</div>
+      </div>
+      <button id="btn-logout" title="Déconnexion" style="display:none">⏏</button>
+      <button id="btn-close" title="Fermer">✕</button>
+    </div>
+
+    <!-- Connexion -->
+    <form id="login">
+      <h2>Connexion</h2>
+      <p>Connecte-toi avec ton compte PC Helper.</p>
+      <input id="email" type="email" placeholder="Email" autocomplete="username" required>
+      <input id="mdp" type="password" placeholder="Mot de passe" autocomplete="current-password" required>
+      <div class="msg-err" id="login-err"></div>
+      <button id="login-btn" type="submit">Se connecter</button>
+    </form>
+
+    <!-- Chat -->
+    <div id="chat">
+      <div id="hw"></div>
+      <div id="msgs">
+        <div id="welcome">
+          <div class="big">🖥️</div>
+          <h3>Salut ! 👋</h3>
+          <p>Décris ton problème PC, Windows, réseau ou gaming.</p>
+        </div>
+      </div>
+      <div id="bar">
+        <textarea id="input" rows="1" placeholder="Décris ton problème..."></textarea>
+        <button id="send" title="Envoyer">➤</button>
+      </div>
+    </div>
+  </div>
+  <script src="panel.js"></script>
+</body>
+</html>
