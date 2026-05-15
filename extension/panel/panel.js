@@ -114,10 +114,49 @@ function chargerMateriel() {
     }
     if (d.memoire) chips.push(`<span class="chip">RAM <b>${d.memoire.utiliseGo}/${d.memoire.totalGo} Go</b></span>`)
     if (d.ecran) chips.push(`<span class="chip">Écran <b>${d.ecran}</b></span>`)
-    if (!chips.length) { hw.style.display = 'none'; return }
-    hw.innerHTML = chips.join('')
-    hw.style.display = 'flex'
+    if (!chips.length) { hw.style.display = 'none' }
+    else { hw.innerHTML = chips.join(''); hw.style.display = 'flex' }
+
+    // 4.2 — message d'accueil personnalisé avec les vraies specs détectées,
+    // intégré à l'écran d'accueil (zéro coût IA, design préservé).
+    const w = document.getElementById('welcome')
+    if (w && d && d.cpu) {
+      const p = w.querySelector('p')
+      if (p) {
+        let txt = `Bonjour 👋 Configuration détectée : CPU à ${d.cpu.charge}%, ${d.cpu.coeurs} cœurs`
+        if (d.memoire) txt += `, RAM ${d.memoire.utiliseGo}/${d.memoire.totalGo} Go`
+        txt += '. Décris ton problème, ou choisis une piste :'
+        p.textContent = txt
+      }
+    }
   })
+}
+
+/* ---------- Connectivité (4.1) ---------- */
+const netbar = $('netbar')
+let reconnectTimer = null
+function setHorsLigne() {
+  netbar.className = 'show warn'
+  netbar.innerHTML = '<span class="pulse"></span> Serveur injoignable — nouvelle tentative…'
+  if (!reconnectTimer) {
+    reconnectTimer = setInterval(async () => {
+      try {
+        const r = await fetch(API_BASE + '/favicon.svg', { cache: 'no-store' })
+        if (r && r.ok) setEnLigne()
+      } catch {}
+    }, 4000)
+  }
+}
+function setEnLigne() {
+  if (reconnectTimer) { clearInterval(reconnectTimer); reconnectTimer = null }
+  if (netbar.classList.contains('warn')) {
+    netbar.className = 'show ok'
+    netbar.innerHTML = '<span class="pulse"></span> Connexion rétablie'
+    setTimeout(() => { netbar.className = ''; netbar.innerHTML = '' }, 2200)
+  } else {
+    netbar.className = ''
+    netbar.innerHTML = ''
+  }
 }
 
 /* ---------- Connexion / déconnexion ---------- */
@@ -133,6 +172,7 @@ loginForm.addEventListener('submit', async (e) => {
       body: JSON.stringify({ email: $('email').value.trim(), motDePasse: $('mdp').value })
     })
     const data = await res.json().catch(() => ({}))
+    setEnLigne()
     if (!res.ok) { loginErr.textContent = data.erreur || 'Connexion impossible.'; return }
     token = data.token
     await store.set('token', token)
@@ -140,6 +180,7 @@ loginForm.addEventListener('submit', async (e) => {
     montrerChat()
   } catch {
     loginErr.textContent = 'Réseau indisponible. Réessaie.'
+    setHorsLigne()
   } finally {
     loginBtn.disabled = false
     loginBtn.textContent = 'Se connecter'
@@ -269,6 +310,7 @@ async function envoyerTexte(message) {
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
       body: JSON.stringify({ message, sessionId })
     })
+    setEnLigne()
     if (res.status === 401) { await sessionExpiree(); return }
     if (!res.ok || !res.body) {
       bub.classList.remove('typing'); bub.textContent = 'Une erreur est survenue. Réessaie.'; return
@@ -304,6 +346,7 @@ async function envoyerTexte(message) {
     if (premier && !texte) { bub.classList.remove('typing'); bub.textContent = 'Réponse vide. Réessaie.' }
   } catch {
     bub.classList.remove('typing'); bub.textContent = 'Connexion au service impossible.'
+    setHorsLigne()
   } finally {
     sendBtn.disabled = false
     inputEl.focus()
