@@ -1,37 +1,70 @@
-const Database = require('better-sqlite3')
-const db = new Database('pchelper.db')
+// Couche d'accès aux données — PostgreSQL (persistant, identique en local
+// et en ligne). Le comportement est piloté par DATABASE_URL : pointez la
+// même URL en local et chez l'hébergeur pour un site strictement identique.
+const { Pool } = require('pg')
 
-// WAL : meilleures lectures concurrentes et résistance aux coupures.
-// foreign_keys : SQLite n'applique PAS les clés étrangères sans ça.
-db.pragma('journal_mode = WAL')
-db.pragma('foreign_keys = ON')
+const DATABASE_URL = process.env.DATABASE_URL
+if (!DATABASE_URL) {
+  console.error('ERREUR FATALE : DATABASE_URL manquante. Arrêt du serveur.')
+  process.exit(1)
+}
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS utilisateurs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT UNIQUE NOT NULL,
-    mot_de_passe TEXT NOT NULL,
-    plan TEXT DEFAULT 'gratuit',
-    messages_utilises INTEGER DEFAULT 0,
-    cree_le DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`)
+// Les bases hébergées (Neon, Render, Supabase...) imposent TLS.
+// En local sur localhost, on désactive TLS.
+const estLocal = /@(localhost|127\.0\.0\.1)[:/]/.test(DATABASE_URL)
+const pool = new Pool({
+  connectionString: DATABASE_URL,
+  ssl: estLocal ? false : { rejectUnauthorized: false },
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000
+})
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS conversations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    utilisateur_id INTEGER NOT NULL,
-    session_id TEXT NOT NULL,
-    role TEXT NOT NULL,
-    contenu TEXT NOT NULL,
-    cree_le DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id)
-  )
-`)
+pool.on('error', (err) => {
+  // Un client idle qui tombe ne doit pas faire planter le process.
+  console.error('Erreur pool PostgreSQL :', err.message)
+})
 
-try { db.exec(`ALTER TABLE utilisateurs ADD COLUMN mdp_version INTEGER DEFAULT 0`) } catch {}
+// Helpers : query -> toutes les lignes ; one -> première ligne (ou undefined).
+async function query(text, params) {
+  const res = await pool.query(text, params)
+  return res.rows
+}
+async function one(text, params) {
+  const res = await pool.query(text, params)
+  return res.rows[0]
+}
+async function run(text, params) {
+  return pool.query(text, params)
+}
 
-db.exec(`CREATE INDEX IF NOT EXISTS idx_conv_user ON conversations(utilisateur_id)`)
-db.exec(`CREATE INDEX IF NOT EXISTS idx_conv_session ON conversations(utilisateur_id, session_id)`)
+// Création du schéma — idempotente. Appelée une fois au démarrage.
+async function initDb() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS utilisateurs (
+      id BIGSERIAL PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      mot_de_passe TEXT NOT NULL,
+      plan TEXT DEFAULT 'gratuit',
+      messages_utilises INTEGER DEFAULT 0,
+      mdp_version INTEGER DEFAULT 0,
+      cree_le TIMESTAMPTZ DEFAULT NOW()
+    )
+  `)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS conversations (
+      id BIGSERIAL PRIMARY KEY,
+      utilisateur_id BIGINT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+      session_id TEXT NOT NULL,
+      role TEXT NOT NULL,
+      contenu TEXT NOT NULL,
+      cree_le TIMESTAMPTZ DEFAULT NOW()
+    )
+  `)
+  // Sécurité si une ancienne table existait sans la colonne.
+  await pool.query(`ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS mdp_version INTEGER DEFAULT 0`)
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_conv_user ON conversations(utilisateur_id)`)
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_conv_session ON conversations(utilisateur_id, session_id)`)
+}
 
-module.exports = db
+module.exports = { pool, query, one, run, initDb }

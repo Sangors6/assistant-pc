@@ -9,7 +9,7 @@ const fs = require('fs')
 const path = require('path')
 const http = require('http')
 const https = require('https')
-const db = require('./database')
+const { query, one, run, initDb } = require('./database')
 
 const rateLimit = require('express-rate-limit')
 
@@ -192,13 +192,13 @@ Ton identité :
 - Ne mentionne jamais Claude, Anthropic, GPT, OpenAI ou tout autre modèle IA
 - Si on te pose des questions sur nous, réponds poliment que tu es simplement un assistant`
 
-function authentifier(req, res, next) {
+async function authentifier(req, res, next) {
   const token = req.headers['authorization']?.split(' ')[1]
   if (!token) return res.status(401).json({ erreur: 'Non connecté' })
   try {
     const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] })
     if (estRevoque(decoded.jti)) return res.status(401).json({ erreur: 'Session expirée' })
-    const user = db.prepare('SELECT mdp_version FROM utilisateurs WHERE id = ?').get(decoded.id)
+    const user = await one('SELECT mdp_version FROM utilisateurs WHERE id = $1', [decoded.id])
     if (!user) return res.status(401).json({ erreur: 'Session expirée' })
     if (decoded.mdp_version !== undefined && decoded.mdp_version !== user.mdp_version) {
       return res.status(401).json({ erreur: 'Session expirée' })
@@ -224,7 +224,7 @@ app.post('/auth/inscription', limiteurAuth, async (req, res) => {
   }
   try {
     const hash = await bcrypt.hash(motDePasse, 10)
-    db.prepare('INSERT INTO utilisateurs (email, mot_de_passe) VALUES (?, ?)').run(emailN, hash)
+    await run('INSERT INTO utilisateurs (email, mot_de_passe) VALUES ($1, $2)', [emailN, hash])
   } catch (erreur) {
     // Réponse identique qu'un compte ait été créé ou non : pas d'énumération.
     console.error('Inscription :', erreur.message)
@@ -241,7 +241,7 @@ app.post('/auth/connexion', limiteurAuth, async (req, res) => {
   if (estBloque(emailN)) {
     return res.status(429).json({ erreur: 'Trop de tentatives. Réessaie dans 15 minutes.' })
   }
-  const utilisateur = db.prepare('SELECT * FROM utilisateurs WHERE email = ?').get(emailN)
+  const utilisateur = await one('SELECT * FROM utilisateurs WHERE email = $1', [emailN])
   if (!utilisateur) {
     await bcrypt.compare(motDePasse, DUMMY_HASH)
     noterEchec(emailN)
@@ -267,32 +267,36 @@ app.post('/auth/deconnexion', authentifier, (req, res) => {
   res.json({ message: 'Déconnecté' })
 })
 
-app.get('/auth/moi', authentifier, (req, res) => {
-  const utilisateur = db.prepare('SELECT id, email, plan, messages_utilises FROM utilisateurs WHERE id = ?').get(req.utilisateur.id)
+app.get('/auth/moi', authentifier, async (req, res) => {
+  const utilisateur = await one('SELECT id, email, plan, messages_utilises FROM utilisateurs WHERE id = $1', [req.utilisateur.id])
   res.json(utilisateur)
 })
 
-app.get('/profil', authentifier, (req, res) => {
-  const utilisateur = db.prepare('SELECT id, email, plan, messages_utilises, cree_le FROM utilisateurs WHERE id = ?').get(req.utilisateur.id)
+app.get('/profil', authentifier, async (req, res) => {
+  const utilisateur = await one('SELECT id, email, plan, messages_utilises, cree_le FROM utilisateurs WHERE id = $1', [req.utilisateur.id])
 
-  const nbConversations = db.prepare(
-    'SELECT COUNT(DISTINCT session_id) as total FROM conversations WHERE utilisateur_id = ?'
-  ).get(req.utilisateur.id)
+  const nbConversations = await one(
+    'SELECT COUNT(DISTINCT session_id) as total FROM conversations WHERE utilisateur_id = $1',
+    [req.utilisateur.id]
+  )
 
-  const nbMessages = db.prepare(
-    'SELECT COUNT(*) as total FROM conversations WHERE utilisateur_id = ? AND role = ?'
-  ).get(req.utilisateur.id, 'user')
+  const nbMessages = await one(
+    'SELECT COUNT(*) as total FROM conversations WHERE utilisateur_id = $1 AND role = $2',
+    [req.utilisateur.id, 'user']
+  )
 
-  const derniereActivite = db.prepare(
-    'SELECT MAX(cree_le) as derniere FROM conversations WHERE utilisateur_id = ?'
-  ).get(req.utilisateur.id)
+  const derniereActivite = await one(
+    'SELECT MAX(cree_le) as derniere FROM conversations WHERE utilisateur_id = $1',
+    [req.utilisateur.id]
+  )
 
   res.json({
     email: utilisateur.email,
     plan: utilisateur.plan,
     cree_le: utilisateur.cree_le,
-    nb_conversations: nbConversations.total,
-    nb_messages: nbMessages.total,
+    // pg renvoie COUNT en chaîne (bigint) : on garde des nombres dans l'API.
+    nb_conversations: Number(nbConversations.total),
+    nb_messages: Number(nbMessages.total),
     derniere_activite: derniereActivite.derniere
   })
 })
@@ -304,7 +308,7 @@ app.post('/profil/mot-de-passe', authentifier, async (req, res) => {
   const erreurMdp = validerMotDePasse(nouveauMdp)
   if (erreurMdp) return res.status(400).json({ erreur: erreurMdp })
 
-  const utilisateur = db.prepare('SELECT * FROM utilisateurs WHERE id = ?').get(req.utilisateur.id)
+  const utilisateur = await one('SELECT * FROM utilisateurs WHERE id = $1', [req.utilisateur.id])
   const valide = await bcrypt.compare(ancienMdp, utilisateur.mot_de_passe)
   if (!valide) return res.status(401).json({ erreur: 'Ancien mot de passe incorrect' })
 
@@ -313,7 +317,7 @@ app.post('/profil/mot-de-passe', authentifier, async (req, res) => {
   }
 
   const hash = await bcrypt.hash(nouveauMdp, 10)
-  db.prepare('UPDATE utilisateurs SET mot_de_passe = ?, mdp_version = mdp_version + 1 WHERE id = ?').run(hash, req.utilisateur.id)
+  await run('UPDATE utilisateurs SET mot_de_passe = $1, mdp_version = mdp_version + 1 WHERE id = $2', [hash, req.utilisateur.id])
   res.json({ message: 'Mot de passe modifié avec succès' })
 })
 
@@ -375,35 +379,36 @@ app.get('/stats', limiteurStats, authentifier, async (req, res) => {
   }
 })
 
-app.get('/historique/:sessionId', authentifier, (req, res) => {
+app.get('/historique/:sessionId', authentifier, async (req, res) => {
   if (!UUID_REGEX.test(req.params.sessionId)) return res.status(400).json({ erreur: 'Session invalide' })
-  const messages = db.prepare(
-    'SELECT role, contenu FROM conversations WHERE utilisateur_id = ? AND session_id = ? ORDER BY cree_le ASC'
-  ).all(req.utilisateur.id, req.params.sessionId)
+  const messages = await query(
+    'SELECT role, contenu FROM conversations WHERE utilisateur_id = $1 AND session_id = $2 ORDER BY cree_le ASC',
+    [req.utilisateur.id, req.params.sessionId]
+  )
   res.json(messages)
 })
 
-app.get('/sessions', authentifier, (req, res) => {
-  const sessions = db.prepare(`
+app.get('/sessions', authentifier, async (req, res) => {
+  const sessions = await query(`
     SELECT c.session_id,
       (SELECT c2.contenu FROM conversations c2
        WHERE c2.session_id = c.session_id AND c2.utilisateur_id = c.utilisateur_id AND c2.role = 'user'
        ORDER BY c2.cree_le ASC LIMIT 1) as premier_message,
       MAX(c.cree_le) as derniere_activite
     FROM conversations c
-    WHERE c.utilisateur_id = ? AND c.role = 'user'
+    WHERE c.utilisateur_id = $1 AND c.role = 'user'
     GROUP BY c.session_id
     ORDER BY derniere_activite DESC
     LIMIT 20
-  `).all(req.utilisateur.id)
+  `, [req.utilisateur.id])
   res.json(sessions)
 })
 
-app.delete('/sessions/:sessionId', authentifier, (req, res) => {
+app.delete('/sessions/:sessionId', authentifier, async (req, res) => {
   if (!UUID_REGEX.test(req.params.sessionId)) return res.status(400).json({ erreur: 'Session invalide' })
   try {
-    db.prepare('DELETE FROM conversations WHERE utilisateur_id = ? AND session_id = ?')
-      .run(req.utilisateur.id, req.params.sessionId)
+    await run('DELETE FROM conversations WHERE utilisateur_id = $1 AND session_id = $2',
+      [req.utilisateur.id, req.params.sessionId])
     res.status(200).json({ message: 'Conversation supprimée' })
   } catch (erreur) {
     console.error('Suppression session :', erreur.message)
@@ -440,7 +445,7 @@ app.post('/chat', limiteurChat, authentifier, async (req, res) => {
     return res.status(400).json({ erreur: 'Message vide' })
   }
 
-  const utilisateur = db.prepare('SELECT * FROM utilisateurs WHERE id = ?').get(req.utilisateur.id)
+  const utilisateur = await one('SELECT * FROM utilisateurs WHERE id = $1', [req.utilisateur.id])
 
   if (utilisateur.plan === 'gratuit' && utilisateur.messages_utilises >= LIMITE_GRATUIT) {
     return res.status(403).json({ erreur: 'limite_atteinte' })
@@ -448,9 +453,10 @@ app.post('/chat', limiteurChat, authentifier, async (req, res) => {
 
   const id = sessionId || crypto.randomUUID()
 
-  const historique = db.prepare(
-    'SELECT role, contenu as content FROM conversations WHERE utilisateur_id = ? AND session_id = ? ORDER BY cree_le ASC'
-  ).all(utilisateur.id, id)
+  const historique = await query(
+    'SELECT role, contenu as content FROM conversations WHERE utilisateur_id = $1 AND session_id = $2 ORDER BY cree_le ASC',
+    [utilisateur.id, id]
+  )
 
   let contenuMessage
   if (image) {
@@ -464,8 +470,8 @@ app.post('/chat', limiteurChat, authentifier, async (req, res) => {
 
   const texteAffiche = message || '[Image envoyée]'
   historique.push({ role: 'user', content: contenuMessage })
-  db.prepare('INSERT INTO conversations (utilisateur_id, session_id, role, contenu) VALUES (?, ?, ?, ?)')
-    .run(utilisateur.id, id, 'user', texteAffiche)
+  await run('INSERT INTO conversations (utilisateur_id, session_id, role, contenu) VALUES ($1, $2, $3, $4)',
+    [utilisateur.id, id, 'user', texteAffiche])
 
   res.setHeader('Content-Type', 'text/event-stream')
   res.setHeader('Cache-Control', 'no-cache')
@@ -501,9 +507,9 @@ app.post('/chat', limiteurChat, authentifier, async (req, res) => {
 
     if (clientParti) return // rien à persister, réponse incomplète
 
-    db.prepare('INSERT INTO conversations (utilisateur_id, session_id, role, contenu) VALUES (?, ?, ?, ?)')
-      .run(utilisateur.id, id, 'assistant', texteReponse)
-    db.prepare('UPDATE utilisateurs SET messages_utilises = messages_utilises + 1 WHERE id = ?').run(utilisateur.id)
+    await run('INSERT INTO conversations (utilisateur_id, session_id, role, contenu) VALUES ($1, $2, $3, $4)',
+      [utilisateur.id, id, 'assistant', texteReponse])
+    await run('UPDATE utilisateurs SET messages_utilises = messages_utilises + 1 WHERE id = $1', [utilisateur.id])
 
     res.write(`data: ${JSON.stringify({ type: 'done', messagesUtilises: utilisateur.messages_utilises + 1 })}\n\n`)
     res.end()
@@ -547,21 +553,28 @@ try {
   console.error('Lecture des certificats impossible :', e.message)
 }
 
-if (creds) {
-  https.createServer(creds, app).listen(HTTPS_PORT, () => {
-    console.log(`HTTPS démarré sur https://localhost:${HTTPS_PORT}`)
-  })
-  // Petit serveur HTTP qui redirige tout vers HTTPS (301), chemin préservé.
-  http.createServer((req, res) => {
-    const hote = (req.headers.host || `localhost:${HTTP_PORT}`).split(':')[0]
-    res.writeHead(301, { Location: `https://${hote}:${HTTPS_PORT}${req.url}` })
-    res.end()
-  }).listen(HTTP_PORT, () => {
-    console.log(`HTTP (redirection -> HTTPS) sur le port ${HTTP_PORT}`)
-  })
-} else {
-  console.warn('AVERTISSEMENT : aucun certificat trouvé, démarrage en HTTP non chiffré (dev uniquement).')
-  app.listen(HTTP_PORT, () => {
-    console.log(`Serveur démarré sur le port ${HTTP_PORT}`)
-  })
-}
+// On ne démarre les serveurs qu'une fois le schéma de base prêt :
+// sinon une première requête pourrait arriver avant la création des tables.
+initDb().then(() => {
+  if (creds) {
+    https.createServer(creds, app).listen(HTTPS_PORT, () => {
+      console.log(`HTTPS démarré sur https://localhost:${HTTPS_PORT}`)
+    })
+    // Petit serveur HTTP qui redirige tout vers HTTPS (301), chemin préservé.
+    http.createServer((req, res) => {
+      const hote = (req.headers.host || `localhost:${HTTP_PORT}`).split(':')[0]
+      res.writeHead(301, { Location: `https://${hote}:${HTTPS_PORT}${req.url}` })
+      res.end()
+    }).listen(HTTP_PORT, () => {
+      console.log(`HTTP (redirection -> HTTPS) sur le port ${HTTP_PORT}`)
+    })
+  } else {
+    console.warn('AVERTISSEMENT : aucun certificat trouvé, démarrage en HTTP non chiffré (dev uniquement).')
+    app.listen(HTTP_PORT, () => {
+      console.log(`Serveur démarré sur le port ${HTTP_PORT}`)
+    })
+  }
+}).catch((e) => {
+  console.error('ERREUR FATALE : initialisation de la base impossible :', e.message)
+  process.exit(1)
+})
