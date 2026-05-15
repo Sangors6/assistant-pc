@@ -356,19 +356,29 @@ app.get('/historique/:sessionId', authentifier, async (req, res) => {
 })
 
 app.get('/sessions', authentifier, async (req, res) => {
-  const sessions = await query(`
-    SELECT c.session_id,
-      (SELECT c2.contenu FROM conversations c2
-       WHERE c2.session_id = c.session_id AND c2.utilisateur_id = c.utilisateur_id AND c2.role = 'user'
-       ORDER BY c2.cree_le ASC LIMIT 1) as premier_message,
-      MAX(c.cree_le) as derniere_activite
-    FROM conversations c
-    WHERE c.utilisateur_id = $1 AND c.role = 'user'
-    GROUP BY c.session_id
-    ORDER BY derniere_activite DESC
-    LIMIT 20
-  `, [req.utilisateur.id])
-  res.json(sessions)
+  try {
+    // NB : la sous-requête doit filtrer sur $1 (l'utilisateur), PAS sur
+    // c.utilisateur_id. Sous PostgreSQL, référencer une colonne non
+    // groupée de la requête externe dans une sous-requête est rejeté
+    // ("ungrouped column") — SQLite le tolérait, d'où ce bug post-migration
+    // qui faisait planter tout l'historique (erreur 500).
+    const sessions = await query(`
+      SELECT c.session_id,
+        (SELECT c2.contenu FROM conversations c2
+         WHERE c2.session_id = c.session_id AND c2.utilisateur_id = $1 AND c2.role = 'user'
+         ORDER BY c2.cree_le ASC LIMIT 1) as premier_message,
+        MAX(c.cree_le) as derniere_activite
+      FROM conversations c
+      WHERE c.utilisateur_id = $1 AND c.role = 'user'
+      GROUP BY c.session_id
+      ORDER BY derniere_activite DESC
+      LIMIT 20
+    `, [req.utilisateur.id])
+    res.json(sessions)
+  } catch (erreur) {
+    console.error('Liste sessions :', erreur.message)
+    res.status(500).json({ erreur: 'Impossible de charger les conversations' })
+  }
 })
 
 app.delete('/sessions/:sessionId', authentifier, async (req, res) => {
