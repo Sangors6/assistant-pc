@@ -1,10 +1,10 @@
 /* PC Helper — content script (toutes les pages).
- *  - Injecte un lanceur flottant + le panneau (iframe d'une page d'extension).
- *  - Sur l'origine du site PC Helper uniquement : sert de pont matériel
- *    (la page demande, on relaie au service worker, on renvoie le résultat).
+ *  - Lanceur flottant iOS + panneau (iframe d'une page d'extension).
+ *  - Panneau réglable : déplaçable (drag par l'en-tête) et 3 tailles,
+ *    géométrie persistée dans chrome.storage.local.
+ *  - Sur l'origine du site PC Helper uniquement : pont matériel.
  */
 (function () {
-  // Une seule instance, et seulement dans la frame principale.
   if (window.top !== window || window.__pcHelperInjecte) return
   window.__pcHelperInjecte = true
 
@@ -16,7 +16,6 @@
   ]
 
   /* ---------------- Pont matériel (origine du site seulement) ----------- */
-  // Sécurité : on n'expose jamais le matériel à un site tiers.
   if (ORIGINES_SITE.includes(location.origin)) {
     window.addEventListener('message', (event) => {
       if (event.source !== window) return
@@ -31,11 +30,50 @@
         }, location.origin)
       })
     })
-    // Signale la présence de l'extension à la page.
     window.postMessage({ __pchelper: 'present' }, location.origin)
   }
 
-  /* ---------------- Lanceur + panneau flottant ------------------------- */
+  /* ---------------- Tailles réglables ---------------------------------- */
+  const TAILLES = {
+    compact:  { w: 360, h: 540 },
+    standard: { w: 400, h: 624 },
+    large:    { w: 464, h: 730 }
+  }
+  const MARGE = 20
+  let geo = { preset: 'standard', left: null, top: null } // left/top null = ancré bas-droite
+
+  function dims() {
+    const t = TAILLES[geo.preset] || TAILLES.standard
+    return {
+      w: Math.min(t.w, window.innerWidth - MARGE * 2),
+      h: Math.min(t.h, window.innerHeight - MARGE * 2)
+    }
+  }
+  function clamp(v, min, max) { return Math.max(min, Math.min(max, v)) }
+
+  function appliquerGeo(animer) {
+    const { w, h } = dims()
+    wrap.style.width = w + 'px'
+    wrap.style.height = h + 'px'
+    let left = geo.left, top = geo.top
+    if (left == null || top == null) {           // position par défaut : bas-droite
+      left = window.innerWidth - w - MARGE
+      top = window.innerHeight - h - MARGE
+    }
+    left = clamp(left, MARGE, Math.max(MARGE, window.innerWidth - w - MARGE))
+    top = clamp(top, MARGE, Math.max(MARGE, window.innerHeight - h - MARGE))
+    wrap.style.transition = animer
+      ? 'left .42s cubic-bezier(.22,1,.36,1), top .42s cubic-bezier(.22,1,.36,1), width .42s cubic-bezier(.22,1,.36,1), height .42s cubic-bezier(.22,1,.36,1), opacity .26s ease, transform .42s cubic-bezier(.34,1.56,.64,1)'
+      : 'opacity .26s ease, transform .42s cubic-bezier(.34,1.56,.64,1)'
+    wrap.style.left = left + 'px'
+    wrap.style.top = top + 'px'
+  }
+
+  function persister() {
+    try { chrome.storage.local.set({ pchGeo: geo }) } catch {}
+  }
+
+  /* ---------------- DOM (shadow, isolé du site hôte) ------------------- */
   const hote = document.createElement('div')
   hote.id = 'pchelper-host'
   hote.style.cssText = 'all:initial;position:fixed;z-index:2147483647;'
@@ -45,30 +83,32 @@
   shadow.innerHTML = `
     <style>
       :host { all: initial; }
+      @keyframes pch-breathe {
+        0%,100% { box-shadow: 0 10px 30px rgba(37,99,235,.42), 0 0 0 0 rgba(37,99,235,.35); }
+        50%     { box-shadow: 0 12px 36px rgba(37,99,235,.52), 0 0 0 10px rgba(37,99,235,0); }
+      }
       .pch-launch {
-        position: fixed; right: 22px; bottom: 22px; width: 54px; height: 54px;
-        border-radius: 50%; cursor: pointer; border: none;
-        background: linear-gradient(135deg, #2563eb, #1d4ed8);
-        box-shadow: 0 8px 28px rgba(37,99,235,.45);
-        display: flex; align-items: center; justify-content: center;
-        font-size: 24px; transition: transform .18s ease, box-shadow .18s ease;
+        position: fixed; right: 22px; bottom: 22px; width: 56px; height: 56px;
+        border-radius: 20px; cursor: pointer; border: none; color:#fff;
+        background: linear-gradient(150deg,#3b82f6,#2563eb 55%,#1d4ed8);
+        display: flex; align-items: center; justify-content: center; font-size: 25px;
+        animation: pch-breathe 3.6s ease-in-out infinite;
+        transition: transform .32s cubic-bezier(.34,1.56,.64,1), border-radius .3s ease;
+        -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
       }
-      .pch-launch:hover { transform: translateY(-2px) scale(1.05);
-        box-shadow: 0 12px 34px rgba(37,99,235,.6); }
+      .pch-launch:hover { transform: translateY(-3px) scale(1.06); border-radius: 24px; }
+      .pch-launch:active { transform: scale(.92); }
       .pch-wrap {
-        position: fixed; right: 22px; bottom: 88px;
-        width: 400px; height: 620px; max-height: calc(100vh - 120px);
-        border-radius: 18px; overflow: hidden; display: none;
-        box-shadow: 0 24px 70px rgba(0,0,0,.55);
-        border: 1px solid rgba(59,130,246,.3);
-        background: #060910; opacity: 0; transform: translateY(14px);
-        transition: opacity .22s ease, transform .22s ease;
+        position: fixed; left: 0; top: 0; width: 400px; height: 624px;
+        border-radius: 26px; overflow: hidden; display: none;
+        box-shadow: 0 30px 90px rgba(0,0,0,.55), 0 2px 10px rgba(0,0,0,.4);
+        background: #06090f; opacity: 0;
+        transform: scale(.86); transform-origin: bottom right;
+        will-change: transform, opacity, left, top;
       }
-      .pch-wrap.open { display: block; opacity: 1; transform: translateY(0); }
+      .pch-wrap.open { display: block; opacity: 1; transform: scale(1); }
+      .pch-wrap.dragging { transition: opacity .26s ease !important; }
       .pch-wrap iframe { width: 100%; height: 100%; border: none; display: block; }
-      @media (max-width: 480px) {
-        .pch-wrap { right: 12px; left: 12px; width: auto; bottom: 84px; }
-      }
     </style>
     <div class="pch-wrap" id="wrap"></div>
     <button class="pch-launch" id="launch" title="PC Helper">🖥️</button>
@@ -78,6 +118,12 @@
   const launch = shadow.getElementById('launch')
   let monte = false
 
+  try {
+    chrome.storage.local.get('pchGeo', (v) => {
+      if (v && v.pchGeo && TAILLES[v.pchGeo.preset]) geo = v.pchGeo
+    })
+  } catch {}
+
   function ouvrir() {
     if (!monte) {
       const f = document.createElement('iframe')
@@ -86,7 +132,8 @@
       wrap.appendChild(f)
       monte = true
     }
-    wrap.classList.add('open')
+    appliquerGeo(false)
+    requestAnimationFrame(() => wrap.classList.add('open'))
     launch.textContent = '✕'
   }
   function fermer() {
@@ -99,13 +146,44 @@
 
   launch.addEventListener('click', basculer)
 
-  // Clic sur l'icône de la barre d'outils (relayé par le service worker).
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg && msg.type === 'PCHELPER_TOGGLE') basculer()
   })
 
-  // Le panneau peut demander sa propre fermeture.
+  /* ---------------- Drag + réglages (postMessage depuis le panneau) ---- */
+  let drag = null
   window.addEventListener('message', (e) => {
-    if (e.data && e.data.__pchelper === 'closePanel') fermer()
+    const d = e.data
+    if (!d || d.__pchelper == null) return
+
+    if (d.__pchelper === 'closePanel') {
+      fermer()
+    } else if (d.__pchelper === 'dragStart') {
+      const r = wrap.getBoundingClientRect()
+      drag = { ox: r.left, oy: r.top }
+      wrap.classList.add('dragging')
+    } else if (d.__pchelper === 'dragMove' && drag) {
+      const { w, h } = dims()
+      geo.left = clamp(drag.ox + d.dx, MARGE, window.innerWidth - w - MARGE)
+      geo.top = clamp(drag.oy + d.dy, MARGE, window.innerHeight - h - MARGE)
+      wrap.style.left = geo.left + 'px'
+      wrap.style.top = geo.top + 'px'
+    } else if (d.__pchelper === 'dragEnd' && drag) {
+      drag = null
+      wrap.classList.remove('dragging')
+      persister()
+    } else if (d.__pchelper === 'setSize' && TAILLES[d.preset]) {
+      geo.preset = d.preset
+      appliquerGeo(true)
+      persister()
+    } else if (d.__pchelper === 'resetPos') {
+      geo.left = null; geo.top = null
+      appliquerGeo(true)
+      persister()
+    }
+  })
+
+  window.addEventListener('resize', () => {
+    if (wrap.classList.contains('open')) appliquerGeo(false)
   })
 })()

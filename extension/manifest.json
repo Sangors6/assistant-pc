@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PC Helper",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Assistant PC Helper partout : chat flottant + lecture du vrai matériel (CPU, RAM, cœurs) pour le site PC Helper.",
   "permissions": ["system.cpu", "system.memory", "system.display", "storage"],
   "host_permissions": [

@@ -11,7 +11,6 @@ const store = {
   del: (k) => new Promise((r) => chrome.storage.local.remove(k, r))
 }
 
-/* ---------- Éléments ---------- */
 const $ = (id) => document.getElementById(id)
 const loginForm = $('login')
 const chatView = $('chat')
@@ -21,14 +20,57 @@ const sendBtn = $('send')
 const loginErr = $('login-err')
 const loginBtn = $('login-btn')
 const logoutBtn = $('btn-logout')
+const settingsEl = $('settings')
 
 let token = null
 let sessionId = null
 
-/* ---------- Fermeture (demande au content script parent) ---------- */
-$('btn-close').addEventListener('click', () => {
-  parent.postMessage({ __pchelper: 'closePanel' }, '*')
+const versParent = (msg) => parent.postMessage(Object.assign({ __pchelper: '' }, msg), '*')
+
+/* ---------- Fermeture ---------- */
+$('btn-close').addEventListener('click', () => versParent({ __pchelper: 'closePanel' }))
+
+/* ---------- Réglages ---------- */
+$('btn-set').addEventListener('click', () => {
+  const ouvert = settingsEl.style.display === 'flex'
+  settingsEl.style.display = ouvert ? 'none' : 'flex'
 })
+const seg = $('seg-size')
+seg.querySelectorAll('button').forEach((b) => {
+  b.addEventListener('click', () => {
+    seg.querySelectorAll('button').forEach((x) => x.classList.remove('on'))
+    b.classList.add('on')
+    versParent({ __pchelper: 'setSize', preset: b.dataset.size })
+  })
+})
+$('reset-pos').addEventListener('click', () => versParent({ __pchelper: 'resetPos' }))
+
+// Reflète la taille persistée dans le contrôle segmenté.
+store.get('pchGeo').then((g) => {
+  const preset = (g && g.preset) || 'standard'
+  seg.querySelectorAll('button').forEach((x) =>
+    x.classList.toggle('on', x.dataset.size === preset))
+})
+
+/* ---------- Déplacement (glisser la poignée ou l'en-tête) ---------- */
+function brancherDrag(el) {
+  el.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('button')) return
+    e.preventDefault()
+    const sx = e.clientX, sy = e.clientY
+    versParent({ __pchelper: 'dragStart' })
+    const move = (ev) => versParent({ __pchelper: 'dragMove', dx: ev.clientX - sx, dy: ev.clientY - sy })
+    const up = () => {
+      versParent({ __pchelper: 'dragEnd' })
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  })
+}
+brancherDrag($('grab'))
+brancherDrag($('hdr'))
 
 /* ---------- Bascule connexion / chat ---------- */
 function montrerLogin() {
@@ -39,7 +81,7 @@ function montrerLogin() {
 function montrerChat() {
   loginForm.style.display = 'none'
   chatView.style.display = 'flex'
-  logoutBtn.style.display = 'block'
+  logoutBtn.style.display = 'flex'
   chargerMateriel()
 }
 
@@ -120,8 +162,12 @@ function ajouterMsg(texte, role) {
   av.textContent = role === 'user' ? '🙂' : '🖥️'
   const bub = document.createElement('div')
   bub.className = 'bub'
-  if (texte === '__typing__') { bub.classList.add('typing'); bub.textContent = 'PC Helper écrit…' }
-  else bub.textContent = texte
+  if (texte === '__typing__') {
+    bub.classList.add('typing')
+    bub.innerHTML = '<i></i><i></i><i></i>'
+  } else {
+    bub.textContent = texte
+  }
   row.appendChild(av)
   row.appendChild(bub)
   msgsEl.appendChild(row)
@@ -181,7 +227,7 @@ async function envoyer() {
           sessionId = evt.sessionId
           store.set('sessionId', sessionId)
         } else if (evt.type === 'chunk') {
-          if (premier) { bub.classList.remove('typing'); bub.textContent = ''; premier = false }
+          if (premier) { bub.classList.remove('typing'); bub.innerHTML = ''; bub.textContent = ''; premier = false }
           texte += evt.text
           bub.textContent = texte
           msgsEl.scrollTop = msgsEl.scrollHeight
