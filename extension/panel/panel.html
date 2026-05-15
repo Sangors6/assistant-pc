@@ -15,13 +15,15 @@
         <div class="t1">PC Helper</div>
         <div class="t2" id="hdr-sub">Expert support système</div>
       </div>
-      <button id="btn-set" class="ghost" title="Réglages">⚙</button>
+      <button id="btn-new"    class="ghost" title="Nouvelle conversation" style="display:none">＋</button>
+      <button id="btn-hist"   class="ghost" title="Historique" style="display:none">🗂</button>
+      <button id="btn-set"    class="ghost" title="Réglages">⚙</button>
       <button id="btn-logout" class="ghost" title="Déconnexion" style="display:none">⏏</button>
-      <button id="btn-close" class="ghost" title="Fermer">✕</button>
+      <button id="btn-close"  class="ghost" title="Fermer">✕</button>
     </div>
 
     <!-- Réglages -->
-    <div id="settings">
+    <div id="settings" class="sheet">
       <div class="set-block">
         <div class="set-label">Taille du panneau</div>
         <div class="seg" id="seg-size">
@@ -35,6 +37,12 @@
         <button id="reset-pos" class="pill">Réinitialiser la position</button>
       </div>
       <div class="set-hint">Astuce : glisse la barre du haut pour déplacer le panneau.</div>
+    </div>
+
+    <!-- Historique -->
+    <div id="history" class="sheet">
+      <div class="set-label">Conversations récentes</div>
+      <div id="hist-list"><div class="hist-empty">Chargement…</div></div>
     </div>
 
     <!-- Connexion -->
@@ -54,7 +62,14 @@
         <div id="welcome">
           <div class="orb">🖥️</div>
           <h3>Salut ! 👋</h3>
-          <p>Décris ton problème PC, Windows, réseau ou gaming.</p>
+          <p>Décris ton problème, ou choisis une piste :</p>
+          <div id="suggestions">
+            <button class="sug" data-q="Mon PC rame, comment l'accélérer ?">⚡ PC lent</button>
+            <button class="sug" data-q="Mon Wi-Fi est instable, que faire ?">📶 Wi-Fi instable</button>
+            <button class="sug" data-q="J'ai un écran bleu Windows, aide-moi.">💙 Écran bleu</button>
+            <button class="sug" data-q="Mes FPS sont trop bas en jeu.">🎮 FPS bas</button>
+          </div>
+          <button id="btn-analyse" class="analyse">🔍 Analyser mon matériel</button>
         </div>
       </div>
       <div id="bar">

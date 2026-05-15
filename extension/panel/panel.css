@@ -66,14 +66,16 @@ html, body {
 .ghost:hover { color: #fff; background: rgba(255,255,255,.12); }
 .ghost:active { transform: scale(.88); }
 
-/* ---- Réglages (panneau coulissant) ---- */
-#settings {
+/* ---- Feuilles coulissantes (réglages / historique) ---- */
+.sheet {
   display: none; flex-direction: column; gap: 16px;
   margin: 0 14px 12px; padding: 16px;
   background: var(--glass); border: 1px solid var(--stroke);
   border-radius: 18px; -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
   animation: drop .34s var(--spring);
+  max-height: 320px; overflow-y: auto; scrollbar-width: thin;
 }
+.sheet.open { display: flex; }
 @keyframes drop { from { opacity: 0; transform: translateY(-10px) scale(.97); } }
 .set-label { font-size: 12px; color: var(--text-mid); margin-bottom: 8px; font-weight: 550; }
 .seg {
@@ -235,6 +237,61 @@ html, body {
 #bar button:hover { filter: brightness(1.1); transform: scale(1.06); }
 #bar button:active { transform: scale(.88); }
 #bar button:disabled { opacity: .45; cursor: default; transform: none; }
+
+/* ---- Historique ---- */
+#hist-list { display: flex; flex-direction: column; gap: 7px; }
+.hist-empty { font-size: 12.5px; color: var(--text-dim); padding: 6px 2px; }
+.hist-item {
+  text-align: left; width: 100%; cursor: pointer;
+  background: rgba(255,255,255,.05); border: 1px solid var(--stroke);
+  border-radius: 13px; padding: 10px 12px; color: var(--text);
+  transition: background .18s ease, transform .2s var(--spring);
+}
+.hist-item:hover { background: rgba(255,255,255,.11); }
+.hist-item:active { transform: scale(.98); }
+.hist-item .h-t { font-size: 12.5px; font-weight: 550; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.hist-item .h-d { font-size: 10.5px; color: var(--text-dim); margin-top: 3px; }
+
+/* ---- Suggestions + analyse (écran d'accueil) ---- */
+#suggestions {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  margin: 16px 0 12px; width: 100%; max-width: 300px;
+}
+.sug {
+  cursor: pointer; padding: 10px 8px; border-radius: 14px;
+  background: var(--glass); border: 1px solid var(--stroke); color: var(--text);
+  font-size: 12px; font-weight: 550; font-family: inherit;
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  transition: transform .22s var(--spring), background .2s ease, border-color .2s ease;
+}
+.sug:hover { background: rgba(59,130,246,.16); border-color: rgba(59,130,246,.45);
+  transform: translateY(-2px); }
+.sug:active { transform: scale(.95); }
+.analyse {
+  cursor: pointer; padding: 11px 18px; border-radius: 999px; font-family: inherit;
+  background: linear-gradient(150deg, rgba(59,130,246,.22), rgba(29,78,216,.16));
+  border: 1px solid rgba(59,130,246,.4); color: #cfe0ff;
+  font-size: 12.5px; font-weight: 600;
+  transition: transform .22s var(--spring), background .2s ease;
+}
+.analyse:hover { background: linear-gradient(150deg, rgba(59,130,246,.34), rgba(29,78,216,.24)); }
+.analyse:active { transform: scale(.95); }
+
+/* ---- Bouton copier sur les réponses ---- */
+.row.bot { position: relative; }
+.copy {
+  align-self: flex-end; margin: 0 0 2px; flex-shrink: 0;
+  width: 24px; height: 24px; border-radius: 8px; cursor: pointer;
+  background: rgba(255,255,255,.06); border: 1px solid var(--stroke);
+  color: var(--text-mid); font-size: 11px; opacity: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: opacity .2s ease, transform .2s var(--spring), color .2s ease;
+}
+.row.bot:hover .copy { opacity: 1; }
+.copy:hover { color: #fff; }
+.copy:active { transform: scale(.85); }
+.copy.done { color: var(--ok); opacity: 1; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition-duration: .01ms !important; }

@@ -1,6 +1,6 @@
 /* PC Helper — content script (toutes les pages).
- *  - Lanceur flottant iOS + panneau (iframe d'une page d'extension).
- *  - Panneau réglable : déplaçable (drag par l'en-tête) et 3 tailles,
+ *  - Lanceur flottant très visible + morph liquide vers le panneau.
+ *  - Panneau réglable : déplaçable (drag fiable en coords écran) et 3 tailles,
  *    géométrie persistée dans chrome.storage.local.
  *  - Sur l'origine du site PC Helper uniquement : pont matériel.
  */
@@ -36,11 +36,11 @@
   /* ---------------- Tailles réglables ---------------------------------- */
   const TAILLES = {
     compact:  { w: 360, h: 540 },
-    standard: { w: 400, h: 624 },
-    large:    { w: 464, h: 730 }
+    standard: { w: 404, h: 628 },
+    large:    { w: 468, h: 734 }
   }
   const MARGE = 20
-  let geo = { preset: 'standard', left: null, top: null } // left/top null = ancré bas-droite
+  let geo = { preset: 'standard', left: null, top: null }
 
   function dims() {
     const t = TAILLES[geo.preset] || TAILLES.standard
@@ -49,29 +49,21 @@
       h: Math.min(t.h, window.innerHeight - MARGE * 2)
     }
   }
-  function clamp(v, min, max) { return Math.max(min, Math.min(max, v)) }
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v))
 
-  function appliquerGeo(animer) {
+  function cible() {
     const { w, h } = dims()
-    wrap.style.width = w + 'px'
-    wrap.style.height = h + 'px'
     let left = geo.left, top = geo.top
-    if (left == null || top == null) {           // position par défaut : bas-droite
+    if (left == null || top == null) {
       left = window.innerWidth - w - MARGE
       top = window.innerHeight - h - MARGE
     }
     left = clamp(left, MARGE, Math.max(MARGE, window.innerWidth - w - MARGE))
     top = clamp(top, MARGE, Math.max(MARGE, window.innerHeight - h - MARGE))
-    wrap.style.transition = animer
-      ? 'left .42s cubic-bezier(.22,1,.36,1), top .42s cubic-bezier(.22,1,.36,1), width .42s cubic-bezier(.22,1,.36,1), height .42s cubic-bezier(.22,1,.36,1), opacity .26s ease, transform .42s cubic-bezier(.34,1.56,.64,1)'
-      : 'opacity .26s ease, transform .42s cubic-bezier(.34,1.56,.64,1)'
-    wrap.style.left = left + 'px'
-    wrap.style.top = top + 'px'
+    return { left, top, w, h }
   }
 
-  function persister() {
-    try { chrome.storage.local.set({ pchGeo: geo }) } catch {}
-  }
+  const persister = () => { try { chrome.storage.local.set({ pchGeo: geo }) } catch {} }
 
   /* ---------------- DOM (shadow, isolé du site hôte) ------------------- */
   const hote = document.createElement('div')
@@ -83,40 +75,85 @@
   shadow.innerHTML = `
     <style>
       :host { all: initial; }
-      @keyframes pch-breathe {
-        0%,100% { box-shadow: 0 10px 30px rgba(37,99,235,.42), 0 0 0 0 rgba(37,99,235,.35); }
-        50%     { box-shadow: 0 12px 36px rgba(37,99,235,.52), 0 0 0 10px rgba(37,99,235,0); }
+
+      /* ---- Lanceur très visible : orbe + anneau conique rotatif ---- */
+      @keyframes pch-spin { to { transform: rotate(360deg); } }
+      @keyframes pch-halo {
+        0%,100% { box-shadow: 0 14px 40px rgba(37,99,235,.55), 0 0 0 0 rgba(59,130,246,.5); }
+        50%     { box-shadow: 0 18px 52px rgba(37,99,235,.7), 0 0 0 16px rgba(59,130,246,0); }
+      }
+      @keyframes pch-liquid {
+        0%   { border-radius: 50%; }
+        35%  { border-radius: 46% 54% 60% 40% / 55% 45% 58% 42%; }
+        70%  { border-radius: 32% 30% 28% 30% / 30% 28% 32% 30%; }
+        100% { border-radius: 26px; }
       }
       .pch-launch {
-        position: fixed; right: 22px; bottom: 22px; width: 56px; height: 56px;
-        border-radius: 20px; cursor: pointer; border: none; color:#fff;
-        background: linear-gradient(150deg,#3b82f6,#2563eb 55%,#1d4ed8);
-        display: flex; align-items: center; justify-content: center; font-size: 25px;
-        animation: pch-breathe 3.6s ease-in-out infinite;
-        transition: transform .32s cubic-bezier(.34,1.56,.64,1), border-radius .3s ease;
-        -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+        position: fixed; right: 22px; bottom: 22px; width: 66px; height: 66px;
+        border-radius: 50%; cursor: pointer; border: none; padding: 0;
+        display: flex; align-items: center; justify-content: center;
+        color: #fff; font-size: 27px; isolation: isolate;
+        background: linear-gradient(150deg,#60a5fa,#3b82f6 45%,#1d4ed8);
+        animation: pch-halo 2.8s ease-in-out infinite;
+        transition: transform .34s cubic-bezier(.34,1.56,.64,1),
+                    opacity .26s ease, border-radius .3s ease;
       }
-      .pch-launch:hover { transform: translateY(-3px) scale(1.06); border-radius: 24px; }
-      .pch-launch:active { transform: scale(.92); }
+      .pch-launch::before {            /* anneau conique lumineux rotatif */
+        content: ''; position: absolute; inset: -3px; border-radius: inherit;
+        background: conic-gradient(from 0deg, #22d3ee, #3b82f6, #6366f1, #22d3ee);
+        animation: pch-spin 4s linear infinite; z-index: -1;
+        filter: blur(5px); opacity: .85;
+      }
+      .pch-launch::after {             /* reflet verre interne */
+        content: ''; position: absolute; inset: 0; border-radius: inherit;
+        background: radial-gradient(120% 90% at 30% 18%, rgba(255,255,255,.5), transparent 55%);
+      }
+      .pch-launch .ic { position: relative; z-index: 1;
+        filter: drop-shadow(0 2px 3px rgba(0,0,0,.35)); transition: transform .3s cubic-bezier(.34,1.56,.64,1); }
+      .pch-launch:hover { transform: translateY(-4px) scale(1.07); }
+      .pch-launch:hover .ic { transform: rotate(-8deg) scale(1.08); }
+      .pch-launch:active { transform: scale(.9); }
+      .pch-launch.gone { transform: scale(.2); opacity: 0; pointer-events: none; }
+
+      /* ---- Panneau : morph liquide depuis le lanceur ---- */
       .pch-wrap {
-        position: fixed; left: 0; top: 0; width: 400px; height: 624px;
-        border-radius: 26px; overflow: hidden; display: none;
+        position: fixed; left: 0; top: 0; width: 66px; height: 66px;
+        border-radius: 50%; overflow: hidden; display: none;
         box-shadow: 0 30px 90px rgba(0,0,0,.55), 0 2px 10px rgba(0,0,0,.4);
         background: #06090f; opacity: 0;
-        transform: scale(.86); transform-origin: bottom right;
-        will-change: transform, opacity, left, top;
+        will-change: left, top, width, height, border-radius, opacity;
       }
-      .pch-wrap.open { display: block; opacity: 1; transform: scale(1); }
-      .pch-wrap.dragging { transition: opacity .26s ease !important; }
-      .pch-wrap iframe { width: 100%; height: 100%; border: none; display: block; }
+      .pch-wrap.show { display: block; }
+      .pch-wrap.open {
+        opacity: 1;
+        transition:
+          left .52s cubic-bezier(.6,.04,.2,1),
+          top .52s cubic-bezier(.6,.04,.2,1),
+          width .56s cubic-bezier(.34,1.3,.5,1),
+          height .56s cubic-bezier(.34,1.3,.5,1),
+          opacity .3s ease;
+        animation: pch-liquid .62s cubic-bezier(.5,0,.2,1) forwards;
+      }
+      .pch-wrap.closing {
+        transition: left .4s ease, top .4s ease, width .4s ease,
+                    height .4s ease, opacity .34s ease, border-radius .4s ease;
+        opacity: 0; border-radius: 50% !important;
+      }
+      .pch-wrap.dragging { transition: none !important; animation: none !important; }
+      .pch-wrap iframe {
+        width: 100%; height: 100%; border: none; display: block;
+      }
     </style>
     <div class="pch-wrap" id="wrap"></div>
-    <button class="pch-launch" id="launch" title="PC Helper">🖥️</button>
+    <button class="pch-launch" id="launch" title="Assistant PC Helper">
+      <span class="ic">🖥️</span>
+    </button>
   `
 
   const wrap = shadow.getElementById('wrap')
   const launch = shadow.getElementById('launch')
   let monte = false
+  let anime = false
 
   try {
     chrome.storage.local.get('pchGeo', (v) => {
@@ -124,7 +161,14 @@
     })
   } catch {}
 
+  function rectLanceur() {
+    const r = launch.getBoundingClientRect()
+    return { left: r.left, top: r.top, w: r.width, h: r.height }
+  }
+
   function ouvrir() {
+    if (anime || wrap.classList.contains('open')) return
+    anime = true
     if (!monte) {
       const f = document.createElement('iframe')
       f.src = chrome.runtime.getURL('panel/panel.html')
@@ -132,25 +176,58 @@
       wrap.appendChild(f)
       monte = true
     }
-    appliquerGeo(false)
-    requestAnimationFrame(() => wrap.classList.add('open'))
-    launch.textContent = '✕'
-  }
-  function fermer() {
-    wrap.classList.remove('open')
-    launch.textContent = '🖥️'
-  }
-  function basculer() {
-    wrap.classList.contains('open') ? fermer() : ouvrir()
+    const dep = rectLanceur()
+    const fin = cible()
+
+    // État initial : à l'emplacement du lanceur, en pastille ronde.
+    wrap.classList.remove('closing', 'open')
+    wrap.classList.add('show')
+    wrap.style.left = dep.left + 'px'
+    wrap.style.top = dep.top + 'px'
+    wrap.style.width = dep.w + 'px'
+    wrap.style.height = dep.h + 'px'
+    wrap.style.borderRadius = '50%'
+    // Le lanceur « fond » dans la bulle.
+    launch.classList.add('gone')
+
+    // Reflow puis cible -> morph liquide.
+    void wrap.offsetWidth
+    requestAnimationFrame(() => {
+      wrap.classList.add('open')
+      wrap.style.left = fin.left + 'px'
+      wrap.style.top = fin.top + 'px'
+      wrap.style.width = fin.w + 'px'
+      wrap.style.height = fin.h + 'px'
+      setTimeout(() => { anime = false }, 620)
+    })
   }
 
+  function fermer() {
+    if (anime || !wrap.classList.contains('open')) return
+    anime = true
+    const dep = rectLanceur()
+    wrap.classList.remove('open')
+    wrap.classList.add('closing')
+    wrap.style.left = dep.left + 'px'
+    wrap.style.top = dep.top + 'px'
+    wrap.style.width = dep.w + 'px'
+    wrap.style.height = dep.h + 'px'
+    setTimeout(() => {
+      wrap.classList.remove('show', 'closing')
+      wrap.style.borderRadius = '50%'
+      launch.classList.remove('gone')
+      anime = false
+    }, 420)
+  }
+
+  const basculer = () => (wrap.classList.contains('open') ? fermer() : ouvrir())
   launch.addEventListener('click', basculer)
 
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg && msg.type === 'PCHELPER_TOGGLE') basculer()
   })
 
-  /* ---------------- Drag + réglages (postMessage depuis le panneau) ---- */
+  /* ---------------- Drag fiable (coords écran) + réglages -------------- */
   let drag = null
   window.addEventListener('message', (e) => {
     const d = e.data
@@ -159,6 +236,9 @@
     if (d.__pchelper === 'closePanel') {
       fermer()
     } else if (d.__pchelper === 'dragStart') {
+      // On fige la position de départ une seule fois : les deltas envoyés
+      // par le panneau sont en coordonnées ÉCRAN (indépendantes de l'iframe
+      // qui se déplace), donc pas de boucle de retour ni de saut.
       const r = wrap.getBoundingClientRect()
       drag = { ox: r.left, oy: r.top }
       wrap.classList.add('dragging')
@@ -174,16 +254,30 @@
       persister()
     } else if (d.__pchelper === 'setSize' && TAILLES[d.preset]) {
       geo.preset = d.preset
-      appliquerGeo(true)
+      const f = cible()
+      wrap.style.transition = 'left .42s cubic-bezier(.34,1.3,.5,1), top .42s cubic-bezier(.34,1.3,.5,1), width .42s cubic-bezier(.34,1.3,.5,1), height .42s cubic-bezier(.34,1.3,.5,1)'
+      wrap.style.left = f.left + 'px'
+      wrap.style.top = f.top + 'px'
+      wrap.style.width = f.w + 'px'
+      wrap.style.height = f.h + 'px'
       persister()
     } else if (d.__pchelper === 'resetPos') {
       geo.left = null; geo.top = null
-      appliquerGeo(true)
+      const f = cible()
+      wrap.style.transition = 'left .42s cubic-bezier(.34,1.3,.5,1), top .42s cubic-bezier(.34,1.3,.5,1)'
+      wrap.style.left = f.left + 'px'
+      wrap.style.top = f.top + 'px'
       persister()
     }
   })
 
   window.addEventListener('resize', () => {
-    if (wrap.classList.contains('open')) appliquerGeo(false)
+    if (wrap.classList.contains('open') && !drag) {
+      const f = cible()
+      wrap.style.left = f.left + 'px'
+      wrap.style.top = f.top + 'px'
+      wrap.style.width = f.w + 'px'
+      wrap.style.height = f.h + 'px'
+    }
   })
 })()

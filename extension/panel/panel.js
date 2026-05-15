@@ -4,7 +4,6 @@
  */
 const API_BASE = 'https://assistant-pc.onrender.com'
 
-/* ---------- chrome.storage.local en promesses ---------- */
 const store = {
   get: (k) => new Promise((r) => chrome.storage.local.get(k, (v) => r(v[k]))),
   set: (k, val) => new Promise((r) => chrome.storage.local.set({ [k]: val }, r)),
@@ -20,21 +19,33 @@ const sendBtn = $('send')
 const loginErr = $('login-err')
 const loginBtn = $('login-btn')
 const logoutBtn = $('btn-logout')
+const newBtn = $('btn-new')
+const histBtn = $('btn-hist')
 const settingsEl = $('settings')
+const historyEl = $('history')
+const WELCOME_HTML = $('welcome').outerHTML
 
 let token = null
 let sessionId = null
 
-const versParent = (msg) => parent.postMessage(Object.assign({ __pchelper: '' }, msg), '*')
+const versParent = (msg) => parent.postMessage(msg, '*')
 
-/* ---------- Fermeture ---------- */
+/* ---------- Feuilles (réglages / historique), exclusives ---------- */
+function fermerFeuilles(saufEl) {
+  ;[settingsEl, historyEl].forEach((el) => { if (el !== saufEl) el.classList.remove('open') })
+}
+function basculerFeuille(el, onOpen) {
+  const ouvre = !el.classList.contains('open')
+  fermerFeuilles(el)
+  el.classList.toggle('open', ouvre)
+  if (ouvre && onOpen) onOpen()
+}
+
 $('btn-close').addEventListener('click', () => versParent({ __pchelper: 'closePanel' }))
+$('btn-set').addEventListener('click', () => basculerFeuille(settingsEl))
+histBtn.addEventListener('click', () => basculerFeuille(historyEl, chargerHistorique))
+newBtn.addEventListener('click', nouveauChat)
 
-/* ---------- Réglages ---------- */
-$('btn-set').addEventListener('click', () => {
-  const ouvert = settingsEl.style.display === 'flex'
-  settingsEl.style.display = ouvert ? 'none' : 'flex'
-})
 const seg = $('seg-size')
 seg.querySelectorAll('button').forEach((b) => {
   b.addEventListener('click', () => {
@@ -44,29 +55,29 @@ seg.querySelectorAll('button').forEach((b) => {
   })
 })
 $('reset-pos').addEventListener('click', () => versParent({ __pchelper: 'resetPos' }))
-
-// Reflète la taille persistée dans le contrôle segmenté.
 store.get('pchGeo').then((g) => {
   const preset = (g && g.preset) || 'standard'
-  seg.querySelectorAll('button').forEach((x) =>
-    x.classList.toggle('on', x.dataset.size === preset))
+  seg.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x.dataset.size === preset))
 })
 
-/* ---------- Déplacement (glisser la poignée ou l'en-tête) ---------- */
+/* ---------- Déplacement (drag fiable : coordonnées ÉCRAN) ---------- */
 function brancherDrag(el) {
   el.addEventListener('pointerdown', (e) => {
     if (e.target.closest('button')) return
     e.preventDefault()
-    const sx = e.clientX, sy = e.clientY
+    try { el.setPointerCapture(e.pointerId) } catch {}
+    const sx = e.screenX, sy = e.screenY
     versParent({ __pchelper: 'dragStart' })
-    const move = (ev) => versParent({ __pchelper: 'dragMove', dx: ev.clientX - sx, dy: ev.clientY - sy })
+    const move = (ev) => versParent({ __pchelper: 'dragMove', dx: ev.screenX - sx, dy: ev.screenY - sy })
     const up = () => {
       versParent({ __pchelper: 'dragEnd' })
-      window.removeEventListener('pointermove', move)
-      window.removeEventListener('pointerup', up)
+      el.removeEventListener('pointermove', move)
+      el.removeEventListener('pointerup', up)
+      el.removeEventListener('pointercancel', up)
     }
-    window.addEventListener('pointermove', move)
-    window.addEventListener('pointerup', up)
+    el.addEventListener('pointermove', move)
+    el.addEventListener('pointerup', up)
+    el.addEventListener('pointercancel', up)
   })
 }
 brancherDrag($('grab'))
@@ -77,11 +88,16 @@ function montrerLogin() {
   loginForm.style.display = 'flex'
   chatView.style.display = 'none'
   logoutBtn.style.display = 'none'
+  newBtn.style.display = 'none'
+  histBtn.style.display = 'none'
+  fermerFeuilles()
 }
 function montrerChat() {
   loginForm.style.display = 'none'
   chatView.style.display = 'flex'
   logoutBtn.style.display = 'flex'
+  newBtn.style.display = 'flex'
+  histBtn.style.display = 'flex'
   chargerMateriel()
 }
 
@@ -96,9 +112,7 @@ function chargerMateriel() {
       chips.push(`<span class="chip">CPU <b>${d.cpu.charge}%</b></span>`)
       chips.push(`<span class="chip">${d.cpu.coeurs} <b>cœurs</b></span>`)
     }
-    if (d.memoire) {
-      chips.push(`<span class="chip">RAM <b>${d.memoire.utiliseGo}/${d.memoire.totalGo} Go</b></span>`)
-    }
+    if (d.memoire) chips.push(`<span class="chip">RAM <b>${d.memoire.utiliseGo}/${d.memoire.totalGo} Go</b></span>`)
     if (d.ecran) chips.push(`<span class="chip">Écran <b>${d.ecran}</b></span>`)
     if (!chips.length) { hw.style.display = 'none'; return }
     hw.innerHTML = chips.join('')
@@ -106,7 +120,7 @@ function chargerMateriel() {
   })
 }
 
-/* ---------- Connexion ---------- */
+/* ---------- Connexion / déconnexion ---------- */
 loginForm.addEventListener('submit', async (e) => {
   e.preventDefault()
   loginErr.textContent = ''
@@ -119,10 +133,7 @@ loginForm.addEventListener('submit', async (e) => {
       body: JSON.stringify({ email: $('email').value.trim(), motDePasse: $('mdp').value })
     })
     const data = await res.json().catch(() => ({}))
-    if (!res.ok) {
-      loginErr.textContent = data.erreur || 'Connexion impossible.'
-      return
-    }
+    if (!res.ok) { loginErr.textContent = data.erreur || 'Connexion impossible.'; return }
     token = data.token
     await store.set('token', token)
     await store.set('email', data.email || '')
@@ -135,23 +146,72 @@ loginForm.addEventListener('submit', async (e) => {
   }
 })
 
-/* ---------- Déconnexion ---------- */
 logoutBtn.addEventListener('click', async () => {
   try {
     await fetch(API_BASE + '/auth/deconnexion', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + token }
+      method: 'POST', headers: { 'Authorization': 'Bearer ' + token }
     })
   } catch {}
   token = null
   sessionId = null
   await store.del('token')
   await store.del('sessionId')
-  msgsEl.querySelectorAll('.row').forEach((r) => r.remove())
   montrerLogin()
 })
 
-/* ---------- Affichage des messages ---------- */
+/* ---------- Nouvelle conversation ---------- */
+function nouveauChat() {
+  sessionId = null
+  store.del('sessionId')
+  fermerFeuilles()
+  msgsEl.innerHTML = WELCOME_HTML
+  inputEl.value = ''
+  inputEl.focus()
+}
+
+/* ---------- Historique ---------- */
+async function chargerHistorique() {
+  const liste = $('hist-list')
+  liste.innerHTML = '<div class="hist-empty">Chargement…</div>'
+  try {
+    const res = await fetch(API_BASE + '/sessions', { headers: { 'Authorization': 'Bearer ' + token } })
+    if (res.status === 401) { await sessionExpiree(); return }
+    if (!res.ok) { liste.innerHTML = '<div class="hist-empty">Erreur de chargement.</div>'; return }
+    const sessions = await res.json()
+    if (!sessions.length) { liste.innerHTML = '<div class="hist-empty">Aucune conversation.</div>'; return }
+    liste.innerHTML = ''
+    sessions.forEach((s) => {
+      const b = document.createElement('button')
+      b.className = 'hist-item'
+      const t = document.createElement('div'); t.className = 'h-t'
+      t.textContent = (s.premier_message || 'Sans titre').slice(0, 60)
+      const d = document.createElement('div'); d.className = 'h-d'
+      d.textContent = new Date(s.derniere_activite).toLocaleDateString('fr-FR',
+        { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+      b.appendChild(t); b.appendChild(d)
+      b.addEventListener('click', () => ouvrirConversation(s.session_id))
+      liste.appendChild(b)
+    })
+  } catch {
+    liste.innerHTML = '<div class="hist-empty">Réseau indisponible.</div>'
+  }
+}
+
+async function ouvrirConversation(sid) {
+  try {
+    const res = await fetch(API_BASE + '/historique/' + sid, { headers: { 'Authorization': 'Bearer ' + token } })
+    if (res.status === 401) { await sessionExpiree(); return }
+    if (!res.ok) return
+    const msgs = await res.json()
+    sessionId = sid
+    store.set('sessionId', sid)
+    fermerFeuilles()
+    msgsEl.innerHTML = ''
+    msgs.forEach((m) => ajouterMsg(m.contenu, m.role))
+  } catch {}
+}
+
+/* ---------- Messages ---------- */
 function ajouterMsg(texte, role) {
   const w = $('welcome')
   if (w) w.remove()
@@ -170,6 +230,18 @@ function ajouterMsg(texte, role) {
   }
   row.appendChild(av)
   row.appendChild(bub)
+  if (role !== 'user') {
+    const cp = document.createElement('button')
+    cp.className = 'copy'; cp.title = 'Copier'; cp.textContent = '⧉'
+    cp.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(bub.textContent)
+        cp.textContent = '✓'; cp.classList.add('done')
+        setTimeout(() => { cp.textContent = '⧉'; cp.classList.remove('done') }, 1400)
+      } catch {}
+    })
+    row.appendChild(cp)
+  }
   msgsEl.appendChild(row)
   msgsEl.scrollTop = msgsEl.scrollHeight
   return bub
@@ -183,35 +255,24 @@ async function sessionExpiree() {
 }
 
 /* ---------- Envoi + streaming SSE ---------- */
-async function envoyer() {
-  const message = inputEl.value.trim()
+async function envoyerTexte(message) {
   if (!message || sendBtn.disabled) return
-  inputEl.value = ''
-  inputEl.style.height = 'auto'
   ajouterMsg(message, 'user')
   const bub = ajouterMsg('__typing__', 'assistant')
   sendBtn.disabled = true
-
   try {
     const res = await fetch(API_BASE + '/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
       body: JSON.stringify({ message, sessionId })
     })
-
     if (res.status === 401) { await sessionExpiree(); return }
     if (!res.ok || !res.body) {
-      bub.classList.remove('typing')
-      bub.textContent = 'Une erreur est survenue. Réessaie.'
-      return
+      bub.classList.remove('typing'); bub.textContent = 'Une erreur est survenue. Réessaie.'; return
     }
-
     const reader = res.body.getReader()
     const dec = new TextDecoder()
-    let buf = ''
-    let texte = ''
-    let premier = true
-
+    let buf = '', texte = '', premier = true
     while (true) {
       const { value, done } = await reader.read()
       if (done) break
@@ -237,17 +298,48 @@ async function envoyer() {
         }
       }
     }
-    if (premier && !texte) {
-      bub.classList.remove('typing')
-      bub.textContent = 'Réponse vide. Réessaie.'
-    }
+    if (premier && !texte) { bub.classList.remove('typing'); bub.textContent = 'Réponse vide. Réessaie.' }
   } catch {
-    bub.classList.remove('typing')
-    bub.textContent = 'Connexion au service impossible.'
+    bub.classList.remove('typing'); bub.textContent = 'Connexion au service impossible.'
   } finally {
     sendBtn.disabled = false
     inputEl.focus()
   }
+}
+
+function envoyer() {
+  const m = inputEl.value.trim()
+  if (!m) return
+  inputEl.value = ''
+  inputEl.style.height = 'auto'
+  envoyerTexte(m)
+}
+
+/* ---------- Suggestions + analyse matériel (délégation) ---------- */
+msgsEl.addEventListener('click', (e) => {
+  const sug = e.target.closest('.sug')
+  if (sug) { envoyerTexte(sug.dataset.q); return }
+  if (e.target.closest('#btn-analyse')) analyserMateriel()
+})
+
+function analyserMateriel() {
+  chrome.runtime.sendMessage({ type: 'PCHELPER_HW' }, (rep) => {
+    const d = rep && rep.ok ? rep.data : null
+    let cfg
+    if (d && d.cpu) {
+      cfg = `- Processeur : ${d.cpu.modele || 'CPU'} — ${d.cpu.coeurs} cœurs (charge ${d.cpu.charge}%)
+- Mémoire : ${d.memoire ? d.memoire.utiliseGo + '/' + d.memoire.totalGo + ' Go' : 'inconnue'}
+- Écran : ${d.ecran || 'inconnu'}`
+    } else {
+      cfg = `- Processeur : ${navigator.hardwareConcurrency || '?'} cœurs logiques
+- Mémoire : ${navigator.deviceMemory ? '≈ ' + navigator.deviceMemory + ' Go' : 'inconnue'}`
+    }
+    envoyerTexte(`Voici la configuration réelle de ma machine :
+${cfg}
+- Navigateur / OS : ${navigator.userAgent}
+
+Analyse cette configuration : est-elle équilibrée ? Points faibles, recommandations (drivers, mises à niveau), problèmes de compatibilité connus ?`)
+  })
 }
 
 sendBtn.addEventListener('click', envoyer)
