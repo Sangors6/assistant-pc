@@ -1154,7 +1154,7 @@ Analyse cette configuration : est-elle équilibrée ? Quels sont les points faib
         ? dateActivite.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
         : '—'
 
-    } catch(e) { console.log(e) }
+    } catch { /* profil indisponible : on laisse les valeurs par défaut */ }
   }
 
   function fermerProfil() { document.getElementById('profil-overlay').classList.remove('visible') }

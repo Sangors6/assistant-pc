@@ -287,37 +287,47 @@ app.post('/auth/deconnexion', authentifier, (req, res) => {
 })
 
 app.get('/auth/moi', authentifier, async (req, res) => {
-  const utilisateur = await one('SELECT id, email, plan, messages_utilises FROM utilisateurs WHERE id = $1', [req.utilisateur.id])
-  res.json(utilisateur)
+  try {
+    const utilisateur = await one('SELECT id, email, plan, messages_utilises FROM utilisateurs WHERE id = $1', [req.utilisateur.id])
+    res.json(utilisateur)
+  } catch (erreur) {
+    console.error('Auth moi :', erreur.message)
+    res.status(500).json({ erreur: 'Service indisponible' })
+  }
 })
 
 app.get('/profil', authentifier, async (req, res) => {
-  const utilisateur = await one('SELECT id, email, plan, messages_utilises, cree_le FROM utilisateurs WHERE id = $1', [req.utilisateur.id])
+  try {
+    const utilisateur = await one('SELECT id, email, plan, messages_utilises, cree_le FROM utilisateurs WHERE id = $1', [req.utilisateur.id])
 
-  const nbConversations = await one(
-    'SELECT COUNT(DISTINCT session_id) as total FROM conversations WHERE utilisateur_id = $1',
-    [req.utilisateur.id]
-  )
+    const nbConversations = await one(
+      'SELECT COUNT(DISTINCT session_id) as total FROM conversations WHERE utilisateur_id = $1',
+      [req.utilisateur.id]
+    )
 
-  const nbMessages = await one(
-    'SELECT COUNT(*) as total FROM conversations WHERE utilisateur_id = $1 AND role = $2',
-    [req.utilisateur.id, 'user']
-  )
+    const nbMessages = await one(
+      'SELECT COUNT(*) as total FROM conversations WHERE utilisateur_id = $1 AND role = $2',
+      [req.utilisateur.id, 'user']
+    )
 
-  const derniereActivite = await one(
-    'SELECT MAX(cree_le) as derniere FROM conversations WHERE utilisateur_id = $1',
-    [req.utilisateur.id]
-  )
+    const derniereActivite = await one(
+      'SELECT MAX(cree_le) as derniere FROM conversations WHERE utilisateur_id = $1',
+      [req.utilisateur.id]
+    )
 
-  res.json({
-    email: utilisateur.email,
-    plan: utilisateur.plan,
-    cree_le: utilisateur.cree_le,
-    // pg renvoie COUNT en chaîne (bigint) : on garde des nombres dans l'API.
-    nb_conversations: Number(nbConversations.total),
-    nb_messages: Number(nbMessages.total),
-    derniere_activite: derniereActivite.derniere
-  })
+    res.json({
+      email: utilisateur.email,
+      plan: utilisateur.plan,
+      cree_le: utilisateur.cree_le,
+      // pg renvoie COUNT en chaîne (bigint) : on garde des nombres dans l'API.
+      nb_conversations: Number(nbConversations.total),
+      nb_messages: Number(nbMessages.total),
+      derniere_activite: derniereActivite.derniere
+    })
+  } catch (erreur) {
+    console.error('Profil :', erreur.message)
+    res.status(500).json({ erreur: 'Impossible de charger le profil' })
+  }
 })
 
 app.post('/profil/mot-de-passe', authentifier, async (req, res) => {
@@ -327,17 +337,22 @@ app.post('/profil/mot-de-passe', authentifier, async (req, res) => {
   const erreurMdp = validerMotDePasse(nouveauMdp)
   if (erreurMdp) return res.status(400).json({ erreur: erreurMdp })
 
-  const utilisateur = await one('SELECT * FROM utilisateurs WHERE id = $1', [req.utilisateur.id])
-  const valide = await bcrypt.compare(ancienMdp, utilisateur.mot_de_passe)
-  if (!valide) return res.status(401).json({ erreur: 'Ancien mot de passe incorrect' })
+  try {
+    const utilisateur = await one('SELECT * FROM utilisateurs WHERE id = $1', [req.utilisateur.id])
+    const valide = await bcrypt.compare(ancienMdp, utilisateur.mot_de_passe)
+    if (!valide) return res.status(401).json({ erreur: 'Ancien mot de passe incorrect' })
 
-  if (await motDePasseCompromis(nouveauMdp)) {
-    return res.status(400).json({ erreur: 'Ce mot de passe figure dans des fuites de données connues. Choisis-en un autre.' })
+    if (await motDePasseCompromis(nouveauMdp)) {
+      return res.status(400).json({ erreur: 'Ce mot de passe figure dans des fuites de données connues. Choisis-en un autre.' })
+    }
+
+    const hash = await bcrypt.hash(nouveauMdp, 10)
+    await run('UPDATE utilisateurs SET mot_de_passe = $1, mdp_version = mdp_version + 1 WHERE id = $2', [hash, req.utilisateur.id])
+    res.json({ message: 'Mot de passe modifié avec succès' })
+  } catch (erreur) {
+    console.error('Changement mot de passe :', erreur.message)
+    res.status(500).json({ erreur: 'Modification impossible' })
   }
-
-  const hash = await bcrypt.hash(nouveauMdp, 10)
-  await run('UPDATE utilisateurs SET mot_de_passe = $1, mdp_version = mdp_version + 1 WHERE id = $2', [hash, req.utilisateur.id])
-  res.json({ message: 'Mot de passe modifié avec succès' })
 })
 
 // Note : les anciennes routes /stats et /peripheriques (lecture du
@@ -348,11 +363,16 @@ app.post('/profil/mot-de-passe', authentifier, async (req, res) => {
 
 app.get('/historique/:sessionId', authentifier, async (req, res) => {
   if (!UUID_REGEX.test(req.params.sessionId)) return res.status(400).json({ erreur: 'Session invalide' })
-  const messages = await query(
-    'SELECT role, contenu FROM conversations WHERE utilisateur_id = $1 AND session_id = $2 ORDER BY cree_le ASC',
-    [req.utilisateur.id, req.params.sessionId]
-  )
-  res.json(messages)
+  try {
+    const messages = await query(
+      'SELECT role, contenu FROM conversations WHERE utilisateur_id = $1 AND session_id = $2 ORDER BY cree_le ASC',
+      [req.utilisateur.id, req.params.sessionId]
+    )
+    res.json(messages)
+  } catch (erreur) {
+    console.error('Historique :', erreur.message)
+    res.status(500).json({ erreur: 'Impossible de charger la conversation' })
+  }
 })
 
 app.get('/sessions', authentifier, async (req, res) => {
