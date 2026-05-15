@@ -211,6 +211,19 @@ Ton identité :
 - Ne mentionne jamais Claude, Anthropic, GPT, OpenAI ou tout autre modèle IA
 - Si on te pose des questions sur nous, réponds poliment que tu es simplement un assistant`
 
+// Contexte temporel injecté à chaque requête : permet à l'assistant de
+// situer ses réponses dans le temps (ex. « les pilotes sortis cette année »).
+function promptAvecContexte() {
+  const maintenant = new Date().toLocaleString('fr-FR', {
+    timeZone: 'Europe/Paris',
+    dateStyle: 'full',
+    timeStyle: 'short'
+  })
+  return `${SYSTEM_PROMPT}
+
+Contexte : nous sommes le ${maintenant} (heure de Paris). Tiens-en compte si la date est pertinente (actualité matérielle, pilotes récents, etc.).`
+}
+
 async function authentifier(req, res, next) {
   const token = req.headers['authorization']?.split(' ')[1]
   if (!token) return res.status(401).json({ erreur: 'Non connecté' })
@@ -334,6 +347,15 @@ app.get('/profil', authentifier, async (req, res) => {
       [req.utilisateur.id]
     )
 
+    // Estimation des tokens : approximation standard 1 token ≈ 4 caractères.
+    // Coût indicatif : 0,003 € / 1000 tokens.
+    const volume = await one(
+      'SELECT COALESCE(SUM(LENGTH(contenu)), 0) as caracteres FROM conversations WHERE utilisateur_id = $1',
+      [req.utilisateur.id]
+    )
+    const tokensEstimes = Math.round(Number(volume.caracteres) / 4)
+    const coutEstimeEur = Math.round((tokensEstimes / 1000) * 0.003 * 100) / 100
+
     res.json({
       email: utilisateur.email,
       plan: utilisateur.plan,
@@ -341,7 +363,9 @@ app.get('/profil', authentifier, async (req, res) => {
       // pg renvoie COUNT en chaîne (bigint) : on garde des nombres dans l'API.
       nb_conversations: Number(nbConversations.total),
       nb_messages: Number(nbMessages.total),
-      derniere_activite: derniereActivite.derniere
+      derniere_activite: derniereActivite.derniere,
+      tokens_estimes: tokensEstimes,
+      cout_estime_eur: coutEstimeEur
     })
   } catch (erreur) {
     console.error('Profil :', erreur.message)
@@ -394,6 +418,31 @@ app.get('/historique/:sessionId', authentifier, async (req, res) => {
   }
 })
 
+// Export d'une conversation en fichier texte lisible.
+app.get('/historique/:sessionId/export', authentifier, async (req, res) => {
+  if (!UUID_REGEX.test(req.params.sessionId)) return res.status(400).json({ erreur: 'Session invalide' })
+  try {
+    const msgs = await query(
+      'SELECT role, contenu, cree_le FROM conversations WHERE utilisateur_id = $1 AND session_id = $2 ORDER BY cree_le ASC',
+      [req.utilisateur.id, req.params.sessionId]
+    )
+    if (!msgs.length) return res.status(404).json({ erreur: 'Conversation introuvable' })
+    const corps = msgs.map((m) => {
+      const qui = m.role === 'user' ? 'Vous' : 'PC Helper'
+      const d = new Date(m.cree_le).toLocaleString('fr-FR')
+      return `[${d}] ${qui} :\n${m.contenu}\n`
+    }).join('\n')
+    const entete = `PC Helper — Conversation\nExportée le ${new Date().toLocaleString('fr-FR')}\n${'='.repeat(50)}\n\n`
+    const nom = `pc-helper-conversation-${new Date().toISOString().slice(0, 10)}.txt`
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+    res.setHeader('Content-Disposition', `attachment; filename="${nom}"`)
+    res.send(entete + corps)
+  } catch (erreur) {
+    console.error('Export :', erreur.message)
+    res.status(500).json({ erreur: 'Export impossible' })
+  }
+})
+
 app.get('/sessions', authentifier, async (req, res) => {
   try {
     // NB : la sous-requête doit filtrer sur $1 (l'utilisateur), PAS sur
@@ -417,6 +466,33 @@ app.get('/sessions', authentifier, async (req, res) => {
   } catch (erreur) {
     console.error('Liste sessions :', erreur.message)
     res.status(500).json({ erreur: 'Impossible de charger les conversations' })
+  }
+})
+
+// Recherche plein-texte dans les conversations de l'utilisateur connecté.
+app.get('/sessions/recherche', authentifier, async (req, res) => {
+  const q = (req.query.q || '').toString().trim()
+  if (q.length < 2) return res.json([])
+  if (q.length > 100) return res.status(400).json({ erreur: 'Recherche trop longue' })
+  try {
+    // Échappe les jokers ILIKE (% et _) pour une recherche littérale.
+    const motif = '%' + q.replace(/[%_\\]/g, '\\$&') + '%'
+    const rows = await query(`
+      SELECT c.session_id,
+        (SELECT c2.contenu FROM conversations c2
+         WHERE c2.session_id = c.session_id AND c2.utilisateur_id = $1 AND c2.role = 'user'
+         ORDER BY c2.cree_le ASC LIMIT 1) as premier_message,
+        MAX(c.cree_le) as derniere_activite
+      FROM conversations c
+      WHERE c.utilisateur_id = $1 AND c.contenu ILIKE $2 ESCAPE '\\'
+      GROUP BY c.session_id
+      ORDER BY derniere_activite DESC
+      LIMIT 20
+    `, [req.utilisateur.id, motif])
+    res.json(rows)
+  } catch (erreur) {
+    console.error('Recherche :', erreur.message)
+    res.status(500).json({ erreur: 'Recherche impossible' })
   }
 })
 
@@ -521,7 +597,7 @@ app.post('/chat', limiteurChat, authentifier, async (req, res) => {
     const stream = claude.messages.stream({
       model: 'claude-sonnet-4-5',
       max_tokens: 4096,
-      system: SYSTEM_PROMPT,
+      system: promptAvecContexte(),
       messages: historique
     }, { signal: ac.signal })
 

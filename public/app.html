@@ -191,6 +191,11 @@
 
     /* Panel conversations */
     #panel-conv { display: none; flex-direction: column; gap: 8px; }
+    .conv-search { width: 100%; padding: 11px 14px; border-radius: 12px; background: var(--bg-card); border: 1px solid var(--border); color: var(--text); font-size: 13px; font-family: inherit; outline: none; transition: border-color 0.2s ease, box-shadow 0.2s ease; margin-bottom: 4px; }
+    .conv-search::placeholder { color: #3a4a66; }
+    .conv-search:focus { border-color: var(--border-hover); box-shadow: 0 0 0 3px rgba(37,99,235,0.14); }
+    .btn-exp { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; background: rgba(37,99,235,0.06); border: 1px solid rgba(59,130,246,0.14); color: #5a7aa8; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+    .btn-exp:hover { background: rgba(37,99,235,0.16); border-color: var(--border-hover); color: #93c5fd; }
     .conv-item { display: flex; align-items: center; gap: 10px; padding: 13px 15px; background: var(--bg-card); backdrop-filter: blur(10px); border: 1px solid var(--border); border-radius: 13px; transition: all 0.2s ease; }
     .conv-item:hover { border-color: var(--border-hover); background: rgba(37,99,235,0.06); transform: translateX(2px); }
     .conv-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--blue); flex-shrink: 0; box-shadow: 0 0 8px var(--blue); }
@@ -529,6 +534,14 @@
       <div class="info-row">
         <span class="info-label">Dernière activité</span>
         <span class="info-val" id="info-activite">—</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Tokens estimés</span>
+        <span class="info-val" id="info-tokens">—</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Coût estimé</span>
+        <span class="info-val" id="info-cout">—</span>
       </div>
     </div>
 
@@ -966,33 +979,81 @@ chargerPeripheriques()
     return false
   }
 
-  async function ouvrirConv() {
+  let rechercheTimer = null
+
+  function ouvrirConv() {
     welcomeCard.style.display = 'none'; sugGrid.style.display = 'none'
     document.querySelectorAll('.msg-row').forEach(m => m.remove())
-    panelConv.style.display = 'flex'; panelConv.innerHTML = '<div class="conv-empty">Chargement...</div>'
+    panelConv.style.display = 'flex'
     document.getElementById('session-title').textContent = 'Conversations'
+    panelConv.innerHTML = ''
+    const search = document.createElement('input')
+    search.className = 'conv-search'
+    search.type = 'search'
+    search.placeholder = '🔍  Rechercher dans mes conversations…'
+    const liste = document.createElement('div')
+    liste.id = 'conv-list'
+    liste.style.display = 'flex'; liste.style.flexDirection = 'column'; liste.style.gap = '8px'
+    panelConv.appendChild(search); panelConv.appendChild(liste)
+    search.addEventListener('input', () => {
+      clearTimeout(rechercheTimer)
+      const q = search.value.trim()
+      rechercheTimer = setTimeout(() => chargerSessions(q), 280)
+    })
+    chargerSessions('')
+  }
+
+  async function chargerSessions(q) {
+    const liste = document.getElementById('conv-list')
+    if (!liste) return
+    liste.innerHTML = '<div class="conv-empty">Chargement...</div>'
+    const url = q && q.length >= 2 ? `/sessions/recherche?q=${encodeURIComponent(q)}` : '/sessions'
     try {
-      const res = await fetch('/sessions', { headers: { 'Authorization': `Bearer ${token}` } })
+      const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
       if (sessionExpiree(res)) return
-      if (!res.ok) { panelConv.innerHTML = '<div class="conv-empty">Erreur de chargement</div>'; return }
+      if (!res.ok) { liste.innerHTML = '<div class="conv-empty">Erreur de chargement</div>'; return }
       const sessions = await res.json()
-      if (!sessions.length) { panelConv.innerHTML = '<div class="conv-empty">Aucune conversation sauvegardée</div>'; return }
-      panelConv.innerHTML = ''
+      if (!sessions.length) {
+        liste.innerHTML = '<div class="conv-empty">' +
+          (q ? 'Aucun résultat pour cette recherche' : 'Aucune conversation sauvegardée') + '</div>'
+        return
+      }
+      liste.innerHTML = ''
       sessions.forEach(s => {
         const div = document.createElement('div'); div.className = 'conv-item'
         const dot = document.createElement('div'); dot.className = 'conv-dot'
         const body = document.createElement('div'); body.className = 'conv-body'
         const convTitle = document.createElement('div'); convTitle.className = 'conv-title'
-        convTitle.textContent = s.premier_message.substring(0, 55) + (s.premier_message.length > 55 ? '...' : '')
+        const pm = s.premier_message || 'Sans titre'
+        convTitle.textContent = pm.substring(0, 55) + (pm.length > 55 ? '...' : '')
         const convDate = document.createElement('div'); convDate.className = 'conv-date'
         convDate.textContent = new Date(s.derniere_activite).toLocaleDateString('fr-FR', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})
         body.appendChild(convTitle); body.appendChild(convDate)
         body.onclick = () => chargerConv(s.session_id)
+        const exp = document.createElement('button'); exp.className = 'btn-exp'; exp.textContent = '⬇'
+        exp.title = 'Exporter en .txt'
+        exp.onclick = e => { e.stopPropagation(); exporterConv(s.session_id) }
         const del = document.createElement('button'); del.className = 'btn-del'; del.textContent = '🗑️'
         del.onclick = e => { e.stopPropagation(); ouvrirModale(() => supprimerConv(s.session_id, div)) }
-        div.appendChild(dot); div.appendChild(body); div.appendChild(del); panelConv.appendChild(div)
+        div.appendChild(dot); div.appendChild(body); div.appendChild(exp); div.appendChild(del)
+        liste.appendChild(div)
       })
-    } catch { panelConv.innerHTML = '<div class="conv-empty">Erreur de chargement</div>' }
+    } catch { liste.innerHTML = '<div class="conv-empty">Erreur de chargement</div>' }
+  }
+
+  async function exporterConv(sid) {
+    try {
+      const res = await fetch(`/historique/${sid}/export`, { headers: { 'Authorization': `Bearer ${token}` } })
+      if (sessionExpiree(res)) return
+      if (!res.ok) return
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `pc-helper-conversation-${new Date().toISOString().slice(0,10)}.txt`
+      document.body.appendChild(a); a.click(); a.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } catch {}
   }
 
   async function chargerConv(sid) {
@@ -1146,6 +1207,12 @@ Analyse cette configuration : est-elle équilibrée ? Quels sont les points faib
 
       document.getElementById('stat-conv').textContent = data.nb_conversations
       document.getElementById('stat-msg').textContent = data.nb_messages
+      if (data.tokens_estimes != null) {
+        document.getElementById('info-tokens').textContent =
+          data.tokens_estimes.toLocaleString('fr-FR') + ' tokens'
+        document.getElementById('info-cout').textContent =
+          '≈ ' + Number(data.cout_estime_eur).toFixed(2).replace('.', ',') + ' €'
+      }
       document.getElementById('info-email').textContent = data.email
       const planDisplay = data.plan.charAt(0).toUpperCase() + data.plan.slice(1)
       document.getElementById('info-plan').textContent = planDisplay
