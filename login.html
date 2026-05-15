@@ -3,20 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PC Helper — Connexion</title>
+  <title>PC Helper</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
-
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
       font-family: 'Inter', system-ui, sans-serif;
-      background: #080c12;
-      color: #dcddde;
       height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
+      overflow: hidden;
+      background: #080c12;
     }
 
     body::before {
@@ -28,172 +27,254 @@
     }
 
     #card {
-      background: #080e18;
-      border: 1px solid #0e1a2a;
-      border-radius: 18px;
+      position: relative;
+      z-index: 10;
+      width: 420px;
+      background: rgba(8, 14, 28, 0.97);
+      border: 1px solid rgba(0, 80, 200, 0.2);
+      border-radius: 20px;
       padding: 40px;
-      width: 100%;
-      max-width: 400px;
-      z-index: 1;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 100px rgba(0, 40, 160, 0.08);
     }
 
     #logo {
       display: flex;
       align-items: center;
       gap: 12px;
-      margin-bottom: 32px;
       justify-content: center;
+      margin-bottom: 28px;
     }
 
     #logo-icon {
-      width: 44px;
-      height: 44px;
-      background: linear-gradient(135deg, #0078ff, #0050c8);
+      width: 46px;
+      height: 46px;
+      background: linear-gradient(135deg, #1a6eff, #0040cc);
       border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 22px;
-      box-shadow: 0 0 20px rgba(0, 120, 255, 0.3);
+      box-shadow: 0 0 20px rgba(26, 110, 255, 0.4);
     }
 
-    #logo-text {
-      font-size: 20px;
-      font-weight: 600;
-      color: #ffffff;
-    }
+    #logo-name { font-size: 22px; font-weight: 700; color: #ffffff; }
+    #logo-sub { font-size: 11px; color: #3a5a8a; font-weight: 400; }
 
-    .tabs {
+    #tabs {
       display: flex;
-      gap: 0;
-      margin-bottom: 28px;
-      background: #060a10;
-      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(0, 80, 200, 0.15);
+      border-radius: 12px;
       padding: 4px;
+      margin-bottom: 28px;
     }
 
     .tab {
       flex: 1;
-      padding: 8px;
-      text-align: center;
-      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+      border-radius: 9px;
+      font-size: 13px;
       font-weight: 500;
-      color: #2a4060;
+      color: #3a5a8a;
       cursor: pointer;
-      border-radius: 8px;
-      transition: all 0.2s ease;
+      transition: all 0.2s;
     }
 
     .tab.active {
-      background: #0e1a2a;
+      background: linear-gradient(135deg, #1a6eff, #0040cc);
       color: #ffffff;
+      box-shadow: 0 2px 12px rgba(26, 110, 255, 0.35);
     }
 
-    .champ {
-      margin-bottom: 16px;
-    }
+    .field { margin-bottom: 18px; }
 
-    label {
-      display: block;
-      font-size: 12px;
-      font-weight: 500;
-      color: #2a4060;
-      margin-bottom: 6px;
+    .field-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: #1a6eff;
+      letter-spacing: 1.5px;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+      display: block;
     }
 
-    input {
-      width: 100%;
-      background: #060a10;
-      border: 1px solid #0e1a2a;
+    .field-input {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(0, 80, 200, 0.18);
       border-radius: 10px;
       padding: 12px 14px;
-      color: #dcddde;
-      font-size: 14px;
-      font-family: inherit;
-      outline: none;
-      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      transition: all 0.2s;
     }
 
-    input:focus {
-      border-color: #0078ff;
-      box-shadow: 0 0 16px rgba(0, 120, 255, 0.1);
+    .field-input:focus-within {
+      border-color: #1a6eff;
+      box-shadow: 0 0 0 3px rgba(26, 110, 255, 0.1);
     }
+
+    .field-icon { font-size: 15px; flex-shrink: 0; opacity: 0.4; }
+
+    .field-input input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #c8d8e8;
+      font-size: 14px;
+      font-family: inherit;
+    }
+
+    .field-input input::placeholder { color: #1e3050; }
+
+    .eye-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 15px;
+      opacity: 0.35;
+      transition: opacity 0.15s;
+      padding: 0;
+    }
+    .eye-btn:hover { opacity: 0.7; }
+
+    #options {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      font-size: 13px;
+    }
+
+    .remember {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #3a5a8a;
+      cursor: pointer;
+    }
+
+    .remember input[type="checkbox"] {
+      width: 15px;
+      height: 15px;
+      accent-color: #1a6eff;
+      cursor: pointer;
+    }
+
+    #forgot { color: #1a6eff; font-size: 13px; cursor: pointer; text-decoration: none; }
+    #forgot:hover { text-decoration: underline; }
+
+    #message {
+      text-align: center;
+      font-size: 13px;
+      min-height: 18px;
+      margin-bottom: 14px;
+      color: #ff4444;
+    }
+    #message.succes { color: #00c853; }
 
     #bouton {
       width: 100%;
-      padding: 13px;
-      background: linear-gradient(135deg, #0078ff, #0050c8);
+      padding: 14px;
+      background: linear-gradient(135deg, #1a6eff, #0040cc);
       border: none;
-      border-radius: 10px;
+      border-radius: 12px;
       color: white;
       font-size: 15px;
-      font-weight: 500;
+      font-weight: 600;
       font-family: inherit;
       cursor: pointer;
-      margin-top: 8px;
-      transition: all 0.2s ease;
-      box-shadow: 0 0 20px rgba(0, 120, 255, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s;
+      box-shadow: 0 4px 20px rgba(26, 110, 255, 0.35);
+      margin-bottom: 24px;
     }
 
     #bouton:hover {
       transform: translateY(-1px);
-      box-shadow: 0 0 30px rgba(0, 120, 255, 0.4);
+      box-shadow: 0 6px 28px rgba(26, 110, 255, 0.5);
     }
 
-    #message {
-      margin-top: 16px;
-      font-size: 13px;
-      text-align: center;
-      min-height: 20px;
-      color: #ff4444;
-    }
-
-    #message.succes { color: #00c853; }
-
-    .gratuit-info {
-      margin-top: 20px;
-      padding: 12px;
-      background: #060a10;
-      border: 1px solid #0e1a2a;
+    #footer-info {
+      display: flex;
+      align-items: center;
+      border: 1px solid rgba(0, 80, 200, 0.15);
       border-radius: 10px;
-      font-size: 12px;
-      color: #2a4060;
-      text-align: center;
-      line-height: 1.6;
+      overflow: hidden;
     }
 
-    .gratuit-info span { color: #0078ff; font-weight: 500; }
+    .footer-item {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 10px;
+      font-size: 12px;
+      color: #3a5a8a;
+    }
+
+    .footer-item + .footer-item { border-left: 1px solid rgba(0, 80, 200, 0.15); }
+    .footer-item span { color: #1a6eff; font-weight: 600; }
   </style>
 </head>
 <body>
+
   <div id="card">
     <div id="logo">
       <div id="logo-icon">🖥️</div>
-      <div id="logo-text">PC Helper</div>
+      <div>
+        <div id="logo-name">PC Helper</div>
+        <div id="logo-sub">Votre assistant tech personnel</div>
+      </div>
     </div>
 
-    <div class="tabs">
+    <div id="tabs">
       <div class="tab active" onclick="changerTab('connexion')">Connexion</div>
       <div class="tab" onclick="changerTab('inscription')">Inscription</div>
     </div>
 
-    <div class="champ">
-      <label>Email</label>
-      <input type="email" id="email" placeholder="ton@email.com">
+    <div class="field">
+      <label class="field-label">Email</label>
+      <div class="field-input">
+        <span class="field-icon">✉️</span>
+        <input type="email" id="email" placeholder="ton@email.com">
+      </div>
     </div>
 
-    <div class="champ">
-      <label>Mot de passe</label>
-      <input type="password" id="mdp" placeholder="••••••••">
+    <div class="field">
+      <label class="field-label">Mot de passe</label>
+      <div class="field-input">
+        <span class="field-icon">🔒</span>
+        <input type="password" id="mdp" placeholder="••••••••">
+        <button class="eye-btn" onclick="toggleMdp()">👁️</button>
+      </div>
     </div>
 
-    <button id="bouton" onclick="soumettre()">Se connecter</button>
+    <div id="options">
+      <label class="remember">
+        <input type="checkbox" id="remember" checked>
+        Se souvenir de moi
+      </label>
+      <a id="forgot" href="#">Mot de passe oublié ?</a>
+    </div>
+
     <div id="message"></div>
 
-    <div class="gratuit-info">
-      Gratuit : <span>10 messages</span> · Pro : <span>illimité</span>
+    <button id="bouton" onclick="soumettre()">
+      <span id="bouton-texte">→ Se connecter</span>
+    </button>
+
+    <div id="footer-info">
+      <div class="footer-item">Gratuit : <span>10 messages</span></div>
+      <div class="footer-item">Pro : <span>illimité</span></div>
     </div>
   </div>
 
@@ -205,8 +286,14 @@
       document.querySelectorAll('.tab').forEach((t, i) => {
         t.classList.toggle('active', (mode === 'connexion' && i === 0) || (mode === 'inscription' && i === 1))
       })
-      document.getElementById('bouton').textContent = mode === 'connexion' ? 'Se connecter' : "S'inscrire"
+      document.getElementById('bouton-texte').textContent = mode === 'connexion' ? '→ Se connecter' : '→ Créer mon compte'
       document.getElementById('message').textContent = ''
+      document.getElementById('options').style.display = mode === 'connexion' ? 'flex' : 'none'
+    }
+
+    function toggleMdp() {
+      const input = document.getElementById('mdp')
+      input.type = input.type === 'password' ? 'text' : 'password'
     }
 
     async function soumettre() {
@@ -253,12 +340,10 @@
       }
     }
 
-    // Connexion avec Entrée
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') soumettre()
     })
 
-    // Si déjà connecté, redirige vers le chat
     if (localStorage.getItem('token')) {
       window.location.href = '/index.html'
     }
