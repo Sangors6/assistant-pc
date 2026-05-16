@@ -357,16 +357,16 @@
       }
 
       function init() {
-        var n = Math.round(Math.min(120, Math.max(46, (W * H) / 15000)));
-        if (matchMedia('(pointer:coarse)').matches) n = Math.round(n * 0.6);
+        var n = Math.round(Math.min(170, Math.max(70, (W * H) / 10500)));
+        if (matchMedia('(pointer:coarse)').matches) n = Math.round(n * 0.66);
         parts = [];
         for (var i = 0; i < n; i++) {
           var z = 0.35 + Math.random() * 0.65;
           parts.push({
             x: Math.random() * W, y: Math.random() * H, z: z,
-            vx: (Math.random() - 0.5) * 0.16 * z,
-            vy: (Math.random() - 0.5) * 0.16 * z,
-            r: (0.7 + Math.random() * 1.7) * z,
+            vx: (Math.random() - 0.5) * 0.24 * z,
+            vy: (Math.random() - 0.5) * 0.24 * z,
+            r: (0.9 + Math.random() * 2.0) * z,
             col: COLORS[(Math.random() * COLORS.length) | 0],
             ph: Math.random() * 6.28, tw: 0.6 + Math.random() * 0.7
           });
@@ -374,7 +374,7 @@
       }
 
       function resize() {
-        W = c.clientWidth; H = c.clientHeight;
+        W = window.innerWidth; H = window.innerHeight;
         c.width = Math.floor(W * DPR); c.height = Math.floor(H * DPR);
         x.setTransform(DPR, 0, 0, DPR, 0, 0);
         init();
@@ -382,8 +382,10 @@
 
       function frame(t) {
         x.clearRect(0, 0, W, H);
-        mx += (tx - mx) * 0.05; my += (ty - my) * 0.05;
-        var D = Math.min(W, H) < 700 ? 118 : 152;
+        // Dérive automatique douce : l'effet "respire" même sans souris.
+        var adx = Math.sin(t * 0.00013) * 18, ady = Math.cos(t * 0.00017) * 14;
+        mx += ((tx + adx) - mx) * 0.045; my += ((ty + ady) - my) * 0.045;
+        var D = Math.min(W, H) < 700 ? 132 : 168;
         x.globalCompositeOperation = 'lighter';
         for (var i = 0; i < parts.length; i++) {
           var a = parts[i], ax = a.x + mx * a.z, ay = a.y + my * a.z;
@@ -392,10 +394,10 @@
             var dx = ax - bx, dy = ay - by, d2 = dx * dx + dy * dy;
             if (d2 < D * D) {
               var d = Math.sqrt(d2);
-              var al = (1 - d / D) * 0.26 * Math.min(a.z, b.z);
-              if (al > 0.003) {
-                x.strokeStyle = 'rgba(120,190,255,' + al.toFixed(3) + ')';
-                x.lineWidth = Math.min(a.z, b.z) * 0.9;
+              var al = (1 - d / D) * 0.5 * Math.min(a.z, b.z);
+              if (al > 0.004) {
+                x.strokeStyle = 'rgba(130,196,255,' + al.toFixed(3) + ')';
+                x.lineWidth = 0.5 + Math.min(a.z, b.z) * 1.0;
                 x.beginPath(); x.moveTo(ax, ay); x.lineTo(bx, by); x.stroke();
               }
             }
@@ -408,10 +410,10 @@
           if (p.y < -30) p.y = H + 30; else if (p.y > H + 30) p.y = -30;
           var px = p.x + mx * p.z, py = p.y + my * p.z;
           var tw = 0.55 + 0.45 * Math.sin(t * 0.001 * p.tw + p.ph);
-          var g = p.r * 7;
-          x.globalAlpha = 0.17 * p.z * tw;
+          var g = p.r * 8;
+          x.globalAlpha = 0.34 * p.z * tw;
           x.drawImage(glow, px - g, py - g, g * 2, g * 2);
-          x.globalAlpha = 0.9 * tw;
+          x.globalAlpha = Math.min(1, 1.05 * tw);
           x.fillStyle = 'rgba(' + p.col[0] + ',' + p.col[1] + ',' + p.col[2] + ',1)';
           x.beginPath(); x.arc(px, py, p.r, 0, 6.2832); x.fill();
         }
@@ -424,7 +426,7 @@
 
       glow = makeGlow();
       resize();
-      var MAXP = 26;
+      var MAXP = 38;
       window.addEventListener('pointermove', function (e) {
         tx = ((e.clientX / window.innerWidth) - 0.5) * 2 * MAXP;
         ty = ((e.clientY / window.innerHeight) - 0.5) * 2 * MAXP;
