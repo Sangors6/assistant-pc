@@ -175,7 +175,7 @@ app.use((req, res, next) => {
 // Webhook Stripe — DOIT être déclaré avant express.json : la vérification de
 // signature exige le corps BRUT, pas le JSON parsé. Inerte si Stripe non
 // configuré (503). La signature est toujours vérifiée (règle absolue).
-app.post('/paiement/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+app.post('/paiement/webhook', express.raw({ type: 'application/json', limit: '1mb' }), async (req, res) => {
   if (!paiement.estConfigure()) return res.status(503).json({ erreur: 'Paiement non configuré' })
   let evenement
   try {
