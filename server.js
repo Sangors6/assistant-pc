@@ -48,6 +48,25 @@ const limiteurChatCompte = rateLimit({
   validate: { keyGeneratorIpFallback: false }
 })
 
+// Limiteur SUPPLÉMENTAIRE sur les routes *-confirme (reset & vérif email),
+// clé = token soumis, EN COMPLÉMENT du limiteur IP existant (inchangé).
+// But : borner le matraquage d'un même token (rejeu/devinette) même via
+// rotation d'IP. La vraie protection reste UUID v4 (122 bits) + TTL +
+// usage unique ; ceci est une défense en profondeur (R3 audit sécurité).
+// Plafond large (15/15 min) : un usage légitime (1 soumission) ne le sent
+// jamais. Repli IP si le token est absent (laisse passer la validation
+// "données invalides" du handler).
+const limiteurTokenConfirme = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  message: { erreur: 'Trop de tentatives. Réessaie plus tard.' },
+  keyGenerator: (req) => {
+    const t = req.body && typeof req.body.token === 'string' ? req.body.token : ''
+    return t ? 'tok:' + t.slice(0, 80) : 'ip:' + req.ip
+  },
+  validate: { keyGeneratorIpFallback: false }
+})
+
 const app = express()
 app.disable('x-powered-by') // ne pas révéler la stack (Express)
 // Derrière le proxy de l'hébergeur (Render/Railway/Vercel...) : indispensable
@@ -198,6 +217,14 @@ app.use((req, res, next) => {
   res.setHeader('X-XSS-Protection', '0')
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+  // Isolation cross-origin (R5 audit). COOP same-origin : durcit contre les
+  // attaques par fenêtre cross-origin / XS-Leaks (l'app n'ouvre aucune popup
+  // cross-origin -> aucun impact). CORP cross-origin : on POSE l'en-tête
+  // (défense explicite) tout en restant permissif, pour ne RIEN casser —
+  // l'extension Chrome et les assets restent fonctionnels (non-breaking
+  // assumé ; same-origin aurait risqué de bloquer l'extension cross-origin).
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin')
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
   res.setHeader('Content-Security-Policy', CSP)
   if (req.secure) {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
@@ -483,7 +510,7 @@ app.post('/auth/reset-demande', limiteurAuth, async (req, res) => {
   }
 })
 
-app.post('/auth/reset-confirme', limiteurAuth, async (req, res) => {
+app.post('/auth/reset-confirme', limiteurAuth, limiteurTokenConfirme, async (req, res) => {
   const { token, motDePasse } = req.body
   if (typeof token !== 'string' || typeof motDePasse !== 'string' || !token || !motDePasse) {
     return res.status(400).json({ erreur: 'Données invalides' })
@@ -514,7 +541,7 @@ app.post('/auth/reset-confirme', limiteurAuth, async (req, res) => {
 })
 
 // --- Vérification d'email à l'inscription --------------------------------
-app.post('/auth/verifier-confirme', limiteurAuth, async (req, res) => {
+app.post('/auth/verifier-confirme', limiteurAuth, limiteurTokenConfirme, async (req, res) => {
   const { token } = req.body
   if (typeof token !== 'string' || !token) {
     return res.status(400).json({ erreur: 'Lien invalide' })

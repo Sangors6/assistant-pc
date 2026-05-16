@@ -12,8 +12,26 @@ if (!DATABASE_URL) {
 // Les bases hébergées (Neon, Render, Supabase...) imposent TLS.
 // En local sur localhost, on désactive TLS.
 const estLocal = /@(localhost|127\.0\.0\.1)[:/]/.test(DATABASE_URL)
+
+// Dette D1 : `pg`/`pg-connection-string` déprécie l'interprétation de
+// `sslmode` (require/prefer/verify-ca traités comme verify-full, bientôt
+// breaking). Comme on pilote déjà TLS EXPLICITEMENT via l'option `ssl`
+// ci-dessous, on retire les paramètres ssl de l'URL : le comportement TLS
+// est strictement identique (zéro changement fonctionnel), mais le
+// warning de dépréciation disparaît et le code devient forward-compatible.
+// En cas d'URL non parsable, on retombe sur l'original (jamais bloquant).
+function urlSansSsl(u) {
+  try {
+    const url = new URL(u)
+    for (const p of ['sslmode', 'ssl', 'sslrootcert', 'sslcert', 'sslkey']) {
+      url.searchParams.delete(p)
+    }
+    return url.toString()
+  } catch { return u }
+}
+
 const pool = new Pool({
-  connectionString: DATABASE_URL,
+  connectionString: urlSansSsl(DATABASE_URL),
   ssl: estLocal ? false : { rejectUnauthorized: false },
   max: 10,
   idleTimeoutMillis: 30000,
