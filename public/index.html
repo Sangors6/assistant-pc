@@ -26,19 +26,21 @@
       --border-strong: rgba(130, 185, 255, 0.40);
     }
 
+    /* Fond de base sur <html> uniquement. Le <body> reste TRANSPARENT :
+       sinon son fond opaque recouvre la couche .bg (bug "rien visible"). */
     html { background: var(--bg); }
 
     body {
       min-height: 100vh;
       font-family: Inter, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-      background: var(--bg);
       color: var(--text);
       -webkit-font-smoothing: antialiased;
       overflow-x: hidden;
     }
 
-    /* — Fond : profondeur sobre, une seule lueur, grille très discrète — */
-    .bg { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
+    /* Décor : z-index 0, et .page passe en z-index 1 -> empilement
+       explicite et sans ambiguïté (canvas garanti visible). */
+    .bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
 
     .bg-base {
       position: absolute; inset: 0;
@@ -83,7 +85,8 @@
       position: absolute; inset: 0;
       width: 100%; height: 100%;
       display: block;
-      mix-blend-mode: screen;
+      /* pas de mix-blend : rendu direct, visibilité garantie (le glow
+         additif est déjà géré dans le canvas via 'lighter'). */
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -92,6 +95,7 @@
 
     .page {
       position: relative;
+      z-index: 1;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
@@ -344,7 +348,7 @@
       var DPR = Math.min(window.devicePixelRatio || 1, 2);
       var W = 0, H = 0, parts = [], glow, raf = null;
       var mx = 0, my = 0, tx = 0, ty = 0; // parallaxe : courant / cible
-      var COLORS = [[78, 231, 255], [45, 130, 255], [141, 194, 255]];
+      var COLORS = [[120, 240, 255], [90, 170, 255], [180, 220, 255]];
 
       function makeGlow() {
         var s = 64, g = document.createElement('canvas'); g.width = g.height = s;
