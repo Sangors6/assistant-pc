@@ -31,52 +31,56 @@
     #app { display: flex; flex: 1; overflow: hidden; position: relative; z-index: 1; }
 
     /* SIDEBAR */
-    #sidebar { width: 256px; flex-shrink: 0; background: var(--bg-panel); backdrop-filter: blur(24px); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: relative; z-index: 10; }
-    #sidebar::after { content: ''; position: absolute; top: 15%; right: 0; bottom: 15%; width: 1px; background: linear-gradient(to bottom, transparent, var(--blue) 40%, var(--cyan) 60%, transparent); opacity: 0.4; }
+    #sidebar { width: 264px; flex-shrink: 0; background: linear-gradient(180deg, rgba(8,13,26,0.92), rgba(5,8,18,0.97)); backdrop-filter: blur(24px); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: relative; z-index: 10; }
+    #sidebar::after { content: ''; position: absolute; top: 10%; right: -1px; bottom: 10%; width: 1px; background: linear-gradient(to bottom, transparent, var(--blue) 35%, var(--cyan) 55%, transparent); opacity: 0.45; }
 
-    #logo-box { padding: 18px 16px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 11px; }
-    #logo-icon { width: 38px; height: 38px; background: linear-gradient(135deg, var(--blue), var(--blue-dark)); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 0 20px var(--glow), inset 0 1px 0 rgba(255,255,255,0.15); flex-shrink: 0; position: relative; }
-    #logo-icon::after { content: ''; position: absolute; inset: -1px; border-radius: 11px; background: linear-gradient(135deg, rgba(59,130,246,0.5), transparent 50%); pointer-events: none; }
+    #logo-box { padding: 18px 16px 12px; display: flex; align-items: center; gap: 11px; }
+    #logo-icon { width: 38px; height: 38px; background: linear-gradient(135deg, var(--blue-light), var(--blue-dark)); border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 6px 18px rgba(37,99,235,0.4), inset 0 1px 0 rgba(255,255,255,0.18); flex-shrink: 0; }
     #logo-name { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: -0.4px; }
-    #logo-sub { font-size: 9.5px; color: var(--text-dim); font-weight: 400; letter-spacing: 0.5px; text-transform: uppercase; margin-top: 1px; }
+    #logo-sub { font-size: 9px; color: var(--text-dim); font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; margin-top: 2px; }
 
-    .nav-group { padding: 12px 10px 6px; }
-    .nav-label { font-size: 9px; font-weight: 700; color: rgba(71,85,105,0.7); text-transform: uppercase; letter-spacing: 1.5px; padding: 0 6px 6px; }
+    .nav-group { padding: 6px 12px 4px; }
+    .nav-label { font-size: 9px; font-weight: 700; color: rgba(100,116,139,0.7); text-transform: uppercase; letter-spacing: 1.6px; padding: 4px 8px 7px; }
 
-    .nav-item { display: flex; align-items: center; gap: 9px; padding: 9px 10px; border-radius: 9px; font-size: 13px; font-weight: 500; color: var(--text-dim); cursor: pointer; transition: all 0.2s ease; position: relative; overflow: hidden; margin-bottom: 2px; border: 1px solid transparent; }
-    .nav-item::before { content: ''; position: absolute; top: 0; left: -100%; bottom: 0; width: 60%; background: linear-gradient(90deg, transparent, rgba(59,130,246,0.12), transparent); transition: left 0.5s ease; }
-    .nav-item:hover::before { left: 150%; }
-    .nav-item:hover { background: rgba(37,99,235,0.07); color: #93c5fd; border-color: rgba(59,130,246,0.1); transform: translateX(2px); }
-    .nav-item.active { background: linear-gradient(135deg, rgba(37,99,235,0.18), rgba(29,78,216,0.12)); color: #ffffff; border-color: rgba(59,130,246,0.25); box-shadow: 0 2px 20px rgba(37,99,235,0.12); }
-    .nav-item.active::after { content: ''; position: absolute; left: 0; top: 25%; bottom: 25%; width: 2px; background: linear-gradient(to bottom, transparent, var(--blue-light), transparent); border-radius: 2px; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 11px; border-radius: 10px; font-size: 13px; font-weight: 500; color: var(--text-mid); cursor: pointer; transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease; position: relative; margin-bottom: 3px; border: 1px solid transparent; }
+    .nav-item:hover { background: rgba(37,99,235,0.08); color: #bcd4f5; }
+    .nav-item.active { background: rgba(37,99,235,0.14); color: #fff; border-color: rgba(59,130,246,0.22); }
+    .nav-item.active::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); height: 54%; width: 2.5px; border-radius: 0 3px 3px 0; background: linear-gradient(180deg, var(--blue-light), var(--cyan)); }
     .nav-icon { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
+    /* Action principale (1er nav-item = Nouveau chat) : CTA premium discret */
+    .nav-item.primary { background: linear-gradient(135deg, var(--blue), var(--blue-dark)); color: #fff; font-weight: 600; border-color: transparent; box-shadow: 0 8px 22px rgba(37,99,235,0.32); margin-bottom: 8px; }
+    .nav-item.primary:hover { color: #fff; transform: translateY(-1px); box-shadow: 0 10px 26px rgba(37,99,235,0.46); }
+    .nav-item.primary.active::before { display: none; }
 
-    .sys-section { margin: 4px 10px 0; padding-top: 10px; border-top: 1px solid var(--border); }
-    .sys-row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px; font-size: 11.5px; color: var(--text-dim); }
-    .badge-ok { margin-left: auto; background: rgba(34,197,94,0.1); color: var(--success); font-size: 9.5px; font-weight: 600; padding: 2px 7px; border-radius: 20px; border: 1px solid rgba(34,197,94,0.2); transition: color .3s, background .3s, border-color .3s; }
+    /* Carte premium réutilisable (Santé / Système) — langage visuel unifié */
+    .side-card { margin: 10px 12px 0; padding: 13px 14px; border-radius: 14px; background: rgba(6,10,20,0.6); border: 1px solid var(--border); }
+    .sc-head { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 600; color: var(--text-mid); margin-bottom: 11px; }
+    .sc-head .sc-ic { font-size: 12px; opacity: 0.85; }
+
+    .badge-ok { margin-left: auto; background: rgba(34,197,94,0.1); color: var(--success); font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 20px; border: 1px solid rgba(34,197,94,0.22); letter-spacing: 0.3px; transition: color .3s, background .3s, border-color .3s; }
     .badge-ok.warn { color: #f59e0b; background: rgba(245,158,11,0.10); border-color: rgba(245,158,11,0.25); }
     .badge-ok.down { color: var(--danger); background: rgba(239,68,68,0.10); border-color: rgba(239,68,68,0.28); }
-    .health { margin: 8px 10px 0; }
-    .health-head { display: flex; align-items: baseline; gap: 3px; font-family: 'JetBrains Mono', monospace; }
-    #health-score { font-size: 19px; font-weight: 700; color: var(--text); transition: color .3s; }
-    .health-100 { font-size: 10px; color: var(--text-dim); }
-    .health-bar { margin-top: 5px; height: 5px; border-radius: 3px; background: rgba(148,163,184,0.12); overflow: hidden; }
-    #health-fill { height: 100%; width: 0%; border-radius: 3px; background: var(--success); transition: width .6s cubic-bezier(.16,1,.3,1), background .4s; }
+
+    /* Santé PC — score hero, élément mémorable */
+    .health-head { display: flex; align-items: baseline; gap: 4px; font-family: 'JetBrains Mono', monospace; }
+    #health-score { font-size: 30px; font-weight: 800; line-height: 1; color: var(--success); transition: color .35s; }
+    .health-100 { font-size: 11px; color: var(--text-dim); font-weight: 600; }
+    .health-bar { margin-top: 9px; height: 6px; border-radius: 4px; background: rgba(148,163,184,0.12); overflow: hidden; }
+    #health-fill { height: 100%; width: 0%; border-radius: 4px; background: var(--success); transition: width .7s cubic-bezier(.16,1,.3,1), background .4s; }
     @media (prefers-reduced-motion: reduce) { #health-fill { transition: none; } }
 
-    .pc-panel { margin: 8px 10px; padding: 10px 12px; border-radius: 11px; background: rgba(5,8,18,0.7); border: 1px solid var(--border); backdrop-filter: blur(10px); }
-    .pc-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
-    .pc-label { font-size: 10px; color: #334155; font-family: 'JetBrains Mono', monospace; }
-    .pc-val { font-size: 10px; color: #60a5fa; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
-    .pc-bar { height: 2px; border-radius: 999px; background: rgba(30,41,59,0.8); overflow: hidden; margin-bottom: 7px; }
-    .pc-bar-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--blue), var(--cyan)); box-shadow: 0 0 8px rgba(34,211,238,0.5); transition: width 1s ease; }
+    /* Système — stats compactes alignées */
+    .pc-row { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; }
+    .pc-row + .pc-row { border-top: 1px solid rgba(148,163,184,0.06); }
+    .pc-label { font-size: 10px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; letter-spacing: 0.5px; }
+    .pc-val { font-size: 10.5px; color: #7fb0ee; font-weight: 600; font-family: 'JetBrains Mono', monospace; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-    #user-bar { margin: 0 10px 12px; padding: 9px 12px; border-radius: 11px; background: rgba(5,8,18,0.6); border: 1px solid var(--border); display: flex; align-items: center; gap: 9px; backdrop-filter: blur(10px); transition: all 0.2s; cursor: pointer; }
-    #user-bar:hover { border-color: var(--border-hover); }
-    #user-avatar { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, var(--blue), var(--blue-dark)); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: white; flex-shrink: 0; box-shadow: 0 0 10px var(--glow); }
-    #user-pseudo { font-size: 11.5px; font-weight: 600; color: #94a3b8; }
-    #user-plan { font-size: 9px; color: var(--blue-light); font-weight: 500; background: rgba(37,99,235,0.1); padding: 1px 6px; border-radius: 10px; border: 1px solid rgba(59,130,246,0.2); display: inline-block; margin-top: 2px; }
-    #deconnexion { margin-left: auto; font-size: 13px; cursor: pointer; color: rgba(71,85,105,0.5); transition: all 0.15s; padding: 4px; border-radius: 6px; }
+    #user-bar { margin: 12px; padding: 10px 12px; border-radius: 13px; background: rgba(6,10,20,0.7); border: 1px solid var(--border); display: flex; align-items: center; gap: 10px; transition: border-color 0.2s ease, background 0.2s ease; cursor: pointer; }
+    #user-bar:hover { border-color: var(--border-hover); background: rgba(37,99,235,0.06); }
+    #user-avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, var(--blue-light), var(--blue-dark)); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0; box-shadow: 0 4px 12px rgba(37,99,235,0.4); }
+    #user-pseudo { font-size: 12px; font-weight: 600; color: #cdd9ea; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
+    #user-plan { font-size: 8.5px; color: var(--blue-light); font-weight: 700; background: rgba(37,99,235,0.12); padding: 1px 7px; border-radius: 10px; border: 1px solid rgba(59,130,246,0.2); display: inline-block; margin-top: 3px; letter-spacing: 0.4px; }
+    #deconnexion { margin-left: auto; font-size: 14px; cursor: pointer; color: rgba(100,116,139,0.5); transition: color 0.15s, background 0.15s; padding: 5px; border-radius: 7px; }
     #deconnexion:hover { color: var(--danger); background: rgba(239,68,68,0.08); }
 
     /* MAIN */
@@ -214,15 +218,11 @@
     .recent-icon { font-size: 11px; opacity: 0.45; flex-shrink: 0; }
     .recent-title { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-    /* Raccourcis */
-    .shortcut-section { padding: 10px 10px 6px; border-top: 1px solid var(--border); margin-top: 4px; }
-    .shortcut-row { display: flex; align-items: center; justify-content: space-between; padding: 3px 6px; margin-bottom: 3px; }
-    .shortcut-key { font-size: 9px; font-family: 'JetBrains Mono', monospace; background: rgba(59,130,246,0.06); border: 1px solid rgba(59,130,246,0.12); color: #3b82f6; padding: 2px 5px; border-radius: 4px; white-space: nowrap; }
-    .shortcut-label { font-size: 10.5px; color: rgba(71,85,105,0.45); }
+    /* (section Raccourcis retirée — refonte sidebar) */
 
-    /* Périphériques */
-    .periph-section { padding: 10px 10px 8px; border-top: 1px solid var(--border); margin-top: 4px; }
-    .periph-list { display: flex; flex-direction: column; gap: 3px; margin: 6px 0 4px; }
+    /* Périphériques (intégré dans une .side-card) */
+    .periph-section { padding: 0; }
+    .periph-list { display: flex; flex-direction: column; gap: 3px; margin: 0 0 8px; }
     .periph-item { display: flex; align-items: center; gap: 7px; padding: 4px 6px; border-radius: 6px; transition: background 0.15s; }
     .periph-item:hover { background: rgba(59,130,246,0.05); }
     .periph-icon { font-size: 12px; flex-shrink: 0; }
@@ -389,28 +389,18 @@
       <div id="logo-icon">🖥️</div>
       <div>
         <div id="logo-name">PC Helper</div>
-        <div id="logo-sub">Support informatique</div>
+        <div id="logo-sub">Assistant technique IA</div>
       </div>
     </div>
 
     <div id="sidebar-scroll">
 
       <div class="nav-group">
-        <div class="nav-label">Navigation</div>
-        <div class="nav-item active" onclick="nouveauChat(); setNav(this)">
-          <span class="nav-icon">💬</span> Nouveau chat
+        <div class="nav-item primary active" onclick="nouveauChat(); setNav(this)">
+          <span class="nav-icon">＋</span> Nouveau chat
         </div>
         <div class="nav-item" onclick="ouvrirConv(); setNav(this)">
-          <span class="nav-icon">🗂️</span> Conversations
-        </div>
-        <div class="nav-item">
-          <span class="nav-icon">🧑‍💻</span> Contacter un technicien
-        </div>
-        <div class="nav-item">
-          <span class="nav-icon">🔬</span> Diagnostics
-        </div>
-        <div class="nav-item">
-          <span class="nav-icon">🛠️</span> Outils
+          <span class="nav-icon">🗂️</span> Mes conversations
         </div>
       </div>
 
@@ -419,40 +409,28 @@
         <div id="sidebar-recents"></div>
       </div>
 
-      <div class="sys-section">
-        <div class="nav-label">Système</div>
-        <div class="sys-row">
-          <span>🖥️</span> Santé du PC
+      <div class="side-card" title="Score de santé estimé du PC (CPU, RAM)">
+        <div class="sc-head">
+          <span class="sc-ic">🩺</span> Santé du PC
           <span class="badge-ok" id="health-badge">Analyse…</span>
         </div>
-        <div class="health" title="Score de santé estimé (CPU, RAM)">
-          <div class="health-head">
-            <span id="health-score">—</span><span class="health-100">/100</span>
-          </div>
-          <div class="health-bar"><div id="health-fill"></div></div>
+        <div class="health-head">
+          <span id="health-score">—</span><span class="health-100">/ 100</span>
         </div>
+        <div class="health-bar"><div id="health-fill"></div></div>
       </div>
 
-      <div class="pc-panel">
+      <div class="side-card">
+        <div class="sc-head"><span class="sc-ic">⚙️</span> Système</div>
         <div class="pc-row"><span class="pc-label">CPU</span><span class="pc-val" id="s-cpu">—</span></div>
         <div class="pc-row"><span class="pc-label">RAM</span><span class="pc-val" id="s-ram">—</span></div>
-        <div class="pc-row"><span class="pc-label">GPU</span><span class="pc-val" id="s-gpu" style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</span></div>
-        <div class="pc-row"><span class="pc-label">Écran</span><span class="pc-val" id="s-ecran">—</span></div>
-        <div class="pc-row" style="margin-bottom:0">
-          <span class="pc-label">Réseau</span><span class="pc-val" id="s-ping">—</span>
-        </div>
+        <div class="pc-row"><span class="pc-label">GPU</span><span class="pc-val" id="s-gpu">—</span></div>
+        <div class="pc-row"><span class="pc-label">ÉCRAN</span><span class="pc-val" id="s-ecran">—</span></div>
+        <div class="pc-row"><span class="pc-label">RÉSEAU</span><span class="pc-val" id="s-ping">—</span></div>
       </div>
 
-      <div class="shortcut-section">
-        <div class="nav-label">Raccourcis</div>
-        <div class="shortcut-row"><span class="shortcut-key">Ctrl+K</span><span class="shortcut-label">Nouveau chat</span></div>
-        <div class="shortcut-row"><span class="shortcut-key">Ctrl+/</span><span class="shortcut-label">Focus saisie</span></div>
-        <div class="shortcut-row"><span class="shortcut-key">Esc</span><span class="shortcut-label">Fermer fenêtre</span></div>
-        <div class="shortcut-row"><span class="shortcut-key">Shift+↵</span><span class="shortcut-label">Saut de ligne</span></div>
-      </div>
-
-      <div class="periph-section">
-        <div class="nav-label">Périphériques</div>
+      <div class="side-card periph-section">
+        <div class="sc-head"><span class="sc-ic">🔌</span> Périphériques</div>
         <div id="sidebar-periph-list" class="periph-list">
           <div class="periph-loading">Détection en cours…</div>
         </div>
@@ -461,9 +439,9 @@
 
     </div>
 
-    <div id="user-bar" onclick="ouvrirProfil()">
+    <div id="user-bar" onclick="ouvrirProfil()" title="Mon profil">
       <div id="user-avatar"></div>
-      <div>
+      <div style="min-width:0">
         <div id="user-pseudo"></div>
         <div id="user-plan">Gratuit</div>
       </div>
