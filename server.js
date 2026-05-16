@@ -825,7 +825,14 @@ app.get('/health', async (req, res) => {
     res.json({
       status: 'ok',
       uptime_s: Math.floor((Date.now() - DEMARRE_LE) / 1000),
-      version: require('./package.json').version
+      version: require('./package.json').version,
+      // Booléens d'état uniquement — AUCUNE valeur/secret exposé. Sert à
+      // vérifier d'un coup d'œil si les intégrations sont câblées en prod.
+      services: {
+        db: true,
+        email: mailer.estConfigure(),
+        paiement: paiement.estConfigure()
+      }
     })
   } catch {
     res.status(503).json({ status: 'degraded' })
