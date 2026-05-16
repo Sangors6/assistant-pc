@@ -261,38 +261,66 @@ app.use(express.static('public', {
   }
 }))
 
-const SYSTEM_PROMPT = `Tu es un technicien informatique expérimenté intégré à PC Helper.
+const SYSTEM_PROMPT = `Tu es PC Helper, technicien informatique expert.
 
-Ton comportement :
-- Tu es direct, honnête et factuel — tu ne cherches pas à plaire
-- Tu poses des questions précises pour identifier le vrai problème avant de donner une solution
-- Tu donnes des solutions concrètes et testées, pas des généralités
-- Si tu ne sais pas, tu le dis clairement
-- Si l'utilisateur se trompe dans son diagnostic, tu le corriges poliment mais fermement
-- Tu ne valides pas une mauvaise piste juste pour faire plaisir
-- Tes réponses sont courtes et vont droit au but — pas de remplissage
-- Tu es amical mais professionnel, pas familier
-- Tu n'utilises pas d'emojis sauf exception
-- Tu ne commences jamais par des formules creuses comme "Bien sûr !", "Absolument !", "Excellente question !"
-- Quand on t'envoie une image, analyse-la en détail et identifie le problème visible
+RÈGLES STRICTES :
+- Réponds en 3-5 phrases max sauf si étapes multiples nécessaires
+- Pose UNE seule question ciblée si info manquante
+- Jamais de formules creuses (Bien sûr, Absolument, Excellente question)
+- Jamais d'emojis sauf si l'utilisateur en utilise
+- Jamais de remplissage — chaque mot doit apporter de la valeur
+- Si tu ne sais pas → dis-le clairement en une phrase
+- Corrige les mauvais diagnostics fermement mais poliment
+- Images reçues → identifie le problème visible immédiatement
 
-Ton identité :
-- Tu t'appelles PC Helper
-- Tu es un assistant propriétaire développé pour PC Helper
-- Ne mentionne jamais Claude, Anthropic, GPT, OpenAI ou tout autre modèle IA
-- Si on te pose des questions sur nous, réponds poliment que tu es simplement un assistant`
+FORMAT DE RÉPONSE SELON LE CAS :
+- Problème simple    → solution directe en 2-3 phrases
+- Problème complexe → étapes numérotées courtes (max 6)
+- Manque d'info     → 1 question précise + hypothèse la plus probable
+- Erreur visible    → diagnostic immédiat + cause + solution
+
+IDENTITÉ :
+- Tu es PC Helper, assistant propriétaire — jamais Claude, Anthropic, GPT, OpenAI
+- Si on te demande qui tu es → "Je suis PC Helper, assistant support informatique"
+
+DOMAINES DE COMPÉTENCE (réponds avec assurance) :
+Windows, drivers, BIOS, réseau, Wi-Fi, gaming/FPS, overclocking,
+RAM/CPU/GPU, stockage, virus/malware, écrans bleus, performances,
+imprimantes, virtualisation, Linux dual-boot
+
+HORS COMPÉTENCE (redirige poliment) :
+Développement web, comptabilité, médical, juridique → indique que
+ce n'est pas ton domaine et suggère une ressource adaptée
+
+ÉCONOMIE DE TOKENS :
+- Préfère les listes courtes aux paragraphes
+- Utilise des abréviations techniques connues (RAM, CPU, GPU, OS, MàJ)
+- Pas de répétition du problème de l'utilisateur avant de répondre
+- Pas de conclusion (Voilà, J'espère que ça aide, N'hésite pas...)
+- Coupe les explications théoriques sauf si explicitement demandées`
 
 // Contexte temporel injecté à chaque requête : permet à l'assistant de
 // situer ses réponses dans le temps (ex. « les pilotes sortis cette année »).
-function promptAvecContexte() {
+function promptAvecContexte(materiel) {
   const maintenant = new Date().toLocaleString('fr-FR', {
     timeZone: 'Europe/Paris',
     dateStyle: 'full',
     timeStyle: 'short'
   })
-  return `${SYSTEM_PROMPT}
+  let p = `${SYSTEM_PROMPT}
 
 Contexte : nous sommes le ${maintenant} (heure de Paris). Tiens-en compte si la date est pertinente (actualité matérielle, pilotes récents, etc.).`
+  // Matériel du poste, fourni par l'app cliente (extension PC Helper ou
+  // repli navigateur). Peut être approximatif : à utiliser comme indice,
+  // pas comme vérité absolue. Déjà validé/borné par la route appelante.
+  if (materiel) {
+    p += `
+
+Matériel détecté sur le poste de l'utilisateur (peut être approximatif, fourni par l'app) :
+${materiel}
+Tiens-en compte pour adapter tes diagnostics et recommandations (pilotes, compatibilité, performances), sans le répéter inutilement.`
+  }
+  return p
 }
 
 async function authentifier(req, res, next) {
@@ -680,6 +708,20 @@ app.post('/chat', limiteurChat, authentifier, limiteurChatCompte, async (req, re
     return res.status(400).json({ erreur: 'Message vide' })
   }
 
+  // Contexte matériel optionnel fourni par l'app cliente. Tolérant : si
+  // absent/invalide, on l'ignore (jamais d'erreur) — c'est un simple indice.
+  // Borné (600 car.) et nettoyé des caractères de contrôle avant injection.
+  let contexteMateriel = null
+  if (typeof req.body.contexteMateriel === 'string') {
+    // Neutralise les caractères de contrôle (-> espace) puis compacte
+    // les espaces. Évite l'injection de séquences parasites.
+    const m = req.body.contexteMateriel
+      .replace(/[\u0000-\u001F\u007F]+/g, ' ')
+      .replace(/\s{2,}/g, ' ')
+      .trim()
+    if (m) contexteMateriel = m.slice(0, 600)
+  }
+
   const utilisateur = await one('SELECT * FROM utilisateurs WHERE id = $1', [req.utilisateur.id])
 
   if (utilisateur.plan === 'gratuit' && utilisateur.messages_utilises >= LIMITE_GRATUIT) {
@@ -740,7 +782,7 @@ app.post('/chat', limiteurChat, authentifier, limiteurChatCompte, async (req, re
     const stream = claude.messages.stream({
       model: 'claude-sonnet-4-5',
       max_tokens: 4096,
-      system: promptAvecContexte(),
+      system: promptAvecContexte(contexteMateriel),
       messages: historique
     }, { signal: ac.signal })
 

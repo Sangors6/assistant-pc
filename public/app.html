@@ -79,6 +79,14 @@
     #status-pill { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--success); font-weight: 500; background: rgba(34,197,94,0.06); padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(34,197,94,0.15); }
     #status-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--success); box-shadow: 0 0 8px rgba(34,197,94,0.9); animation: blink 2s infinite; }
     @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+    /* États serveur dynamiques (vert / orange / rouge) */
+    #status-pill.warn { color: #f59e0b; background: rgba(245,158,11,0.07); border-color: rgba(245,158,11,0.22); }
+    #status-pill.warn #status-dot { background: #f59e0b; box-shadow: 0 0 8px rgba(245,158,11,0.9); }
+    #status-pill.down { color: var(--danger); background: rgba(239,68,68,0.07); border-color: rgba(239,68,68,0.25); }
+    #status-pill.down #status-dot { background: var(--danger); box-shadow: 0 0 8px rgba(239,68,68,0.9); animation: none; }
+    #resp-time { font-size: 10.5px; color: var(--text-mid); background: rgba(37,99,235,0.06); padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border); font-family: 'JetBrains Mono', monospace; opacity: 0; transition: opacity .25s ease; }
+    #resp-time.show { opacity: 1; }
+    @media (prefers-reduced-motion: reduce) { #status-dot { animation: none; } }
     .header-divider { width: 1px; height: 20px; background: var(--border); }
     #msg-counter { font-size: 10.5px; color: var(--text-dim); background: rgba(37,99,235,0.06); padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border); font-family: 'JetBrains Mono', monospace; }
     #header-avatar { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, var(--blue), var(--blue-dark)); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: white; box-shadow: 0 0 10px var(--glow); }
@@ -426,7 +434,8 @@
         </div>
       </div>
       <div id="header-right">
-        <div id="status-pill"><div id="status-dot"></div>En ligne</div>
+        <div id="resp-time" title="Temps de la dernière réponse"></div>
+        <div id="status-pill" title="État du serveur"><div id="status-dot"></div><span id="status-text">En ligne</span></div>
         <div class="header-divider"></div>
         <div id="msg-counter">0 msg</div>
         <div id="header-avatar"></div>
@@ -728,6 +737,69 @@ setInterval(mesurerPing, 10000)
 chargerRecents()
 chargerPeripheriques()
 
+/* — Indicateur d'état serveur dynamique (vert/orange/rouge) — */
+async function majStatut() {
+  const pill = document.getElementById('status-pill')
+  const txt = document.getElementById('status-text')
+  if (!pill || !txt) return
+  const ctrl = new AbortController()
+  const to = setTimeout(() => ctrl.abort(), 4500)
+  const t0 = performance.now()
+  try {
+    const r = await fetch('/health', { cache: 'no-store', signal: ctrl.signal })
+    clearTimeout(to)
+    const lat = Math.round(performance.now() - t0)
+    let etat = 'ok', label = 'En ligne'
+    if (!r.ok) { etat = 'warn'; label = 'Dégradé' }
+    else {
+      const j = await r.json().catch(() => null)
+      if (!j || j.status !== 'ok') { etat = 'warn'; label = 'Dégradé' }
+      else if (lat >= 1200) { etat = 'warn'; label = 'Lent' }
+    }
+    pill.classList.remove('warn', 'down')
+    if (etat !== 'ok') pill.classList.add(etat)
+    txt.textContent = label
+  } catch {
+    clearTimeout(to)
+    pill.classList.remove('warn'); pill.classList.add('down')
+    txt.textContent = 'Hors ligne'
+  }
+}
+majStatut()
+setInterval(majStatut, 20000)
+
+/* — Résumé matériel envoyé au modèle (contexte de diagnostic) — */
+let contexteMateriel = ''
+;(async function construireContexteMateriel() {
+  try {
+    const hw = await materielExtension()
+    const parts = []
+    if (hw && hw.cpu) {
+      parts.push('CPU ' + [hw.cpu.modele, hw.cpu.coeurs && hw.cpu.coeurs + ' cœurs',
+        (hw.cpu.charge != null) && ('charge ' + hw.cpu.charge + '%')].filter(Boolean).join(' — '))
+    } else if (navigator.hardwareConcurrency) {
+      parts.push('CPU ≈ ' + navigator.hardwareConcurrency + ' cœurs logiques')
+    }
+    if (hw && hw.memoire) parts.push('RAM ' + hw.memoire.utiliseGo + '/' + hw.memoire.totalGo + ' Go')
+    const gpu = detecterGPU()
+    if (gpu && gpu !== 'n/a') parts.push('GPU ' + gpu)
+    parts.push('Écran ' + ((hw && hw.ecran) ? hw.ecran : (window.screen.width + '×' + window.screen.height)))
+    const plat = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform
+    if (plat) parts.push('OS ' + plat)
+    contexteMateriel = parts.join(' | ').slice(0, 580)
+  } catch { contexteMateriel = '' }
+})()
+
+/* — Affichage du temps de la dernière réponse — */
+function afficherTempsReponse(ms) {
+  const el = document.getElementById('resp-time')
+  if (!el) return
+  if (ms == null) { el.classList.remove('show'); return }
+  const s = ms / 1000
+  el.textContent = '⚡ ' + (s < 10 ? s.toFixed(1) : Math.round(s)) + ' s'
+  el.classList.add('show')
+}
+
   /* Input */
   const inputEl = document.getElementById('input')
   inputEl.addEventListener('input', () => {
@@ -893,9 +965,12 @@ chargerPeripheriques()
 
     const typingBub = ajouterMsg('__typing__', 'assistant')
 
+    afficherTempsReponse(null)
+    const _t0 = performance.now()
     try {
       const body = { message: texte, sessionId }
       if (imageEnvoyee) body.image = { data: imageEnvoyee.data, mediaType: imageEnvoyee.mediaType }
+      if (contexteMateriel) body.contexteMateriel = contexteMateriel
 
       const res = await fetch('/chat', {
         method: 'POST',
@@ -949,6 +1024,7 @@ chargerPeripheriques()
               typingBub.classList.remove('streaming')
               typingBub.innerHTML = DOMPurify.sanitize(marked.parse(texteReponse))
               typingBub.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b))
+              afficherTempsReponse(performance.now() - _t0)
               msgCount++
               document.getElementById('msg-counter').textContent = msgCount + ' msg'
             } else if (data.type === 'erreur') {
