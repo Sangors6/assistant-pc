@@ -446,9 +446,13 @@
 
     // Pas de token : app.html va rediriger vers /login -> on n'affiche rien.
     if (!localStorage.getItem('token')) { intro.remove(); return }
-    // Déjà vue cette session : zéro friction, pas de répétition.
-    if (sessionStorage.getItem('pchIntroVu')) { intro.remove(); return }
-    sessionStorage.setItem('pchIntroVu', '1')
+    // L'intro se déclenche à l'ARRIVÉE sur le dashboard (parcours login →
+    // chargement → app), PAS sur un simple refresh interne (zéro friction).
+    // `?intro` force l'affichage (prévisualisation).
+    var forcer = /[?&]intro\b/.test(location.search)
+    var ref = document.referrer || ''
+    var vientDArrivee = /\/(chargement|login)\.html(\?|$)/.test(ref)
+    if (!forcer && !vientDArrivee) { intro.remove(); return }
 
     var snd = document.getElementById('snd-activation')
     var reduit = window.matchMedia('(prefers-reduced-motion: reduce)').matches
