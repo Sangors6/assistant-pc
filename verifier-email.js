@@ -42,9 +42,19 @@ const REQUISES = ['EMAIL_HOST', 'EMAIL_PORT', 'EMAIL_USER', 'EMAIL_PASS', 'EMAIL
   const dest = process.argv[2]
   if (dest) {
     try {
-      process.stdout.write(`Envoi d'un email de test à ${dest}... `)
-      await mailer.envoyerEmailReset(dest, 'https://assistant-pc.onrender.com/reset.html?token=TEST-DIAGNOSTIC')
-      console.log('✓ envoyé. Vérifie la boîte de réception (et les spams).')
+      process.stdout.write(`Envoi d'un email de test à ${dest}...\n`)
+      const info = await mailer.envoyerEmailReset(dest, 'https://assistant-pc.onrender.com/reset.html?token=TEST-DIAGNOSTIC')
+      // Vérité SMTP brute renvoyée par Brevo : c'est ça qui tranche.
+      console.log('  accepted  :', JSON.stringify(info && info.accepted))
+      console.log('  rejected  :', JSON.stringify(info && info.rejected))
+      console.log('  response  :', info && info.response)
+      console.log('  messageId :', info && info.messageId)
+      console.log('  envelope  :', JSON.stringify(info && info.envelope))
+      if (info && info.accepted && info.accepted.length) {
+        console.log('\n✓ Brevo a ACCEPTÉ le message. S\'il n\'arrive pas : filtrage côté Gmail (voir diagnostic).')
+      } else {
+        console.log('\n✗ Brevo n\'a PAS accepté ce destinataire — voir "rejected"/"response" ci-dessus.')
+      }
     } catch (e) {
       console.error('✗ ÉCHEC envoi :', e.message)
       process.exit(1)

@@ -93,14 +93,23 @@ function gabaritResetTexte(lienReset) {
 async function envoyerEmailReset(destinataire, lienReset) {
   const t = getTransport()
   if (!t) return false // SMTP non configuré : on n'échoue pas, on n'envoie pas.
-  await t.sendMail({
+  // Return-Path / enveloppe sur le domaine Brevo authentifié (EMAIL_USER,
+  // ex. ...@smtp-brevo.com) plutôt que sur le From visible : le SPF de
+  // l'enveloppe passe alors (domaine que Brevo signe réellement), ce qui
+  // améliore la délivrabilité même si l'alignement DMARC du From visible
+  // reste impossible avec une adresse @gmail.com (cf. RECOMMANDATIONS email).
+  const enveloppeFrom = /@/.test(EMAIL_USER || '') ? EMAIL_USER : EMAIL_FROM
+  const info = await t.sendMail({
     from: EMAIL_FROM,
     to: destinataire,
+    replyTo: EMAIL_FROM,
+    envelope: { from: enveloppeFrom, to: destinataire },
     subject: 'Réinitialisation de ton mot de passe — PC Helper',
     text: gabaritResetTexte(lienReset),
     html: gabaritReset(lienReset)
   })
-  return true
+  // info.accepted / rejected / response / messageId : vérité SMTP côté Brevo.
+  return info
 }
 
 // Vérifie que les identifiants SMTP sont valides (handshake réel, aucun
