@@ -96,6 +96,12 @@
     .eye-btn:hover { opacity: 0.7; }
     #message { text-align: center; font-size: 13px; min-height: 18px; margin-bottom: 14px; color: #ff4444; }
     #message.succes { color: #00c853; }
+    @keyframes msgIn {
+      from { opacity: 0; transform: translateY(-5px) scale(.98); }
+      to   { opacity: 1; transform: none; }
+    }
+    #message.show { animation: msgIn .34s cubic-bezier(.16, 1, .3, 1); }
+    @media (prefers-reduced-motion: reduce) { #message.show { animation: none; } }
     #bouton {
       width: 100%; padding: 14px;
       background: linear-gradient(135deg, #1a6eff, #0040cc);
@@ -188,6 +194,16 @@
       i.type = i.type === 'password' ? 'text' : 'password'
     }
 
+    // Affiche un message en rejouant l'animation d'apparition à chaque appel.
+    function afficherMessage(texte, succes) {
+      const msg = document.getElementById('message')
+      msg.className = succes ? 'succes' : ''
+      msg.textContent = texte
+      msg.classList.remove('show')
+      void msg.offsetWidth // force le reflow -> l'animation se rejoue
+      msg.classList.add('show')
+    }
+
     async function soumettre() {
       const msg = document.getElementById('message')
       const bouton = document.getElementById('bouton')
@@ -198,7 +214,7 @@
         let res, data
         if (enConfirmation) {
           const mdp = document.getElementById('mdp').value
-          if (!mdp) { msg.textContent = 'Saisis un mot de passe'; return }
+          if (!mdp) { afficherMessage('Saisis un mot de passe', false); return }
           bouton.disabled = true
           res = await fetch('/auth/reset-confirme', {
             method: 'POST',
@@ -206,13 +222,12 @@
             body: JSON.stringify({ token, motDePasse: mdp })
           })
           data = await res.json()
-          if (!res.ok) { msg.textContent = data.erreur || 'Erreur'; bouton.disabled = false; return }
-          msg.className = 'succes'
-          msg.textContent = data.message
+          if (!res.ok) { afficherMessage(data.erreur || 'Erreur', false); bouton.disabled = false; return }
+          afficherMessage(data.message, true)
           setTimeout(() => { window.location.href = '/login.html' }, 1800)
         } else {
           const email = document.getElementById('email').value.trim()
-          if (!email) { msg.textContent = 'Saisis ton email'; return }
+          if (!email) { afficherMessage('Saisis ton email', false); return }
           bouton.disabled = true
           res = await fetch('/auth/reset-demande', {
             method: 'POST',
@@ -221,11 +236,10 @@
           })
           data = await res.json()
           // Réponse volontairement uniforme (anti-énumération).
-          msg.className = 'succes'
-          msg.textContent = data.message
+          afficherMessage(data.message, true)
         }
       } catch {
-        msg.textContent = 'Erreur de connexion au serveur'
+        afficherMessage('Erreur de connexion au serveur', false)
         document.getElementById('bouton').disabled = false
       }
     }
