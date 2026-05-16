@@ -864,6 +864,7 @@ app.get('/health', async (req, res) => {
       services: {
         db: true,
         email: mailer.estConfigure(),
+        email_mode: mailer.mode(),
         paiement: paiement.estConfigure()
       }
     })

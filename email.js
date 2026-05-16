@@ -208,4 +208,11 @@ async function verifier() {
   return true
 }
 
-module.exports = { estConfigure, envoyerEmailReset, verifier }
+// Mode d'envoi actif — diagnostic non sensible (aucune valeur exposée).
+function mode() {
+  if (apiConfiguree()) return 'api'
+  if (smtpConfigure()) return 'smtp'
+  return 'off'
+}
+
+module.exports = { estConfigure, envoyerEmailReset, verifier, mode }
