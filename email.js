@@ -56,9 +56,12 @@ function gabaritReset(lienReset) {
             </td>
           </tr></table>
           <div style="font-size:13px;line-height:1.6;color:#9fb0c9;margin:22px 0 0;">
-            Le bouton ne fonctionne pas&nbsp;? Copie ce lien dans ton navigateur&nbsp;:<br>
-            <a href="${lien}" style="color:#6fb2ff;word-break:break-all;">${lien}</a>
+            Ou copie ce lien dans ton navigateur&nbsp;:
           </div>
+          <!-- URL en TEXTE BRUT, jamais dans une balise <a> : Brevo réécrit
+               les href (tracking de clic) mais ne touche pas au texte. Ainsi
+               l'utilisateur copie le vrai lien, sans pistage ni token altéré. -->
+          <div style="font-size:13px;line-height:1.6;color:#ffffff;margin:8px 0 0;word-break:break-all;font-family:Consolas,Menlo,Monaco,monospace;background-color:#0b1220;border:1px solid #25334c;border-radius:8px;padding:12px 14px;">${lien}</div>
           <div style="font-size:12px;line-height:1.6;color:#8294b0;margin:22px 0 0;">
             Si tu n'es pas à l'origine de cette demande, ignore cet email&nbsp;: ton mot de passe reste inchangé.
           </div>
