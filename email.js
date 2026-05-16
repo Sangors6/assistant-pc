@@ -76,4 +76,13 @@ async function envoyerEmailReset(destinataire, lienReset) {
   return true
 }
 
-module.exports = { estConfigure, envoyerEmailReset }
+// Vérifie que les identifiants SMTP sont valides (handshake réel, aucun
+// email envoyé). Lève si la configuration est absente ou incorrecte.
+async function verifier() {
+  const t = getTransport()
+  if (!t) throw new Error('SMTP non configuré (variables EMAIL_* manquantes)')
+  await t.verify()
+  return true
+}
+
+module.exports = { estConfigure, envoyerEmailReset, verifier }

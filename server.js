@@ -341,7 +341,15 @@ const hacherToken = (t) => crypto.createHash('sha256').update(t).digest('hex')
 app.post('/auth/reset-demande', limiteurAuth, async (req, res) => {
   const { email } = req.body
   const reponseUniforme = { message: 'Si un compte existe pour cette adresse, un email vient d\'être envoyé.' }
-  if (typeof email !== 'string' || !email) return res.json(reponseUniforme)
+  // Réponse renvoyée IMMÉDIATEMENT, avant tout travail. Deux raisons :
+  //  1. Sécurité : attendre l'envoi SMTP seulement quand le compte existe
+  //     créerait un oracle temporel (réponse plus lente = compte existant).
+  //     Répondre d'abord rend la latence constante quelle que soit l'issue.
+  //  2. Robustesse : l'envoi SMTP (Brevo) peut prendre plusieurs secondes ;
+  //     il ne doit jamais bloquer la requête HTTP ni la faire expirer.
+  // Le handler continue de s'exécuter après res.json (Express le permet).
+  res.json(reponseUniforme)
+  if (typeof email !== 'string' || !email) return
   const emailN = normaliserEmail(email)
   try {
     const u = await one('SELECT id, email FROM utilisateurs WHERE email = $1', [emailN])
@@ -355,16 +363,14 @@ app.post('/auth/reset-demande', limiteurAuth, async (req, res) => {
       const base = process.env.APP_URL ? process.env.APP_URL.replace(/\/+$/, '')
         : `${req.protocol}://${req.get('host')}`
       const lien = `${base}/reset.html?token=${tokenClair}`
-      try {
-        await mailer.envoyerEmailReset(u.email, lien)
-      } catch (e) {
-        console.error('Envoi email reset :', e.message)
-      }
+      // Envoi non bloquant : les erreurs sont seulement loggées (jamais
+      // remontées au client — anti-énumération).
+      mailer.envoyerEmailReset(u.email, lien)
+        .catch((e) => console.error('Envoi email reset :', e.message))
     }
   } catch (erreur) {
     console.error('Reset demande :', erreur.message)
   }
-  res.json(reponseUniforme)
 })
 
 app.post('/auth/reset-confirme', limiteurAuth, async (req, res) => {
