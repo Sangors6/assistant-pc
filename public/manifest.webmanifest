@@ -1,0 +1,21 @@
+{
+  "name": "PC Helper — Assistant technique IA",
+  "short_name": "PC Helper",
+  "description": "Diagnostiquez, réparez et optimisez votre PC en quelques minutes avec une IA spécialisée.",
+  "start_url": "/app.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#03070d",
+  "theme_color": "#03070d",
+  "lang": "fr",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

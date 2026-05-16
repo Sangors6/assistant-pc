@@ -117,3 +117,70 @@ test('JSON malformé → 400 (gestionnaire d’erreurs global)', async () => {
   })
   assert.equal(r.status, 400)
 })
+
+/* --- Couverture étendue (toujours non destructive : aucune écriture DB) --- */
+
+test('/feedback sans token → 401 (route protégée, aucune écriture)', async () => {
+  const r = await fetch(`${BASE}/feedback`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ positif: true })
+  })
+  assert.equal(r.status, 401)
+})
+
+test('verifier-renvoi sans email → 200 réponse uniforme', async () => {
+  const r = await fetch(`${BASE}/auth/verifier-renvoi`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: '{}'
+  })
+  assert.equal(r.status, 200)
+  const j = await r.json()
+  assert.match(j.message, /si un compte/i)
+})
+
+test('verifier-confirme token bidon → 400 (jamais 500)', async () => {
+  const r = await fetch(`${BASE}/auth/verifier-confirme`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ token: 'bidon' })
+  })
+  assert.equal(r.status, 400)
+})
+
+test('verifier.html servi (200)', async () => {
+  const r = await fetch(`${BASE}/verifier.html`)
+  assert.equal(r.status, 200)
+})
+
+test('PWA : manifest.webmanifest servi et JSON valide', async () => {
+  const r = await fetch(`${BASE}/manifest.webmanifest`)
+  assert.equal(r.status, 200)
+  const j = await r.json()
+  assert.equal(j.name, 'PC Helper — Assistant technique IA')
+  assert.equal(j.start_url, '/app.html')
+})
+
+test('PWA : service worker sw.js servi', async () => {
+  const r = await fetch(`${BASE}/sw.js`)
+  assert.equal(r.status, 200)
+})
+
+test('en-têtes de sécurité présents (COOP/CORP + no-store API)', async () => {
+  const html = await fetch(`${BASE}/login.html`)
+  assert.equal(html.headers.get('cross-origin-opener-policy'), 'same-origin')
+  assert.equal(html.headers.get('cross-origin-resource-policy'), 'cross-origin')
+  const api = await fetch(`${BASE}/auth/moi`)
+  assert.equal(api.status, 401)
+  assert.equal(api.headers.get('cache-control'), 'no-store')
+})
+
+test('connexion compte inexistant → 401 (anti-énumération, aucune écriture)', async () => {
+  const r = await fetch(`${BASE}/auth/connexion`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'inconnu_smoke@nulle.part', motDePasse: 'x' })
+  })
+  assert.equal(r.status, 401)
+})

@@ -31,6 +31,37 @@
       })
     })
     window.postMessage({ __pchelper: 'present' }, location.origin)
+
+    /* Diagnostic proactif : sonde périodique NON intrusive. Si une
+     * ressource devient critique, on le SIGNALE à la page — c'est elle
+     * qui décide d'en faire quoi (jamais d'action automatique). Tout est
+     * isolé et silencieux en cas d'échec : zéro impact sur le pont hwReq. */
+    let pchDerniereAlerte = 0
+    function pchSonderProactif() {
+      if (document.hidden) return
+      try {
+        chrome.runtime.sendMessage({ type: 'PCHELPER_HW' }, (rep) => {
+          if (chrome.runtime.lastError || !rep || !rep.ok || !rep.data) return
+          const hw = rep.data
+          const now = Date.now()
+          if (now - pchDerniereAlerte < 8 * 60 * 1000) return // ≤ 1 / 8 min
+          let pb = null
+          if (hw.cpu && hw.cpu.charge >= 92) {
+            pb = { type: 'cpu', valeur: hw.cpu.charge,
+              texte: 'CPU à ' + hw.cpu.charge + '% — ton PC est très sollicité.' }
+          } else if (hw.memoire && hw.memoire.pct >= 90) {
+            pb = { type: 'ram', valeur: hw.memoire.pct,
+              texte: 'RAM utilisée à ' + hw.memoire.pct + '% — risque de ralentissements.' }
+          }
+          if (pb) {
+            pchDerniereAlerte = now
+            window.postMessage({ __pchelper: 'proactif', pb }, location.origin)
+          }
+        })
+      } catch {}
+    }
+    setTimeout(pchSonderProactif, 12000)
+    setInterval(pchSonderProactif, 60000)
   }
 
   /* ---------------- Tailles réglables ---------------------------------- */

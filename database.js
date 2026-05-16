@@ -114,8 +114,19 @@ async function initDb() {
   // Sert exactement les requêtes chaudes : historique et chargement du
   // contexte (WHERE utilisateur_id, session_id ORDER BY cree_le). Idempotent.
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_conv_chrono ON conversations(utilisateur_id, session_id, cree_le)`)
+  // Feedback léger (pouce ↑/↓) sur les réponses — boucle d'apprentissage C5.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS feedback (
+      id BIGSERIAL PRIMARY KEY,
+      utilisateur_id BIGINT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+      session_id TEXT,
+      positif BOOLEAN NOT NULL,
+      cree_le TIMESTAMPTZ DEFAULT NOW()
+    )
+  `)
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_pwreset_token ON password_resets(token)`)
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_emailverif_token ON email_verifications(token)`)
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_feedback_user ON feedback(utilisateur_id, cree_le)`)
 }
 
 // Sonde de vivacité pour /health : vérifie que la base répond réellement.

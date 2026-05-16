@@ -6,6 +6,9 @@
   <title>PC Helper</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="apple-touch-icon" href="/favicon.svg">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#03070d">
+  <script>if('serviceWorker' in navigator){addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){})})}</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
@@ -50,7 +53,16 @@
 
     .sys-section { margin: 4px 10px 0; padding-top: 10px; border-top: 1px solid var(--border); }
     .sys-row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px; font-size: 11.5px; color: var(--text-dim); }
-    .badge-ok { margin-left: auto; background: rgba(34,197,94,0.1); color: var(--success); font-size: 9.5px; font-weight: 600; padding: 2px 7px; border-radius: 20px; border: 1px solid rgba(34,197,94,0.2); }
+    .badge-ok { margin-left: auto; background: rgba(34,197,94,0.1); color: var(--success); font-size: 9.5px; font-weight: 600; padding: 2px 7px; border-radius: 20px; border: 1px solid rgba(34,197,94,0.2); transition: color .3s, background .3s, border-color .3s; }
+    .badge-ok.warn { color: #f59e0b; background: rgba(245,158,11,0.10); border-color: rgba(245,158,11,0.25); }
+    .badge-ok.down { color: var(--danger); background: rgba(239,68,68,0.10); border-color: rgba(239,68,68,0.28); }
+    .health { margin: 8px 10px 0; }
+    .health-head { display: flex; align-items: baseline; gap: 3px; font-family: 'JetBrains Mono', monospace; }
+    #health-score { font-size: 19px; font-weight: 700; color: var(--text); transition: color .3s; }
+    .health-100 { font-size: 10px; color: var(--text-dim); }
+    .health-bar { margin-top: 5px; height: 5px; border-radius: 3px; background: rgba(148,163,184,0.12); overflow: hidden; }
+    #health-fill { height: 100%; width: 0%; border-radius: 3px; background: var(--success); transition: width .6s cubic-bezier(.16,1,.3,1), background .4s; }
+    @media (prefers-reduced-motion: reduce) { #health-fill { transition: none; } }
 
     .pc-panel { margin: 8px 10px; padding: 10px 12px; border-radius: 11px; background: rgba(5,8,18,0.7); border: 1px solid var(--border); backdrop-filter: blur(10px); }
     .pc-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
@@ -153,6 +165,22 @@
     .msg-row:hover .copy-btn { display: flex; }
     .copy-btn:hover { background: rgba(37,99,235,0.15); color: #93c5fd; }
     .copy-btn.copied { color: #22c55e; }
+    .fb-bar { display: flex; gap: 6px; margin-top: 6px; opacity: 0; transition: opacity 0.2s ease; }
+    .msg-row:hover .fb-bar, .fb-bar:focus-within, .fb-bar.fb-done { opacity: 1; }
+    .fb-btn { width: 26px; height: 24px; border-radius: 7px; background: rgba(10,15,28,0.9); border: 1px solid rgba(59,130,246,0.15); color: rgba(148,163,184,0.7); font-size: 12px; cursor: pointer; transition: all 0.15s; }
+    .fb-btn:hover { background: rgba(37,99,235,0.15); color: #93c5fd; }
+    .fb-btn.fb-on { color: #22c55e; border-color: rgba(34,197,94,0.4); }
+    .fb-btn:disabled { cursor: default; }
+    #proactif { display: none; align-items: center; gap: 10px; margin: 0 0 14px; padding: 11px 14px; border-radius: 12px; background: linear-gradient(180deg, rgba(245,158,11,0.10), rgba(245,158,11,0.05)); border: 1px solid rgba(245,158,11,0.28); font-size: 13px; color: #e7c98a; animation: proIn .35s cubic-bezier(.16,1,.3,1); }
+    #proactif.show { display: flex; }
+    @keyframes proIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+    #proactif-ic { flex-shrink: 0; }
+    #proactif-txt { flex: 1; color: #f0d9a8; }
+    #proactif-go { flex-shrink: 0; background: linear-gradient(135deg,#2563eb,#1d4ed8); color: #fff; border: none; border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer; transition: transform .15s; }
+    #proactif-go:hover { transform: translateY(-1px); }
+    #proactif-x { flex-shrink: 0; background: none; border: none; color: rgba(231,201,138,0.6); font-size: 13px; cursor: pointer; padding: 2px 4px; }
+    #proactif-x:hover { color: #f0d9a8; }
+    @media (prefers-reduced-motion: reduce) { #proactif { animation: none; } }
 
     /* Indicateur de saisie (3 points) — un peu d'air autour pour ne pas
        « coller » au texte / aux bords de la bulle. */
@@ -243,6 +271,9 @@
     #input { flex: 1; background: transparent; border: none; outline: none; color: var(--text); font-size: 13.5px; font-family: inherit; resize: none; max-height: 130px; min-height: 24px; line-height: 1.55; }
     #input::placeholder { color: rgba(71,85,105,0.4); }
     .tool-btn { width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0; background: rgba(37,99,235,0.06); border: 1px solid rgba(59,130,246,0.1); color: rgba(71,85,105,0.6); font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+    .tool-btn#voice-btn.rec { background: rgba(239,68,68,0.16); border-color: rgba(239,68,68,0.5); color: #ef4444; animation: recPulse 1.1s ease-in-out infinite; }
+    @keyframes recPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); } 50% { box-shadow: 0 0 0 6px rgba(239,68,68,0); } }
+    @media (prefers-reduced-motion: reduce) { .tool-btn#voice-btn.rec { animation: none; } }
     .tool-btn:hover { background: rgba(37,99,235,0.12); color: #93c5fd; border-color: rgba(59,130,246,0.25); transform: translateY(-1px); }
     #send-btn { width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0; background: linear-gradient(135deg, var(--blue), var(--blue-dark)); border: none; color: white; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 20px rgba(37,99,235,0.45); transition: all 0.15s; }
     #send-btn:hover { transform: scale(1.07) translateY(-1px); box-shadow: 0 0 32px rgba(37,99,235,0.65); }
@@ -391,8 +422,14 @@
       <div class="sys-section">
         <div class="nav-label">Système</div>
         <div class="sys-row">
-          <span>🖥️</span> État du PC
-          <span class="badge-ok">Optimal</span>
+          <span>🖥️</span> Santé du PC
+          <span class="badge-ok" id="health-badge">Analyse…</span>
+        </div>
+        <div class="health" title="Score de santé estimé (CPU, RAM)">
+          <div class="health-head">
+            <span id="health-score">—</span><span class="health-100">/100</span>
+          </div>
+          <div class="health-bar"><div id="health-fill"></div></div>
         </div>
       </div>
 
@@ -454,6 +491,12 @@
     </div>
 
     <div id="chat-area">
+      <div id="proactif" role="status" aria-live="polite">
+        <span id="proactif-ic">⚠️</span>
+        <span id="proactif-txt"></span>
+        <button type="button" id="proactif-go">Diagnostiquer</button>
+        <button type="button" id="proactif-x" aria-label="Ignorer">✕</button>
+      </div>
       <div id="welcome-card">
         <div id="welcome-top">
           <div id="welcome-bot-avatar">🖥️</div>
@@ -495,7 +538,7 @@
           <textarea id="input" placeholder="Décris ton problème..." rows="1"></textarea>
           <input type="file" id="file-input" accept="image/*,.pdf,.txt,.log" style="display:none">
           <button class="tool-btn" title="Pièce jointe" onclick="document.getElementById('file-input').click()">📎</button>
-          <button class="tool-btn" title="Message vocal">🎤</button>
+          <button class="tool-btn" id="voice-btn" type="button" title="Dictée vocale (beta)" onclick="toggleVocal()">🎤</button>
           <button id="send-btn" onclick="envoyer()">➤</button>
         </div>
         <div id="input-bottom">
@@ -727,6 +770,48 @@ async function infoSysteme() {
   elEcran.textContent = (hw && hw.ecran)
     ? hw.ecran
     : window.screen.width + '×' + window.screen.height
+
+  majSanteScore(hw)
+}
+
+// Score de santé PC 0-100 (estimé) : pénalise charge CPU et RAM utilisée.
+// Sans extension (pas de hw fiable) : estimation neutre via deviceMemory.
+function majSanteScore(hw) {
+  const elScore = document.getElementById('health-score')
+  const elFill = document.getElementById('health-fill')
+  const elBadge = document.getElementById('health-badge')
+  if (!elScore || !elFill || !elBadge) return
+
+  let score, parts = []
+  if (hw && (hw.cpu || hw.memoire)) {
+    if (hw.cpu && typeof hw.cpu.charge === 'number') {
+      parts.push(100 - Math.max(0, Math.min(100, hw.cpu.charge)))
+    }
+    if (hw.memoire && hw.memoire.totalGo) {
+      const pct = (hw.memoire.utiliseGo / hw.memoire.totalGo) * 100
+      parts.push(100 - Math.max(0, Math.min(100, pct)))
+    }
+    score = parts.length
+      ? Math.round(parts.reduce((a, b) => a + b, 0) / parts.length)
+      : 80
+  } else {
+    // Pas de télémétrie temps réel : estimation prudente.
+    score = 82
+  }
+  score = Math.max(0, Math.min(100, score))
+
+  elScore.textContent = score
+  elFill.style.width = score + '%'
+  let etat, couleur
+  if (score >= 75) { etat = 'Optimal'; couleur = '#22c55e' }
+  else if (score >= 50) { etat = 'Correct'; couleur = '#f59e0b' }
+  else { etat = 'À surveiller'; couleur = '#ef4444' }
+  elFill.style.background = couleur
+  elScore.style.color = couleur
+  elBadge.textContent = etat
+  elBadge.classList.remove('warn', 'down')
+  if (score < 50) elBadge.classList.add('down')
+  else if (score < 75) elBadge.classList.add('warn')
 }
 
 // Latence réelle visiteur -> serveur (aller-retour d'une petite requête)
@@ -819,6 +904,64 @@ function afficherTempsReponse(ms) {
     inputEl.style.height = Math.min(inputEl.scrollHeight, 130) + 'px'
   })
   inputEl.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); envoyer() } })
+
+  /* Dictée vocale (beta) — Web Speech API, dégradation gracieuse. */
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+  let reco = null, recoActif = false
+  const voiceBtn = document.getElementById('voice-btn')
+  if (!SR && voiceBtn) {
+    voiceBtn.style.display = 'none' // non supporté : on masque proprement
+  }
+  window.toggleVocal = function () {
+    if (!SR) return
+    if (recoActif && reco) { reco.stop(); return }
+    reco = new SR()
+    reco.lang = 'fr-FR'
+    reco.interimResults = true
+    reco.continuous = false
+    const base = inputEl.value ? inputEl.value.replace(/\s+$/, '') + ' ' : ''
+    reco.onstart = () => { recoActif = true; voiceBtn && voiceBtn.classList.add('rec') }
+    reco.onerror = () => { recoActif = false; voiceBtn && voiceBtn.classList.remove('rec') }
+    reco.onend = () => { recoActif = false; voiceBtn && voiceBtn.classList.remove('rec') }
+    reco.onresult = (ev) => {
+      let txt = ''
+      for (let i = 0; i < ev.results.length; i++) txt += ev.results[i][0].transcript
+      inputEl.value = base + txt
+      inputEl.dispatchEvent(new Event('input'))
+    }
+    try { reco.start() } catch {}
+  }
+
+  /* Diagnostic proactif : l'extension signale une ressource critique.
+     On affiche une suggestion DISCRÈTE et dismissible — jamais d'envoi
+     automatique : l'utilisateur garde le contrôle (zéro friction). */
+  ;(function () {
+    const box = document.getElementById('proactif')
+    const txt = document.getElementById('proactif-txt')
+    const go = document.getElementById('proactif-go')
+    const x = document.getElementById('proactif-x')
+    if (!box) return
+    let dernierType = null
+    window.addEventListener('message', (e) => {
+      if (e.source !== window) return
+      const d = e.data
+      if (!d || d.__pchelper !== 'proactif' || !d.pb) return
+      dernierType = d.pb.type
+      txt.textContent = d.pb.texte + ' Veux-tu un diagnostic ?'
+      box.classList.add('show')
+    })
+    go.addEventListener('click', () => {
+      const sujets = {
+        cpu: 'Mon CPU est très sollicité (charge élevée), comment réduire l\'utilisation et identifier ce qui consomme ?',
+        ram: 'Ma RAM est presque saturée, comment libérer de la mémoire et éviter les ralentissements ?'
+      }
+      inputEl.value = sujets[dernierType] || 'Mon PC montre des signes de surcharge, peux-tu m\'aider à diagnostiquer ?'
+      box.classList.remove('show')
+      inputEl.dispatchEvent(new Event('input'))
+      inputEl.focus()
+    })
+    x.addEventListener('click', () => box.classList.remove('show'))
+  })()
 
   /* Raccourcis */
   document.addEventListener('keydown', e => {
@@ -1014,6 +1157,34 @@ function afficherTempsReponse(ms) {
       afficherTempsReponse(performance.now() - _t0)
       msgCount++
       document.getElementById('msg-counter').textContent = msgCount + ' msg'
+
+      // Feedback léger (👍/👎) — boucle d'apprentissage, non bloquant.
+      const wrap = typingBub.parentElement
+      if (wrap && !wrap.querySelector('.fb-bar')) {
+        const bar = document.createElement('div')
+        bar.className = 'fb-bar'
+        const mk = (txt, pos, libelle) => {
+          const b = document.createElement('button')
+          b.type = 'button'; b.className = 'fb-btn'; b.textContent = txt
+          b.title = libelle; b.setAttribute('aria-label', libelle)
+          b.onclick = async () => {
+            bar.querySelectorAll('.fb-btn').forEach((x) => { x.disabled = true })
+            b.classList.add('fb-on')
+            bar.classList.add('fb-done')
+            try {
+              await fetch('/feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ sessionId, positif: pos })
+              })
+            } catch {}
+          }
+          return b
+        }
+        bar.appendChild(mk('👍', true, 'Réponse utile'))
+        bar.appendChild(mk('👎', false, 'Réponse à améliorer'))
+        wrap.appendChild(bar)
+      }
     }
 
     function revealer() {
