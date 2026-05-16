@@ -91,4 +91,14 @@ async function ping() {
   await pool.query('SELECT 1')
 }
 
-module.exports = { pool, query, one, run, initDb, ping }
+// Purge des jetons de réinitialisation devenus inutiles : expirés OU déjà
+// utilisés. Idempotent, sans risque (ces lignes ne servent plus à rien),
+// borne la croissance de la table. Renvoie le nombre de lignes supprimées.
+async function purgerResetsObsoletes() {
+  const res = await pool.query(
+    'DELETE FROM password_resets WHERE utilise = TRUE OR expire_le < NOW()'
+  )
+  return res.rowCount
+}
+
+module.exports = { pool, query, one, run, initDb, ping, purgerResetsObsoletes }

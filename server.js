@@ -8,7 +8,7 @@ const fs = require('fs')
 const path = require('path')
 const http = require('http')
 const https = require('https')
-const { query, one, run, initDb, ping } = require('./database')
+const { query, one, run, initDb, ping, purgerResetsObsoletes } = require('./database')
 const mailer = require('./email')
 const paiement = require('./paiement')
 
@@ -123,6 +123,17 @@ setInterval(() => {
   const now = Date.now()
   for (const [jti, exp] of jtiRevoques) if (now >= exp) jtiRevoques.delete(jti)
 }, 60 * 60 * 1000).unref()
+
+// Purge périodique des jetons de reset obsolètes (expirés/utilisés) : borne
+// la croissance de la table. Échec non bloquant (simple log). Première passe
+// 1 min après le démarrage, puis toutes les heures.
+function purgerResets() {
+  purgerResetsObsoletes()
+    .then((n) => { if (n) console.log(`Purge password_resets : ${n} ligne(s) supprimée(s).`) })
+    .catch((e) => console.error('Purge password_resets :', e.message))
+}
+setTimeout(purgerResets, 60 * 1000).unref()
+setInterval(purgerResets, 60 * 60 * 1000).unref()
 
 // Politique de mot de passe + vérification Have I Been Pwned (k-anonymat)
 function validerMotDePasse(mdp) {
