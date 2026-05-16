@@ -102,6 +102,35 @@
       padding: 30px clamp(22px, 6vw, 72px) 40px;
     }
 
+    /* — Barre d'annonce (haut de page, signal SaaS premium) — */
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 16px;
+      font-size: 12.5px; font-weight: 600;
+      padding: 11px 18px;
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      background: linear-gradient(180deg, rgba(20,40,72,.55), rgba(10,20,38,.42));
+      backdrop-filter: blur(10px);
+      color: var(--muted);
+      margin-bottom: 24px;
+    }
+    .topbar .live { display: inline-flex; align-items: center; gap: 9px; color: var(--text); }
+    .topbar .live i {
+      width: 7px; height: 7px; border-radius: 50%; font-style: normal;
+      background: var(--green); box-shadow: 0 0 0 0 rgba(37,240,138,.6);
+      animation: pulse 2s infinite;
+    }
+    .topbar .live b { color: var(--green); font-weight: 700; }
+    .topbar .right { display: flex; align-items: center; gap: 14px; }
+    .topbar .tag {
+      color: var(--blue-soft); font-weight: 700; letter-spacing: .03em;
+      padding: 4px 11px; border-radius: 999px;
+      border: 1px solid var(--border); background: rgba(120,170,255,.06);
+    }
+    .topbar a { color: var(--muted); text-decoration: none; transition: color .2s; }
+    .topbar a:hover { color: #fff; }
+
     /* — Navbar — */
     .navbar {
       display: flex;
@@ -161,17 +190,31 @@
     }
     .btn.primary:hover { box-shadow: 0 18px 46px rgba(45,130,255,.5); }
 
-    /* — Hero centré, épuré — */
+    /* — Hero : ancré haut (plus de vide en haut), épuré — */
     .hero {
       flex: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
       text-align: center;
-      gap: 26px;
-      padding: 64px 0;
+      gap: 24px;
+      padding: clamp(36px, 8.5vh, 104px) 0 56px;
     }
+
+    /* — Bandeau de preuves (crédibilité, niveau investisseur) — */
+    .proof {
+      display: flex; align-items: center; justify-content: center;
+      flex-wrap: wrap; gap: 11px 26px;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13.5px;
+    }
+    .proof .pi { display: inline-flex; align-items: center; gap: 9px; }
+    .proof .pi svg { width: 16px; height: 16px; stroke: var(--blue-soft); fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+    .proof .pi b { color: var(--text); font-weight: 700; }
+    .proof .sep { width: 1px; height: 15px; background: var(--border); }
+    @media (max-width: 720px) { .proof .sep { display: none; } }
 
     .eyebrow {
       display: inline-flex;
@@ -288,7 +331,7 @@
     }
 
     @media (prefers-reduced-motion: reduce) {
-      .bg-glow, .pulse, .page { animation: none; }
+      .bg-glow, .pulse, .page, .topbar .live i { animation: none; }
     }
   </style>
 </head>
@@ -301,6 +344,14 @@
   </div>
 
   <main class="page">
+    <div class="topbar">
+      <span class="live"><i></i> Tous les systèmes <b>opérationnels</b> · IA disponible 24/7</span>
+      <span class="right">
+        <span class="tag">PC Helper v1</span>
+        <a href="/login.html">Diagnostic en direct →</a>
+      </span>
+    </div>
+
     <header class="navbar">
       <div class="brand">
         <div class="logo">
@@ -311,6 +362,7 @@
       <div class="nav-actions">
         <span class="status"><span class="dot"></span> IA en ligne</span>
         <a class="btn" href="/login.html">Se connecter</a>
+        <a class="btn primary" href="/login.html">Commencer →</a>
       </div>
     </header>
 
@@ -326,6 +378,28 @@
         <a href="/login.html" class="btn">Se connecter</a>
       </div>
       <div class="trust-line"><span class="pulse"></span> Analyse guidée · réponse rapide · interface sécurisée</div>
+
+      <div class="proof">
+        <span class="pi">
+          <svg viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z"/></svg>
+          <span><b>Réponse</b> en moins de 30 s</span>
+        </span>
+        <span class="sep"></span>
+        <span class="pi">
+          <svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3Z"/><path d="M9.5 12l1.8 1.8 3.5-3.6"/></svg>
+          <span><b>Sessions chiffrées</b>, révocables</span>
+        </span>
+        <span class="sep"></span>
+        <span class="pi">
+          <svg viewBox="0 0 24 24"><path d="M5 12l4 4L19 7"/></svg>
+          <span><b>0 vulnérabilité</b> connue</span>
+        </span>
+        <span class="sep"></span>
+        <span class="pi">
+          <svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h7M9 8h3"/></svg>
+          <span>Historique <b>privé &amp; exportable</b></span>
+        </span>
+      </div>
     </section>
 
     <section class="features">
