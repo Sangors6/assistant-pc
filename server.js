@@ -8,7 +8,9 @@ const fs = require('fs')
 const path = require('path')
 const http = require('http')
 const https = require('https')
-const { query, one, run, initDb } = require('./database')
+const { query, one, run, initDb, ping } = require('./database')
+const mailer = require('./email')
+const paiement = require('./paiement')
 
 const rateLimit = require('express-rate-limit')
 
@@ -170,6 +172,42 @@ app.use((req, res, next) => {
   next()
 })
 
+// Webhook Stripe — DOIT être déclaré avant express.json : la vérification de
+// signature exige le corps BRUT, pas le JSON parsé. Inerte si Stripe non
+// configuré (503). La signature est toujours vérifiée (règle absolue).
+app.post('/paiement/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  if (!paiement.estConfigure()) return res.status(503).json({ erreur: 'Paiement non configuré' })
+  let evenement
+  try {
+    evenement = paiement.construireEvenement(req.body, req.headers['stripe-signature'])
+  } catch (e) {
+    console.error('Webhook Stripe : signature invalide —', e.message)
+    return res.status(400).json({ erreur: 'Signature invalide' })
+  }
+  try {
+    if (evenement.type === 'checkout.session.completed') {
+      const s = evenement.data.object
+      const userId = s.client_reference_id
+      if (userId) {
+        await run(
+          'UPDATE utilisateurs SET plan = $1, stripe_customer_id = $2 WHERE id = $3',
+          ['pro', s.customer || null, userId]
+        )
+      }
+    } else if (evenement.type === 'customer.subscription.deleted') {
+      const sub = evenement.data.object
+      if (sub.customer) {
+        await run('UPDATE utilisateurs SET plan = $1 WHERE stripe_customer_id = $2',
+          ['gratuit', sub.customer])
+      }
+    }
+    res.json({ recu: true })
+  } catch (erreur) {
+    console.error('Webhook Stripe : traitement —', erreur.message)
+    res.status(500).json({ erreur: 'Erreur serveur' })
+  }
+})
+
 app.use(express.json({ limit: '10mb' }))
 
 // Service des fichiers statiques avec une politique de cache stricte.
@@ -291,6 +329,72 @@ app.post('/auth/connexion', limiteurAuth, async (req, res) => {
     { expiresIn: TOKEN_TTL, jwtid: crypto.randomUUID(), algorithm: 'HS256' }
   )
   res.json({ token, email: utilisateur.email, plan: utilisateur.plan })
+})
+
+// --- Réinitialisation de mot de passe par email --------------------------
+// Inerte tant que le SMTP n'est pas configuré (email.estConfigure()). La
+// réponse est TOUJOURS uniforme : aucune énumération de comptes possible.
+// Le token est stocké haché (SHA-256) : une lecture de la table ne permet
+// pas de forger un lien valide.
+const hacherToken = (t) => crypto.createHash('sha256').update(t).digest('hex')
+
+app.post('/auth/reset-demande', limiteurAuth, async (req, res) => {
+  const { email } = req.body
+  const reponseUniforme = { message: 'Si un compte existe pour cette adresse, un email vient d\'être envoyé.' }
+  if (typeof email !== 'string' || !email) return res.json(reponseUniforme)
+  const emailN = normaliserEmail(email)
+  try {
+    const u = await one('SELECT id, email FROM utilisateurs WHERE email = $1', [emailN])
+    if (u && mailer.estConfigure()) {
+      const tokenClair = crypto.randomUUID()
+      const expire = new Date(Date.now() + 60 * 60 * 1000) // +1 h
+      await run(
+        'INSERT INTO password_resets (utilisateur_id, token, expire_le) VALUES ($1, $2, $3)',
+        [u.id, hacherToken(tokenClair), expire]
+      )
+      const base = process.env.APP_URL ? process.env.APP_URL.replace(/\/+$/, '')
+        : `${req.protocol}://${req.get('host')}`
+      const lien = `${base}/reset.html?token=${tokenClair}`
+      try {
+        await mailer.envoyerEmailReset(u.email, lien)
+      } catch (e) {
+        console.error('Envoi email reset :', e.message)
+      }
+    }
+  } catch (erreur) {
+    console.error('Reset demande :', erreur.message)
+  }
+  res.json(reponseUniforme)
+})
+
+app.post('/auth/reset-confirme', limiteurAuth, async (req, res) => {
+  const { token, motDePasse } = req.body
+  if (typeof token !== 'string' || typeof motDePasse !== 'string' || !token || !motDePasse) {
+    return res.status(400).json({ erreur: 'Données invalides' })
+  }
+  const erreurMdp = validerMotDePasse(motDePasse)
+  if (erreurMdp) return res.status(400).json({ erreur: erreurMdp })
+  try {
+    const ligne = await one(
+      'SELECT id, utilisateur_id, expire_le, utilise FROM password_resets WHERE token = $1',
+      [hacherToken(token)]
+    )
+    if (!ligne || ligne.utilise || new Date(ligne.expire_le) < new Date()) {
+      return res.status(400).json({ erreur: 'Lien invalide ou expiré' })
+    }
+    if (await motDePasseCompromis(motDePasse)) {
+      return res.status(400).json({ erreur: 'Ce mot de passe figure dans des fuites de données connues. Choisis-en un autre.' })
+    }
+    const hash = await bcrypt.hash(motDePasse, 10)
+    // mdp_version +1 : invalide toutes les sessions existantes (vraie sécurité).
+    await run('UPDATE utilisateurs SET mot_de_passe = $1, mdp_version = mdp_version + 1 WHERE id = $2',
+      [hash, ligne.utilisateur_id])
+    await run('UPDATE password_resets SET utilise = TRUE WHERE id = $1', [ligne.id])
+    res.json({ message: 'Mot de passe réinitialisé. Tu peux te connecter.' })
+  } catch (erreur) {
+    console.error('Reset confirme :', erreur.message)
+    res.status(500).json({ erreur: 'Réinitialisation impossible' })
+  }
 })
 
 // Déconnexion serveur : révoque le token courant (vraie invalidation).
@@ -679,6 +783,49 @@ app.post('/chat', limiteurChat, authentifier, async (req, res) => {
   }
 })
 
+// --- Paiement Stripe (test) ----------------------------------------------
+// Inerte tant que Stripe n'est pas configuré : 503 propre, jamais de crash.
+app.post('/paiement/creer-session', authentifier, async (req, res) => {
+  if (!paiement.estConfigure()) return res.status(503).json({ erreur: 'Paiement non configuré' })
+  try {
+    const u = await one('SELECT id, email FROM utilisateurs WHERE id = $1', [req.utilisateur.id])
+    if (!u) return res.status(401).json({ erreur: 'Session expirée' })
+    const url = await paiement.creerSession(req, u)
+    res.json({ url })
+  } catch (erreur) {
+    console.error('Création session Stripe :', erreur.message)
+    res.status(500).json({ erreur: 'Impossible de créer la session de paiement' })
+  }
+})
+
+app.get('/paiement/succes', (req, res) => {
+  // La confirmation réelle vient du webhook (source de vérité) — cette page
+  // est purement informative pour l'utilisateur de retour.
+  res.redirect('/app.html?paiement=succes')
+})
+
+app.get('/paiement/annulation', (req, res) => {
+  res.redirect('/app.html?paiement=annule')
+})
+
+// --- Santé ---------------------------------------------------------------
+// Public et minimaliste (aucune fuite d'information). Vérifie réellement la
+// base. 200 = sain, 503 = dégradé. Utilisé par le health-check de l'hébergeur.
+const DEMARRE_LE = Date.now()
+app.get('/health', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store')
+  try {
+    await ping()
+    res.json({
+      status: 'ok',
+      uptime_s: Math.floor((Date.now() - DEMARRE_LE) / 1000),
+      version: require('./package.json').version
+    })
+  } catch {
+    res.status(503).json({ status: 'degraded' })
+  }
+})
+
 // Route inconnue : réponse JSON cohérente avec le reste de l'API.
 app.use((req, res) => res.status(404).json({ erreur: 'Introuvable' }))
 
@@ -722,30 +869,64 @@ if (!DERRIERE_PROXY) {
   }
 }
 
+// Serveurs actifs, conservés pour un arrêt propre.
+const serveurs = []
+
+// Arrêt gracieux : à un redéploiement, l'hébergeur envoie SIGTERM. On cesse
+// d'accepter de nouvelles connexions, on laisse les requêtes en cours finir
+// (max 30 s), puis on ferme proprement le pool PostgreSQL. Sans ça, des
+// requêtes sont coupées net et des connexions PG restent pendantes.
+let arretEnCours = false
+async function arretGracieux(signal) {
+  if (arretEnCours) return
+  arretEnCours = true
+  console.log(`${signal} reçu — arrêt gracieux en cours...`)
+
+  const minuteur = setTimeout(() => {
+    console.error('Arrêt gracieux trop long (30 s) — sortie forcée.')
+    process.exit(1)
+  }, 30000)
+  minuteur.unref()
+
+  try {
+    await Promise.all(serveurs.map((s) => new Promise((resolve) => s.close(resolve))))
+    const { pool } = require('./database')
+    await pool.end()
+    clearTimeout(minuteur)
+    console.log('Arrêt propre terminé.')
+    process.exit(0)
+  } catch (e) {
+    console.error('Erreur pendant l\'arrêt gracieux :', e.message)
+    process.exit(1)
+  }
+}
+process.on('SIGTERM', () => arretGracieux('SIGTERM'))
+process.on('SIGINT', () => arretGracieux('SIGINT'))
+
 // On ne démarre les serveurs qu'une fois le schéma de base prêt :
 // sinon une première requête pourrait arriver avant la création des tables.
 initDb().then(() => {
   if (creds) {
-    https.createServer(creds, app).listen(HTTPS_PORT, () => {
+    serveurs.push(https.createServer(creds, app).listen(HTTPS_PORT, () => {
       console.log(`HTTPS démarré sur https://localhost:${HTTPS_PORT}`)
-    })
+    }))
     // Petit serveur HTTP qui redirige tout vers HTTPS (301), chemin préservé.
-    http.createServer((req, res) => {
+    serveurs.push(http.createServer((req, res) => {
       const hote = (req.headers.host || `localhost:${HTTP_PORT}`).split(':')[0]
       res.writeHead(301, { Location: `https://${hote}:${HTTPS_PORT}${req.url}` })
       res.end()
     }).listen(HTTP_PORT, () => {
       console.log(`HTTP (redirection -> HTTPS) sur le port ${HTTP_PORT}`)
-    })
+    }))
   } else {
     if (DERRIERE_PROXY) {
       console.log('Mode production : HTTP simple, TLS assuré par le proxy de l\'hébergeur.')
     } else {
       console.warn('AVERTISSEMENT : aucun certificat trouvé, démarrage en HTTP non chiffré (dev uniquement).')
     }
-    app.listen(HTTP_PORT, () => {
+    serveurs.push(app.listen(HTTP_PORT, () => {
       console.log(`Serveur démarré sur le port ${HTTP_PORT}`)
-    })
+    }))
   }
 }).catch((e) => {
   console.error('ERREUR FATALE : initialisation de la base impossible :', e.message)

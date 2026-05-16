@@ -10,7 +10,7 @@ services:
     branch: main
     buildCommand: npm install
     startCommand: node server.js
-    healthCheckPath: /
+    healthCheckPath: /health
     envVars:
       - key: NODE_VERSION
         value: "22"
@@ -21,4 +21,26 @@ services:
       - key: JWT_SECRET
         sync: false
       - key: DATABASE_URL
+        sync: false
+      # --- Optionnels : fonctionnalités inertes tant que non renseignés ---
+      # Reset mot de passe par email (compte SMTP, ex. Brevo) :
+      - key: EMAIL_HOST
+        sync: false
+      - key: EMAIL_PORT
+        sync: false
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASS
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      # Paiement Stripe (clés TEST pour valider, PROD après validation) :
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_PRICE_ID
+        sync: false
+      # URL publique (redirections Stripe + lien email). Ex : https://assistant-pc.onrender.com
+      - key: APP_URL
         sync: false
