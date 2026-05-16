@@ -417,6 +417,47 @@
     #app, #app.intro-blur { transition: none; filter: none; transform: none; opacity: 1; }
   }
 
+  /* Onboarding : bulle pointant la barre de saisie + mise en avant. */
+  #input-shell { position: relative; }
+  #tip-saisie {
+    position: absolute; left: 50%; bottom: 100%;
+    width: max-content; max-width: min(420px, 82vw);
+    margin-bottom: 14px;
+    background: linear-gradient(180deg, rgba(22,42,76,.97), rgba(11,21,40,.97));
+    border: 1px solid rgba(98,166,255,.32);
+    border-radius: 14px; padding: 13px 16px;
+    box-shadow: 0 20px 54px rgba(0,0,0,.55), 0 0 26px rgba(45,130,255,.18);
+    backdrop-filter: blur(12px);
+    z-index: 60;
+    opacity: 0; visibility: hidden;
+    transform: translateX(-50%) translateY(8px) scale(.96);
+    transition: opacity .5s cubic-bezier(.16,1,.3,1), transform .5s cubic-bezier(.16,1,.3,1), visibility 0s linear .5s;
+  }
+  #tip-saisie.show { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0) scale(1); transition: opacity .5s cubic-bezier(.16,1,.3,1), transform .55s cubic-bezier(.34,1.4,.5,1); }
+  #tip-saisie::after {
+    content: ''; position: absolute; left: 50%; bottom: -7px;
+    width: 14px; height: 14px; transform: translateX(-50%) rotate(45deg);
+    background: rgba(11,21,40,.97);
+    border-right: 1px solid rgba(98,166,255,.32);
+    border-bottom: 1px solid rgba(98,166,255,.32);
+  }
+  #tip-saisie .tip-row { display: flex; align-items: flex-start; gap: 11px; }
+  #tip-saisie .tip-ic { font-size: 19px; line-height: 1.1; flex-shrink: 0; }
+  #tip-saisie .tip-tx { font-size: 13px; color: #dce8fb; line-height: 1.5; }
+  #tip-saisie .tip-tx b { color: #fff; font-weight: 700; }
+  #tip-saisie .tip-ok { margin-top: 11px; display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; color: #cfe0fb; background: rgba(59,130,246,.18); border: 1px solid rgba(98,166,255,.3); padding: 6px 13px; border-radius: 9px; cursor: pointer; transition: background .15s; }
+  #tip-saisie .tip-ok:hover { background: rgba(59,130,246,.3); }
+  #input-shell.attn { border-color: rgba(98,166,255,.5); animation: shellPulse 2.2s ease-in-out infinite; }
+  @keyframes shellPulse {
+    0%,100% { box-shadow: 0 0 0 3px rgba(59,130,246,.12), 0 0 22px rgba(45,130,255,.22), 0 4px 24px rgba(0,0,0,.3); }
+    50%     { box-shadow: 0 0 0 4px rgba(59,130,246,.2), 0 0 36px rgba(78,231,255,.34), 0 4px 24px rgba(0,0,0,.3); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #tip-saisie { transition: opacity .25s linear; }
+    #tip-saisie.show { transition: opacity .25s linear; transform: translateX(-50%); }
+    #input-shell.attn { animation: none; box-shadow: 0 0 0 3px rgba(59,130,246,.16), 0 4px 24px rgba(0,0,0,.3); }
+  }
+
   #exit-veil {
     position: fixed;
     inset: 0;
@@ -458,6 +499,45 @@
     var fait = false
     var fbTimer = null
 
+    // --- Onboarding : bulle pointant la barre de saisie -------------------
+    // Apparaît ~3 s après la révélation du dashboard, met la barre en avant,
+    // disparaît à la 1re interaction (ou au bout de 14 s) et ne revient plus
+    // une fois comprise (localStorage). Objectif : comprendre le site en < 5 s.
+    function montrerTip() {
+      if (localStorage.getItem('pchTipVu')) return
+      var el = document.getElementById('tip-saisie')
+      var shell = document.getElementById('input-shell')
+      var inp = document.getElementById('input')
+      var envoi = document.getElementById('send-btn')
+      var ok = document.getElementById('tip-ok')
+      if (!el || !shell) return
+      var clos = false
+      function fermer() {
+        if (clos) return
+        clos = true
+        try { localStorage.setItem('pchTipVu', '1') } catch (e) {}
+        el.classList.remove('show')
+        shell.classList.remove('attn')
+        clearTimeout(autoT)
+        if (ok) ok.removeEventListener('click', fermer)
+        if (inp) inp.removeEventListener('focus', fermer)
+        if (envoi) envoi.removeEventListener('click', fermer)
+        setTimeout(function () { if (el) el.remove() }, 600)
+      }
+      requestAnimationFrame(function () {
+        el.classList.add('show')
+        shell.classList.add('attn')
+      })
+      if (ok) ok.addEventListener('click', fermer)
+      if (inp) inp.addEventListener('focus', fermer)       // 1re saisie -> compris
+      if (envoi) envoi.addEventListener('click', fermer)
+      var autoT = setTimeout(fermer, 14000)
+    }
+    function planifierTip(delai) {
+      if (localStorage.getItem('pchTipVu')) return
+      setTimeout(montrerTip, delai)
+    }
+
     function reveler() {
       if (fait) return
       fait = true
@@ -470,6 +550,8 @@
         if (app) app.classList.remove('intro-blur') // dashboard : flou -> net
       })
       setTimeout(function () { if (intro) intro.remove() }, 1050)
+      // ~3 s APRÈS la révélation complète du dashboard.
+      planifierTip(1050 + 3000)
     }
 
     // Pas de token : app.html va rediriger vers /login -> on n'affiche rien.
@@ -480,7 +562,13 @@
     var forcer = /[?&]intro\b/.test(location.search)
     var ref = document.referrer || ''
     var vientDArrivee = /\/(chargement|login)\.html(\?|$)/.test(ref)
-    if (!forcer && !vientDArrivee) { intro.remove(); return }
+    if (!forcer && !vientDArrivee) {
+      intro.remove()
+      // Pas d'intro (refresh interne), mais un nouvel utilisateur doit
+      // quand même comprendre le site : on planifie la bulle (une fois).
+      planifierTip(3500)
+      return
+    }
 
     // On prime le dashboard en état flou DERRIÈRE l'overlay opaque (donc
     // invisible) : la révélation n'aura plus qu'à le ramener au net en une
@@ -661,6 +749,13 @@
 
     <div id="input-wrap">
       <div id="input-shell">
+        <div id="tip-saisie" role="status">
+          <div class="tip-row">
+            <span class="tip-ic">💬</span>
+            <span class="tip-tx">C'est <b>ici</b> que tout se passe : décris ton problème PC en langage naturel — l'IA diagnostique et répond en direct. Tu peux aussi joindre une capture (📎) ou dicter (🎤).</span>
+          </div>
+          <button type="button" class="tip-ok" id="tip-ok">J'ai compris ✓</button>
+        </div>
         <div id="preview-zone">
           <img id="preview-img" src="" alt="preview">
           <div id="preview-info">
@@ -670,7 +765,7 @@
           <button id="preview-remove" onclick="retirerImage()">✕</button>
         </div>
         <div id="input-top">
-          <textarea id="input" placeholder="Décris ton problème..." rows="1"></textarea>
+          <textarea id="input" placeholder="Pose ta question ici — ex. « Mon PC rame, que faire ? »" rows="1"></textarea>
           <input type="file" id="file-input" accept="image/*,.pdf,.txt,.log" style="display:none">
           <button class="tool-btn" title="Pièce jointe" onclick="document.getElementById('file-input').click()">📎</button>
           <button class="tool-btn" id="voice-btn" type="button" title="Dictée vocale (beta)" onclick="toggleVocal()">🎤</button>
