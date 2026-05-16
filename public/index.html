@@ -68,6 +68,57 @@
       -webkit-mask-image: radial-gradient(120% 80% at 50% 0%, #000 0%, transparent 70%);
     }
 
+    /* Mesh-gradient aurora — nappes de couleur fluides, animées en
+       transform (compositor only = 60fps, zéro repaint). */
+    .bg-aurora {
+      position: absolute; inset: -20%;
+      background:
+        radial-gradient(38% 32% at 28% 30%, rgba(45,130,255,.16), transparent 60%),
+        radial-gradient(34% 30% at 76% 24%, rgba(78,231,255,.12), transparent 62%),
+        radial-gradient(44% 36% at 60% 84%, rgba(37,240,138,.055), transparent 60%);
+      filter: blur(60px);
+      will-change: transform;
+      animation: auroraMove 26s ease-in-out infinite alternate;
+    }
+    @keyframes auroraMove {
+      0%   { transform: translate3d(-2%, -1%, 0) rotate(0deg)  scale(1.05); }
+      100% { transform: translate3d(2%, 2%, 0)  rotate(8deg)   scale(1.12); }
+    }
+
+    /* Balayage conique lent via @property : custom property TYPÉE,
+       animable nativement par le moteur (technique CSS moderne /
+       futur-proof). Dégrade proprement si non supporté (reste statique). */
+    @property --beam {
+      syntax: "<angle>";
+      inherits: false;
+      initial-value: 0deg;
+    }
+    .bg-beam {
+      position: absolute; inset: 0;
+      background: conic-gradient(from var(--beam) at 50% 16%,
+        transparent 0deg,
+        rgba(78,231,255,.05) 16deg,
+        rgba(45,130,255,.08) 30deg,
+        transparent 56deg 360deg);
+      mask-image: radial-gradient(72% 60% at 50% 8%, #000, transparent 76%);
+      -webkit-mask-image: radial-gradient(72% 60% at 50% 8%, #000, transparent 76%);
+      animation: beamSpin 36s linear infinite;
+    }
+    @keyframes beamSpin { to { --beam: 360deg; } }
+
+    /* Grain fin (film grain) — signature premium Linear/Vercel.
+       SVG feTurbulence en data-URI, statique = coût nul. */
+    .bg-grain {
+      position: absolute; inset: 0;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='150' height='150' filter='url(%23n)' opacity='0.5'/></svg>");
+      opacity: .05;
+      mix-blend-mode: overlay;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .bg-aurora, .bg-beam { animation: none; }
+    }
+
     .page {
       position: relative;
       min-height: 100vh;
@@ -269,8 +320,11 @@
 <body>
   <div class="bg">
     <div class="bg-base"></div>
+    <div class="bg-aurora"></div>
     <div class="bg-glow"></div>
+    <div class="bg-beam"></div>
     <div class="bg-grid"></div>
+    <div class="bg-grain"></div>
   </div>
 
   <main class="page">
