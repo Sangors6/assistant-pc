@@ -5,16 +5,76 @@
 // envoyerEmailReset() ne tente rien (pas d'erreur, pas de crash au boot).
 // Brancher un compte Brevo (gratuit 300 mails/jour) suffit à l'activer.
 const nodemailer = require('nodemailer')
+const https = require('https')
 
-const { EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, EMAIL_FROM } = process.env
+const { EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, EMAIL_FROM, BREVO_API_KEY } = process.env
 
-function estConfigure() {
+// Deux voies d'envoi possibles :
+//  - API HTTP Brevo (port 443) : fonctionne partout, y compris sur Render
+//    qui BLOQUE le SMTP sortant. Voie préférée si BREVO_API_KEY est définie.
+//  - SMTP (nodemailer) : repli, utilisé en local où le SMTP est ouvert.
+function apiConfiguree() {
+  return Boolean(BREVO_API_KEY && EMAIL_FROM)
+}
+function smtpConfigure() {
   return Boolean(EMAIL_HOST && EMAIL_PORT && EMAIL_USER && EMAIL_PASS && EMAIL_FROM)
+}
+function estConfigure() {
+  return apiConfiguree() || smtpConfigure()
+}
+
+// "PC Helper <a@b.com>" -> { name: 'PC Helper', email: 'a@b.com' }
+function parseFrom(brut) {
+  const s = String(brut || '')
+  const m = s.match(/^\s*(.*?)\s*<([^>]+)>\s*$/)
+  if (m) return { name: m[1] || 'PC Helper', email: m[2].trim() }
+  return { name: 'PC Helper', email: s.trim() }
+}
+
+// Envoi via l'API transactionnelle Brevo (HTTPS/443). Résout l'échec
+// silencieux d'envoi sur Render (SMTP sortant bloqué).
+function envoyerViaApi(destinataire, sujet, texte, html) {
+  return new Promise((resolve, reject) => {
+    const exp = parseFrom(EMAIL_FROM)
+    const payload = JSON.stringify({
+      sender: { name: exp.name, email: exp.email },
+      to: [{ email: destinataire }],
+      replyTo: { email: exp.email },
+      subject: sujet,
+      textContent: texte,
+      htmlContent: html
+    })
+    const req = https.request({
+      hostname: 'api.brevo.com',
+      path: '/v3/smtp/email',
+      method: 'POST',
+      headers: {
+        'api-key': BREVO_API_KEY,
+        'content-type': 'application/json',
+        'accept': 'application/json',
+        'content-length': Buffer.byteLength(payload)
+      },
+      timeout: 10000
+    }, (resp) => {
+      let data = ''
+      resp.on('data', (c) => (data += c))
+      resp.on('end', () => {
+        if (resp.statusCode >= 200 && resp.statusCode < 300) {
+          resolve({ accepted: [destinataire], rejected: [], response: data, messageId: (() => { try { return JSON.parse(data).messageId } catch { return null } })(), api: true })
+        } else {
+          reject(new Error(`API Brevo ${resp.statusCode} : ${data}`))
+        }
+      })
+    })
+    req.on('error', reject)
+    req.on('timeout', () => { req.destroy(new Error('API Brevo : timeout')) })
+    req.end(payload)
+  })
 }
 
 let transport = null
 function getTransport() {
-  if (!estConfigure()) return null
+  if (!smtpConfigure()) return null
   if (transport) return transport
   transport = nodemailer.createTransport({
     host: EMAIL_HOST,
@@ -91,32 +151,59 @@ function gabaritResetTexte(lienReset) {
 }
 
 async function envoyerEmailReset(destinataire, lienReset) {
+  if (!estConfigure()) return false // ni API ni SMTP : on n'échoue pas, on n'envoie pas.
+  const sujet = 'Réinitialisation de ton mot de passe — PC Helper'
+  const texte = gabaritResetTexte(lienReset)
+  const html = gabaritReset(lienReset)
+
+  // Voie préférée : API HTTP Brevo (port 443) — la seule qui fonctionne
+  // depuis Render (SMTP sortant bloqué). Repli SMTP sinon (local).
+  if (apiConfiguree()) {
+    return envoyerViaApi(destinataire, sujet, texte, html)
+  }
+
   const t = getTransport()
-  if (!t) return false // SMTP non configuré : on n'échoue pas, on n'envoie pas.
+  if (!t) return false
   // Return-Path / enveloppe sur le domaine Brevo authentifié (EMAIL_USER,
-  // ex. ...@smtp-brevo.com) plutôt que sur le From visible : le SPF de
-  // l'enveloppe passe alors (domaine que Brevo signe réellement), ce qui
-  // améliore la délivrabilité même si l'alignement DMARC du From visible
-  // reste impossible avec une adresse @gmail.com (cf. RECOMMANDATIONS email).
+  // ex. ...@smtp-brevo.com) : le SPF de l'enveloppe passe alors.
   const enveloppeFrom = /@/.test(EMAIL_USER || '') ? EMAIL_USER : EMAIL_FROM
   const info = await t.sendMail({
     from: EMAIL_FROM,
     to: destinataire,
     replyTo: EMAIL_FROM,
     envelope: { from: enveloppeFrom, to: destinataire },
-    subject: 'Réinitialisation de ton mot de passe — PC Helper',
-    text: gabaritResetTexte(lienReset),
-    html: gabaritReset(lienReset)
+    subject: sujet,
+    text: texte,
+    html
   })
-  // info.accepted / rejected / response / messageId : vérité SMTP côté Brevo.
   return info
 }
 
-// Vérifie que les identifiants SMTP sont valides (handshake réel, aucun
-// email envoyé). Lève si la configuration est absente ou incorrecte.
+// Vérifie la configuration d'envoi sans envoyer d'email.
+//  - API : ping authentifié GET /v3/account (clé valide ?).
+//  - SMTP : handshake nodemailer.
 async function verifier() {
+  if (apiConfiguree()) {
+    return new Promise((resolve, reject) => {
+      const req = https.request({
+        hostname: 'api.brevo.com', path: '/v3/account', method: 'GET',
+        headers: { 'api-key': BREVO_API_KEY, accept: 'application/json' },
+        timeout: 10000
+      }, (resp) => {
+        let d = ''
+        resp.on('data', (c) => (d += c))
+        resp.on('end', () => {
+          if (resp.statusCode === 200) resolve(true)
+          else reject(new Error(`API Brevo ${resp.statusCode} : ${d}`))
+        })
+      })
+      req.on('error', reject)
+      req.on('timeout', () => req.destroy(new Error('API Brevo : timeout')))
+      req.end()
+    })
+  }
   const t = getTransport()
-  if (!t) throw new Error('SMTP non configuré (variables EMAIL_* manquantes)')
+  if (!t) throw new Error('Email non configuré (ni BREVO_API_KEY ni SMTP EMAIL_*)')
   await t.verify()
   return true
 }

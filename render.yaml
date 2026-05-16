@@ -23,7 +23,12 @@ services:
       - key: DATABASE_URL
         sync: false
       # --- Optionnels : fonctionnalités inertes tant que non renseignés ---
-      # Reset mot de passe par email (compte SMTP, ex. Brevo) :
+      # Reset mot de passe par email.
+      # Recommandé en prod : API HTTP Brevo (port 443) — Render BLOQUE le SMTP
+      # sortant. Si BREVO_API_KEY est définie, elle est utilisée en priorité ;
+      # les EMAIL_* SMTP ci-dessous servent de repli (utile en local).
+      - key: BREVO_API_KEY
+        sync: false
       - key: EMAIL_HOST
         sync: false
       - key: EMAIL_PORT
