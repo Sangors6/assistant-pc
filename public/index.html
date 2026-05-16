@@ -59,64 +59,34 @@
       50%      { opacity: 1;   transform: translateX(-50%) scale(1.06); }
     }
 
-    .bg-grid {
-      position: absolute; inset: 0;
-      background:
-        linear-gradient(rgba(120,170,255,.05) 1px, transparent 1px) 0 0 / 64px 64px,
-        linear-gradient(90deg, rgba(120,170,255,.05) 1px, transparent 1px) 0 0 / 64px 64px;
-      mask-image: radial-gradient(120% 80% at 50% 0%, #000 0%, transparent 70%);
-      -webkit-mask-image: radial-gradient(120% 80% at 50% 0%, #000 0%, transparent 70%);
-    }
-
-    /* Mesh-gradient aurora — nappes de couleur fluides, animées en
-       transform (compositor only = 60fps, zéro repaint). */
+    /* Mesh-gradient aurora — profondeur colorée derrière les particules,
+       animée en transform (compositor only = 60fps, zéro repaint). */
     .bg-aurora {
       position: absolute; inset: -20%;
       background:
-        radial-gradient(38% 32% at 28% 30%, rgba(45,130,255,.16), transparent 60%),
-        radial-gradient(34% 30% at 76% 24%, rgba(78,231,255,.12), transparent 62%),
-        radial-gradient(44% 36% at 60% 84%, rgba(37,240,138,.055), transparent 60%);
-      filter: blur(60px);
+        radial-gradient(38% 32% at 28% 30%, rgba(45,130,255,.14), transparent 60%),
+        radial-gradient(34% 30% at 76% 24%, rgba(78,231,255,.10), transparent 62%),
+        radial-gradient(44% 36% at 60% 84%, rgba(37,240,138,.05), transparent 60%);
+      filter: blur(64px);
       will-change: transform;
-      animation: auroraMove 26s ease-in-out infinite alternate;
+      animation: auroraMove 28s ease-in-out infinite alternate;
     }
     @keyframes auroraMove {
-      0%   { transform: translate3d(-2%, -1%, 0) rotate(0deg)  scale(1.05); }
-      100% { transform: translate3d(2%, 2%, 0)  rotate(8deg)   scale(1.12); }
+      0%   { transform: translate3d(-2%, -1%, 0) rotate(0deg) scale(1.05); }
+      100% { transform: translate3d(2%, 2%, 0)  rotate(8deg)  scale(1.12); }
     }
 
-    /* Balayage conique lent via @property : custom property TYPÉE,
-       animable nativement par le moteur (technique CSS moderne /
-       futur-proof). Dégrade proprement si non supporté (reste statique). */
-    @property --beam {
-      syntax: "<angle>";
-      inherits: false;
-      initial-value: 0deg;
-    }
-    .bg-beam {
+    /* Réseau de particules holographique (canvas) — couche maître du décor.
+       Parallaxe + profondeur gérées en JS. mix-blend screen = glow additif. */
+    #fx {
       position: absolute; inset: 0;
-      background: conic-gradient(from var(--beam) at 50% 16%,
-        transparent 0deg,
-        rgba(78,231,255,.05) 16deg,
-        rgba(45,130,255,.08) 30deg,
-        transparent 56deg 360deg);
-      mask-image: radial-gradient(72% 60% at 50% 8%, #000, transparent 76%);
-      -webkit-mask-image: radial-gradient(72% 60% at 50% 8%, #000, transparent 76%);
-      animation: beamSpin 36s linear infinite;
-    }
-    @keyframes beamSpin { to { --beam: 360deg; } }
-
-    /* Grain fin (film grain) — signature premium Linear/Vercel.
-       SVG feTurbulence en data-URI, statique = coût nul. */
-    .bg-grain {
-      position: absolute; inset: 0;
-      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='150' height='150' filter='url(%23n)' opacity='0.5'/></svg>");
-      opacity: .05;
-      mix-blend-mode: overlay;
+      width: 100%; height: 100%;
+      display: block;
+      mix-blend-mode: screen;
     }
 
     @media (prefers-reduced-motion: reduce) {
-      .bg-aurora, .bg-beam { animation: none; }
+      .bg-aurora { animation: none; }
     }
 
     .page {
@@ -322,9 +292,7 @@
     <div class="bg-base"></div>
     <div class="bg-aurora"></div>
     <div class="bg-glow"></div>
-    <div class="bg-beam"></div>
-    <div class="bg-grid"></div>
-    <div class="bg-grain"></div>
+    <canvas id="fx"></canvas>
   </div>
 
   <main class="page">
@@ -364,6 +332,110 @@
   </main>
 
   <script>
+    /* Réseau de particules holographique — profondeur 3D + parallaxe.
+       Style neuronal / cybersécurité premium. Canvas 2D optimisé :
+       DPR plafonné, O(n²) borné, glow additif via sprite, pause onglet
+       caché, prefers-reduced-motion = rendu statique. */
+    (function () {
+      var c = document.getElementById('fx'); if (!c) return;
+      var x = c.getContext('2d', { alpha: true }); if (!x) return;
+      var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      var DPR = Math.min(window.devicePixelRatio || 1, 2);
+      var W = 0, H = 0, parts = [], glow, raf = null;
+      var mx = 0, my = 0, tx = 0, ty = 0; // parallaxe : courant / cible
+      var COLORS = [[78, 231, 255], [45, 130, 255], [141, 194, 255]];
+
+      function makeGlow() {
+        var s = 64, g = document.createElement('canvas'); g.width = g.height = s;
+        var q = g.getContext('2d');
+        var rad = q.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+        rad.addColorStop(0, 'rgba(255,255,255,0.9)');
+        rad.addColorStop(0.25, 'rgba(160,220,255,0.5)');
+        rad.addColorStop(1, 'rgba(120,190,255,0)');
+        q.fillStyle = rad; q.fillRect(0, 0, s, s);
+        return g;
+      }
+
+      function init() {
+        var n = Math.round(Math.min(120, Math.max(46, (W * H) / 15000)));
+        if (matchMedia('(pointer:coarse)').matches) n = Math.round(n * 0.6);
+        parts = [];
+        for (var i = 0; i < n; i++) {
+          var z = 0.35 + Math.random() * 0.65;
+          parts.push({
+            x: Math.random() * W, y: Math.random() * H, z: z,
+            vx: (Math.random() - 0.5) * 0.16 * z,
+            vy: (Math.random() - 0.5) * 0.16 * z,
+            r: (0.7 + Math.random() * 1.7) * z,
+            col: COLORS[(Math.random() * COLORS.length) | 0],
+            ph: Math.random() * 6.28, tw: 0.6 + Math.random() * 0.7
+          });
+        }
+      }
+
+      function resize() {
+        W = c.clientWidth; H = c.clientHeight;
+        c.width = Math.floor(W * DPR); c.height = Math.floor(H * DPR);
+        x.setTransform(DPR, 0, 0, DPR, 0, 0);
+        init();
+      }
+
+      function frame(t) {
+        x.clearRect(0, 0, W, H);
+        mx += (tx - mx) * 0.05; my += (ty - my) * 0.05;
+        var D = Math.min(W, H) < 700 ? 118 : 152;
+        x.globalCompositeOperation = 'lighter';
+        for (var i = 0; i < parts.length; i++) {
+          var a = parts[i], ax = a.x + mx * a.z, ay = a.y + my * a.z;
+          for (var j = i + 1; j < parts.length; j++) {
+            var b = parts[j], bx = b.x + mx * b.z, by = b.y + my * b.z;
+            var dx = ax - bx, dy = ay - by, d2 = dx * dx + dy * dy;
+            if (d2 < D * D) {
+              var d = Math.sqrt(d2);
+              var al = (1 - d / D) * 0.26 * Math.min(a.z, b.z);
+              if (al > 0.003) {
+                x.strokeStyle = 'rgba(120,190,255,' + al.toFixed(3) + ')';
+                x.lineWidth = Math.min(a.z, b.z) * 0.9;
+                x.beginPath(); x.moveTo(ax, ay); x.lineTo(bx, by); x.stroke();
+              }
+            }
+          }
+        }
+        for (var k = 0; k < parts.length; k++) {
+          var p = parts[k];
+          p.x += p.vx; p.y += p.vy;
+          if (p.x < -30) p.x = W + 30; else if (p.x > W + 30) p.x = -30;
+          if (p.y < -30) p.y = H + 30; else if (p.y > H + 30) p.y = -30;
+          var px = p.x + mx * p.z, py = p.y + my * p.z;
+          var tw = 0.55 + 0.45 * Math.sin(t * 0.001 * p.tw + p.ph);
+          var g = p.r * 7;
+          x.globalAlpha = 0.17 * p.z * tw;
+          x.drawImage(glow, px - g, py - g, g * 2, g * 2);
+          x.globalAlpha = 0.9 * tw;
+          x.fillStyle = 'rgba(' + p.col[0] + ',' + p.col[1] + ',' + p.col[2] + ',1)';
+          x.beginPath(); x.arc(px, py, p.r, 0, 6.2832); x.fill();
+        }
+        x.globalAlpha = 1; x.globalCompositeOperation = 'source-over';
+        raf = requestAnimationFrame(frame);
+      }
+
+      function start() { if (raf == null) raf = requestAnimationFrame(frame); }
+      function stop() { if (raf != null) { cancelAnimationFrame(raf); raf = null; } }
+
+      glow = makeGlow();
+      resize();
+      var MAXP = 26;
+      window.addEventListener('pointermove', function (e) {
+        tx = ((e.clientX / window.innerWidth) - 0.5) * 2 * MAXP;
+        ty = ((e.clientY / window.innerHeight) - 0.5) * 2 * MAXP;
+      }, { passive: true });
+      var rt;
+      window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(resize, 180); });
+      document.addEventListener('visibilitychange', function () { document.hidden ? stop() : start(); });
+
+      if (reduce) { frame(0); stop(); } else { start(); }
+    })();
+
     if (localStorage.getItem('token')) {
       window.location.replace('/app.html')
     }
