@@ -154,15 +154,26 @@
     .copy-btn:hover { background: rgba(37,99,235,0.15); color: #93c5fd; }
     .copy-btn.copied { color: #22c55e; }
 
-    /* Typing dots */
-    .typing-anim { display: inline-flex; gap: 4px; align-items: center; padding: 4px 0; }
+    /* Indicateur de saisie (3 points) — un peu d'air autour pour ne pas
+       « coller » au texte / aux bords de la bulle. */
+    .typing-anim { display: inline-flex; gap: 5px; align-items: center; padding: 5px 3px; }
     .typing-anim span { width: 5px; height: 5px; border-radius: 50%; background: var(--blue-light); opacity: 0.4; animation: tdot 1.2s infinite; }
     .typing-anim span:nth-child(2) { animation-delay: 0.2s; } .typing-anim span:nth-child(3) { animation-delay: 0.4s; }
     @keyframes tdot { 0%, 60%, 100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-5px); opacity: 1; } }
-    @keyframes wordIn { from { opacity: 0; transform: translateY(3px); filter: blur(1px); } to { opacity: 1; transform: translateY(0); filter: blur(0); } }
-    .stream-chunk { animation: wordIn 0.2s ease-out forwards; display: inline; }
+    /* Texte en cours de flux : on garde les retours à la ligne, et le
+       curseur reste légèrement détaché du dernier mot. */
+    .bubble.streaming { white-space: pre-wrap; }
     @keyframes cursor-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
-    .bubble.streaming::after { content: '▋'; display: inline-block; animation: cursor-blink 0.6s steps(1) infinite; color: var(--blue-light); font-size: 0.8em; margin-left: 2px; vertical-align: baseline; }
+    .bubble.streaming::after {
+      content: '▋';
+      display: inline-block;
+      animation: cursor-blink 0.7s steps(1) infinite;
+      color: var(--blue-light);
+      font-size: 0.78em;
+      margin-left: 3px;
+      vertical-align: baseline;
+      opacity: 0.85;
+    }
 
     /* Sidebar scrollable */
     #sidebar-scroll { flex: 1; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(37,99,235,0.1) transparent; min-height: 0; }
@@ -967,6 +978,61 @@ function afficherTempsReponse(ms) {
 
     afficherTempsReponse(null)
     const _t0 = performance.now()
+
+    /* Streaming fluide : on découple l'arrivée réseau (par à-coups) du
+       rendu. Le texte reçu s'accumule dans `texteReponse` ; un revealer
+       sur requestAnimationFrame le dévoile à vitesse régulière (rattrapage
+       proportionnel) -> défilement lisse quel que soit le débit. Le
+       markdown n'est mis en forme qu'une fois, à la fin (pas de "saut"). */
+    let texteReponse = ''
+    let rendu = 0
+    let recu = false        // le serveur a fini d'envoyer
+    let finalise = false
+    let rafId = null
+
+    function finaliser() {
+      if (finalise) return
+      finalise = true
+      if (rafId) { cancelAnimationFrame(rafId); rafId = null }
+      typingBub.classList.remove('typing', 'streaming')
+      const rendreMarkdown = () => {
+        typingBub.innerHTML = DOMPurify.sanitize(marked.parse(texteReponse))
+        typingBub.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b))
+      }
+      const reduit = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      if (reduit) {
+        rendreMarkdown()
+      } else {
+        // Micro-fondu : adoucit le seul "saut" restant (texte brut -> markdown).
+        typingBub.style.transition = 'opacity .16s ease'
+        typingBub.style.opacity = '0'
+        requestAnimationFrame(() => {
+          rendreMarkdown()
+          requestAnimationFrame(() => { typingBub.style.opacity = '1' })
+        })
+      }
+      afficherTempsReponse(performance.now() - _t0)
+      msgCount++
+      document.getElementById('msg-counter').textContent = msgCount + ' msg'
+    }
+
+    function revealer() {
+      rafId = null
+      const restant = texteReponse.length - rendu
+      if (restant > 0) {
+        // Rattrape ~1/6 du retard par frame (min 1 car.) : rapide quand il
+        // y a beaucoup à montrer, doux en fin de phrase.
+        rendu = Math.min(texteReponse.length, rendu + Math.max(1, Math.ceil(restant / 6)))
+        typingBub.textContent = texteReponse.slice(0, rendu)
+        chatArea.scrollTop = chatArea.scrollHeight
+      }
+      if (recu && rendu >= texteReponse.length) { finaliser(); return }
+      rafId = requestAnimationFrame(revealer)
+    }
+    function demarrerRevealer() {
+      if (rafId == null && !finalise) rafId = requestAnimationFrame(revealer)
+    }
+
     try {
       const body = { message: texte, sessionId }
       if (imageEnvoyee) body.image = { data: imageEnvoyee.data, mediaType: imageEnvoyee.mediaType }
@@ -992,7 +1058,6 @@ function afficherTempsReponse(ms) {
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
-      let texteReponse = ''
 
       while (true) {
         const { done, value } = await reader.read()
@@ -1013,31 +1078,40 @@ function afficherTempsReponse(ms) {
               localStorage.setItem('sessionId', sessionId)
             } else if (data.type === 'chunk') {
               texteReponse += data.text
-              typingBub.classList.remove('typing')
-              typingBub.classList.add('streaming')
-              const span = document.createElement('span')
-              span.className = 'stream-chunk'
-              span.textContent = data.text
-              typingBub.appendChild(span)
-              chatArea.scrollTop = chatArea.scrollHeight
+              if (typingBub.classList.contains('typing')) {
+                typingBub.classList.remove('typing')
+                typingBub.classList.add('streaming')
+                typingBub.textContent = ''
+              }
+              demarrerRevealer()
             } else if (data.type === 'done') {
-              typingBub.classList.remove('streaming')
-              typingBub.innerHTML = DOMPurify.sanitize(marked.parse(texteReponse))
-              typingBub.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b))
-              afficherTempsReponse(performance.now() - _t0)
-              msgCount++
-              document.getElementById('msg-counter').textContent = msgCount + ' msg'
+              recu = true
+              demarrerRevealer()
             } else if (data.type === 'erreur') {
-              typingBub.classList.remove('typing')
+              recu = true
+              finalise = true
+              if (rafId) { cancelAnimationFrame(rafId); rafId = null }
+              typingBub.classList.remove('typing', 'streaming')
               typingBub.textContent = data.message || 'Erreur de connexion.'
             }
           } catch {}
         }
       }
+      // Flux fermé : on s'assure que tout est dévoilé puis finalisé.
+      recu = true
+      demarrerRevealer()
 
     } catch {
-      typingBub.classList.remove('typing'); typingBub.textContent = 'Erreur de connexion.'
+      // Erreur réseau : on stoppe le revealer (il ne doit pas finaliser un
+      // texte tronqué) et on affiche le message.
+      finalise = true
+      if (rafId) { cancelAnimationFrame(rafId); rafId = null }
+      typingBub.classList.remove('typing', 'streaming')
+      typingBub.textContent = 'Erreur de connexion.'
     } finally {
+      // NB : on ne touche PAS à rafId ici — sur le chemin nominal le
+      // revealer continue volontairement APRÈS le retour de la fonction
+      // pour dévoiler la fin du texte puis appeler finaliser().
       sendBtn.disabled = false; inputEl.focus()
     }
   }

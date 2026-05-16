@@ -597,13 +597,24 @@
         const data = await res.json()
 
         if (!res.ok) {
-          afficherMessage(data.erreur, false)
+          // Compte non confirmé : message clair + lien vers le renvoi.
+          if (data.erreur === 'non_verifie') {
+            afficherMessage(data.message || 'Compte non confirmé. Vérifie tes emails.', false)
+            const m = document.getElementById('message')
+            const a = document.createElement('a')
+            a.href = '/verifier.html'; a.textContent = ' Renvoyer le lien'
+            a.style.cssText = 'color:#1a6eff;text-decoration:none;display:block;margin-top:6px;font-size:12px'
+            m.appendChild(a)
+            return
+          }
+          afficherMessage(data.erreur || 'Erreur', false)
           return
         }
 
         if (modeActuel === 'inscription') {
           changerTab('connexion')
-          afficherMessage('Compte créé ! Connecte-toi maintenant.', true)
+          // Message renvoyé par le serveur (confirmation par email requise).
+          afficherMessage(data.message || 'Compte créé. Vérifie tes emails pour le confirmer.', true)
         } else {
           localStorage.setItem('token', data.token)
           localStorage.setItem('email', data.email)

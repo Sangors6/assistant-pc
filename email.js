@@ -154,24 +154,48 @@ function gabaritResetTexte(lienReset) {
   ].join('\n')
 }
 
-async function envoyerEmailReset(destinataire, lienReset) {
-  if (!estConfigure()) return false // ni API ni SMTP : on n'échoue pas, on n'envoie pas.
-  const sujet = 'Réinitialisation de ton mot de passe — PC Helper'
-  const texte = gabaritResetTexte(lienReset)
-  const html = gabaritReset(lienReset)
+// Gabarit générique réutilisable (vérification d'email, etc.) — même
+// robustesse anti-"email vide" que le reset (bgcolor, lien en texte brut).
+function gabaritGenerique(titre, intro, libelleBouton, lienBrut, note) {
+  const lien = echapperHtml(lienBrut)
+  return `<!doctype html><html lang="fr"><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background-color:#0b1220;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0b1220" style="background-color:#0b1220;">
+    <tr><td align="center" style="padding:40px 16px;">
+      <table role="presentation" width="460" cellpadding="0" cellspacing="0" border="0" bgcolor="#111c30" style="background-color:#111c30;border:1px solid #25334c;border-radius:16px;max-width:460px;width:100%;">
+        <tr><td style="padding:30px 34px 6px;font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:bold;color:#ffffff;">PC&nbsp;Helper</td></tr>
+        <tr><td style="padding:6px 34px 0;font-family:Arial,Helvetica,sans-serif;">
+          <div style="font-size:19px;font-weight:bold;color:#ffffff;margin:12px 0 8px;">${echapperHtml(titre)}</div>
+          <div style="font-size:14px;line-height:1.6;color:#c3cee0;margin:0 0 22px;">${echapperHtml(intro)}</div>
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+            <td bgcolor="#2563eb" style="border-radius:10px;">
+              <a href="${lien}" style="display:inline-block;background-color:#2563eb;color:#ffffff;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-weight:bold;font-size:15px;padding:14px 28px;border-radius:10px;">${echapperHtml(libelleBouton)}</a>
+            </td>
+          </tr></table>
+          <div style="font-size:13px;line-height:1.6;color:#9fb0c9;margin:22px 0 0;">Ou copie ce lien dans ton navigateur&nbsp;:</div>
+          <div style="font-size:13px;line-height:1.6;color:#ffffff;margin:8px 0 0;word-break:break-all;font-family:Consolas,Menlo,Monaco,monospace;background-color:#0b1220;border:1px solid #25334c;border-radius:8px;padding:12px 14px;">${lien}</div>
+          <div style="font-size:12px;line-height:1.6;color:#8294b0;margin:22px 0 0;">${echapperHtml(note)}</div>
+        </td></tr>
+        <tr><td style="padding:22px 34px 30px;font-family:Arial,Helvetica,sans-serif;">
+          <div style="border-top:1px solid #25334c;padding-top:16px;font-size:11px;color:#6b7c99;">PC Helper — email automatique, ne pas répondre.</div>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`
+}
 
-  // Voie préférée : API HTTP Brevo (port 443) — la seule qui fonctionne
-  // depuis Render (SMTP sortant bloqué). Repli SMTP sinon (local).
+// Envoi générique : voie préférée API HTTP Brevo (port 443, seule qui marche
+// depuis Render), repli SMTP en local. Retourne false si rien n'est configuré.
+async function envoyer(destinataire, sujet, texte, html) {
+  if (!estConfigure()) return false
   if (apiConfiguree()) {
     return envoyerViaApi(destinataire, sujet, texte, html)
   }
-
   const t = getTransport()
   if (!t) return false
-  // Return-Path / enveloppe sur le domaine Brevo authentifié (EMAIL_USER,
-  // ex. ...@smtp-brevo.com) : le SPF de l'enveloppe passe alors.
   const enveloppeFrom = /@/.test(EMAIL_USER || '') ? EMAIL_USER : EMAIL_FROM
-  const info = await t.sendMail({
+  return t.sendMail({
     from: EMAIL_FROM,
     to: destinataire,
     replyTo: EMAIL_FROM,
@@ -180,7 +204,35 @@ async function envoyerEmailReset(destinataire, lienReset) {
     text: texte,
     html
   })
-  return info
+}
+
+function envoyerEmailReset(destinataire, lienReset) {
+  return envoyer(
+    destinataire,
+    'Réinitialisation de ton mot de passe — PC Helper',
+    gabaritResetTexte(lienReset),
+    gabaritReset(lienReset)
+  )
+}
+
+function envoyerEmailVerification(destinataire, lien) {
+  const texte = [
+    'PC Helper — Confirme ton adresse email',
+    '',
+    'Bienvenue ! Confirme ton inscription en ouvrant ce lien (valable 24 heures) :',
+    '',
+    lien,
+    '',
+    "Si tu n'es pas à l'origine de cette inscription, ignore cet email."
+  ].join('\n')
+  const html = gabaritGenerique(
+    'Confirme ton adresse email',
+    'Bienvenue sur PC Helper ! Clique sur le bouton ci-dessous pour activer ton compte. Ce lien expire dans 24 heures.',
+    'Activer mon compte',
+    lien,
+    "Si tu n'es pas à l'origine de cette inscription, ignore cet email."
+  )
+  return envoyer(destinataire, 'Confirme ton adresse email — PC Helper', texte, html)
 }
 
 // Vérifie la configuration d'envoi sans envoyer d'email.
@@ -219,4 +271,4 @@ function mode() {
   return 'off'
 }
 
-module.exports = { estConfigure, envoyerEmailReset, verifier, mode }
+module.exports = { estConfigure, envoyerEmailReset, envoyerEmailVerification, verifier, mode }

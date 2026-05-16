@@ -353,14 +353,37 @@ app.post('/auth/inscription', limiteurAuth, async (req, res) => {
   if (await motDePasseCompromis(motDePasse)) {
     return res.status(400).json({ erreur: 'Ce mot de passe figure dans des fuites de données connues. Choisis-en un autre.' })
   }
+  // Vérification d'email exigée seulement si l'envoi est configuré. En local
+  // sans email, on auto-vérifie (verifie=TRUE) pour ne pas bloquer le dev.
+  const exigeVerif = mailer.estConfigure()
   try {
     const hash = await bcrypt.hash(motDePasse, 10)
-    await run('INSERT INTO utilisateurs (email, mot_de_passe) VALUES ($1, $2)', [emailN, hash])
+    const ins = await run(
+      'INSERT INTO utilisateurs (email, mot_de_passe, verifie) VALUES ($1, $2, $3) RETURNING id',
+      [emailN, hash, !exigeVerif]
+    )
+    if (exigeVerif && ins.rows && ins.rows[0]) {
+      const tokenClair = crypto.randomUUID()
+      const expire = new Date(Date.now() + 24 * 60 * 60 * 1000) // +24 h
+      await run(
+        'INSERT INTO email_verifications (utilisateur_id, token, expire_le) VALUES ($1, $2, $3)',
+        [ins.rows[0].id, hacherToken(tokenClair), expire]
+      )
+      const base = process.env.APP_URL ? process.env.APP_URL.replace(/\/+$/, '')
+        : `${req.protocol}://${req.get('host')}`
+      const lien = `${base}/verifier.html?token=${tokenClair}`
+      // Non bloquant : la réponse ne doit pas dépendre de la latence SMTP/API
+      // (anti-oracle temporel + robustesse).
+      mailer.envoyerEmailVerification(emailN, lien)
+        .catch((e) => console.error('Envoi email vérification :', e.message))
+    }
   } catch (erreur) {
     // Réponse identique qu'un compte ait été créé ou non : pas d'énumération.
     console.error('Inscription :', erreur.message)
   }
-  res.json({ message: 'Si l\'adresse est valide, le compte est créé. Tu peux te connecter.' })
+  res.json({ message: exigeVerif
+    ? 'Si l\'adresse est valide, un email de confirmation vient d\'être envoyé. Vérifie ta boîte (et les spams).'
+    : 'Si l\'adresse est valide, le compte est créé. Tu peux te connecter.' })
 })
 
 app.post('/auth/connexion', limiteurAuth, async (req, res) => {
@@ -382,6 +405,11 @@ app.post('/auth/connexion', limiteurAuth, async (req, res) => {
   if (!valide) {
     noterEchec(emailN)
     return res.status(401).json({ erreur: 'Email ou mot de passe incorrect' })
+  }
+  // Compte non vérifié : on refuse la connexion (identifiants pourtant bons).
+  if (utilisateur.verifie === false) {
+    echecsConnexion.delete(emailN)
+    return res.status(403).json({ erreur: 'non_verifie', message: 'Compte non confirmé. Vérifie tes emails pour activer ton compte.' })
   }
   echecsConnexion.delete(emailN)
   const token = jwt.sign(
@@ -461,6 +489,56 @@ app.post('/auth/reset-confirme', limiteurAuth, async (req, res) => {
   } catch (erreur) {
     console.error('Reset confirme :', erreur.message)
     res.status(500).json({ erreur: 'Réinitialisation impossible' })
+  }
+})
+
+// --- Vérification d'email à l'inscription --------------------------------
+app.post('/auth/verifier-confirme', limiteurAuth, async (req, res) => {
+  const { token } = req.body
+  if (typeof token !== 'string' || !token) {
+    return res.status(400).json({ erreur: 'Lien invalide' })
+  }
+  try {
+    const ligne = await one(
+      'SELECT id, utilisateur_id, expire_le, utilise FROM email_verifications WHERE token = $1',
+      [hacherToken(token)]
+    )
+    if (!ligne || ligne.utilise || new Date(ligne.expire_le) < new Date()) {
+      return res.status(400).json({ erreur: 'Lien invalide ou expiré' })
+    }
+    await run('UPDATE utilisateurs SET verifie = TRUE WHERE id = $1', [ligne.utilisateur_id])
+    await run('UPDATE email_verifications SET utilise = TRUE WHERE id = $1', [ligne.id])
+    res.json({ message: 'Compte confirmé. Tu peux te connecter.' })
+  } catch (erreur) {
+    console.error('Vérification confirme :', erreur.message)
+    res.status(500).json({ erreur: 'Vérification impossible' })
+  }
+})
+
+// Renvoi du lien de vérification. Réponse uniforme (anti-énumération),
+// non bloquant. N'agit que si le compte existe ET n'est pas déjà vérifié.
+app.post('/auth/verifier-renvoi', limiteurAuth, async (req, res) => {
+  const { email } = req.body
+  const reponseUniforme = { message: 'Si un compte non confirmé existe pour cette adresse, un nouvel email vient d\'être envoyé.' }
+  res.json(reponseUniforme)
+  if (typeof email !== 'string' || !email) return
+  const emailN = normaliserEmail(email)
+  try {
+    const u = await one('SELECT id, email, verifie FROM utilisateurs WHERE email = $1', [emailN])
+    if (u && u.verifie === false && mailer.estConfigure()) {
+      const tokenClair = crypto.randomUUID()
+      const expire = new Date(Date.now() + 24 * 60 * 60 * 1000)
+      await run(
+        'INSERT INTO email_verifications (utilisateur_id, token, expire_le) VALUES ($1, $2, $3)',
+        [u.id, hacherToken(tokenClair), expire]
+      )
+      const base = process.env.APP_URL ? process.env.APP_URL.replace(/\/+$/, '')
+        : `${req.protocol}://${req.get('host')}`
+      mailer.envoyerEmailVerification(u.email, `${base}/verifier.html?token=${tokenClair}`)
+        .catch((e) => console.error('Renvoi vérification :', e.message))
+    }
+  } catch (erreur) {
+    console.error('Renvoi vérification :', erreur.message)
   }
 })
 

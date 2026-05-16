@@ -72,6 +72,20 @@ async function initDb() {
       cree_le TIMESTAMPTZ DEFAULT NOW()
     )
   `)
+  // Vérification d'email à l'inscription (token usage unique, TTL court).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS email_verifications (
+      id BIGSERIAL PRIMARY KEY,
+      utilisateur_id BIGINT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+      token TEXT UNIQUE NOT NULL,
+      expire_le TIMESTAMPTZ NOT NULL,
+      utilise BOOLEAN DEFAULT FALSE,
+      cree_le TIMESTAMPTZ DEFAULT NOW()
+    )
+  `)
+  // verifie : DEFAULT TRUE -> les comptes EXISTANTS restent connectables
+  // (non-breaking). Les nouvelles inscriptions insèrent explicitement FALSE.
+  await pool.query(`ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS verifie BOOLEAN DEFAULT TRUE`)
   // Sécurité si une ancienne table existait sans la colonne.
   await pool.query(`ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS mdp_version INTEGER DEFAULT 0`)
   // Lien vers le client Stripe (rempli lors du 1er paiement). Inerte tant que
@@ -83,6 +97,7 @@ async function initDb() {
   // contexte (WHERE utilisateur_id, session_id ORDER BY cree_le). Idempotent.
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_conv_chrono ON conversations(utilisateur_id, session_id, cree_le)`)
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_pwreset_token ON password_resets(token)`)
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_emailverif_token ON email_verifications(token)`)
 }
 
 // Sonde de vivacité pour /health : vérifie que la base répond réellement.
@@ -95,10 +110,14 @@ async function ping() {
 // utilisés. Idempotent, sans risque (ces lignes ne servent plus à rien),
 // borne la croissance de la table. Renvoie le nombre de lignes supprimées.
 async function purgerResetsObsoletes() {
-  const res = await pool.query(
+  const r1 = await pool.query(
     'DELETE FROM password_resets WHERE utilise = TRUE OR expire_le < NOW()'
   )
-  return res.rowCount
+  // Idem pour les vérifications d'email utilisées/expirées.
+  const r2 = await pool.query(
+    'DELETE FROM email_verifications WHERE utilise = TRUE OR expire_le < NOW()'
+  )
+  return (r1.rowCount || 0) + (r2.rowCount || 0)
 }
 
 module.exports = { pool, query, one, run, initDb, ping, purgerResetsObsoletes }

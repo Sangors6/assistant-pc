@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PC Helper — Confirmation du compte</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/favicon.svg">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { background: #03070d; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+      background: radial-gradient(circle at 70% 38%, #071a32 0%, #03070d 50%, #02050a 100%);
+      color: #f5f8ff;
+      animation: loginIn .6s ease both;
+    }
+    @keyframes loginIn { from { opacity: 0; } to { opacity: 1; } }
+    .bg-grid, .bg-noise, .bg-orb, .bg-glow { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+    .bg-grid {
+      opacity: .14;
+      background:
+        linear-gradient(rgba(64,128,255,.12) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(64,128,255,.12) 1px, transparent 1px);
+      background-size: 70px 70px;
+      transform: perspective(760px) rotateX(70deg) translateY(34vh) scale(1.5);
+      transform-origin: bottom;
+    }
+    .bg-noise {
+      opacity: .10;
+      background-image: radial-gradient(rgba(255,255,255,.18) 1px, transparent 1px);
+      background-size: 3px 3px;
+      mask-image: linear-gradient(to bottom, transparent 0%, black 16%, black 86%, transparent 100%);
+    }
+    .bg-orb {
+      background:
+        radial-gradient(circle at 78% 42%, rgba(39,127,255,.20), transparent 24%),
+        radial-gradient(circle at 12% 60%, rgba(21,90,198,.14), transparent 26%);
+    }
+    .bg-glow {
+      background: radial-gradient(ellipse 70% 55% at 50% -16%, rgba(45,130,255,.14) 0%, transparent 70%);
+      animation: glowBreathe 5s ease-in-out infinite;
+    }
+    @keyframes glowBreathe { 0%,100% { opacity: .7; } 50% { opacity: 1; } }
+    .home-btn {
+      position: fixed; top: 26px; left: 28px; z-index: 20;
+      display: inline-flex; align-items: center; gap: 8px;
+      height: 40px; padding: 0 16px; border-radius: 11px;
+      border: 1px solid rgba(98,166,255,.22);
+      background: rgba(8,18,35,.55); backdrop-filter: blur(10px);
+      color: #b9c6de; font-size: 13px; font-weight: 700; text-decoration: none;
+      transition: .22s ease;
+    }
+    .home-btn:hover { transform: translateY(-2px); border-color: rgba(111,178,255,.45); color: #fff; background: rgba(13,30,55,.7); }
+    .home-btn svg { width: 15px; height: 15px; fill: currentColor; }
+    #card {
+      position: relative; z-index: 10; width: 420px;
+      background: rgba(8,14,28,0.97);
+      border: 1px solid rgba(0,80,200,0.2);
+      border-radius: 20px; padding: 40px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 100px rgba(0,40,160,0.08);
+    }
+    #logo { display: flex; align-items: center; gap: 12px; justify-content: center; margin-bottom: 24px; }
+    #logo-icon {
+      width: 46px; height: 46px;
+      background: linear-gradient(135deg, #1a6eff, #0040cc);
+      border-radius: 12px; display: flex; align-items: center; justify-content: center;
+      font-size: 22px; box-shadow: 0 0 20px rgba(26,110,255,0.4);
+    }
+    #logo-name { font-size: 22px; font-weight: 700; color: #fff; }
+    #logo-sub { font-size: 11px; color: #3a5a8a; font-weight: 400; }
+    #titre { font-size: 16px; font-weight: 600; text-align: center; margin-bottom: 6px; color: #fff; }
+    #sous-titre { font-size: 12.5px; color: #6b7c99; text-align: center; line-height: 1.55; margin-bottom: 24px; }
+    /* Anneau de chargement (vérification en cours) */
+    #spin {
+      width: 38px; height: 38px; margin: 6px auto 22px;
+      border: 3px solid rgba(98,166,255,.18);
+      border-top-color: #1a6eff;
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .field { margin-bottom: 18px; }
+    .field-label {
+      font-size: 10px; font-weight: 700; color: #1a6eff;
+      letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 8px; display: block;
+    }
+    .field-input {
+      display: flex; align-items: center; gap: 10px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(0,80,200,0.18);
+      border-radius: 10px; padding: 12px 14px; transition: all 0.2s;
+    }
+    .field-input:focus-within { border-color: #1a6eff; box-shadow: 0 0 0 3px rgba(26,110,255,0.1); }
+    .field-icon { font-size: 15px; flex-shrink: 0; opacity: 0.4; }
+    .field-input input {
+      flex: 1; background: transparent; border: none; outline: none;
+      color: #c8d8e8; font-size: 14px; font-family: inherit;
+    }
+    .field-input input::placeholder { color: #1e3050; }
+    #message { text-align: center; font-size: 13px; min-height: 18px; margin-bottom: 14px; color: #ff4444; }
+    #message.succes { color: #00c853; }
+    @keyframes msgIn {
+      from { opacity: 0; transform: translateY(-5px) scale(.98); }
+      to   { opacity: 1; transform: none; }
+    }
+    #message.show { animation: msgIn .34s cubic-bezier(.16, 1, .3, 1); }
+    @media (prefers-reduced-motion: reduce) { #message.show { animation: none; } #spin { animation-duration: 2s; } }
+    #bouton {
+      width: 100%; padding: 14px;
+      background: linear-gradient(135deg, #1a6eff, #0040cc);
+      border: none; border-radius: 12px; color: white;
+      font-size: 15px; font-weight: 600; font-family: inherit; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: all 0.2s; box-shadow: 0 4px 20px rgba(26,110,255,0.35); margin-bottom: 18px;
+    }
+    #bouton:hover { transform: translateY(-1px); box-shadow: 0 6px 28px rgba(26,110,255,0.5); }
+    #bouton:disabled { opacity: .55; cursor: default; transform: none; }
+    #retour-login { text-align: center; }
+    #retour-login a { color: #1a6eff; font-size: 13px; text-decoration: none; }
+    #retour-login a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="bg-noise"></div>
+  <div class="bg-orb"></div>
+  <div class="bg-glow"></div>
+
+  <a class="home-btn" href="/" aria-label="Retour à l'accueil">
+    <svg viewBox="0 0 24 24"><path d="M12 3.2 2.5 11h2.3v9h5v-6h4.4v6h5v-9h2.3L12 3.2Z"/></svg>
+    Accueil
+  </a>
+
+  <div id="card">
+    <div id="logo">
+      <div id="logo-icon">🖥️</div>
+      <div>
+        <div id="logo-name">PC Helper</div>
+        <div id="logo-sub">Votre assistant tech personnel</div>
+      </div>
+    </div>
+
+    <div id="titre">Confirmation du compte</div>
+    <div id="sous-titre">Vérification de ton adresse email…</div>
+
+    <div id="spin"></div>
+
+    <!-- Renvoi d'un lien (token absent / invalide / expiré) -->
+    <div id="bloc-renvoi" style="display:none">
+      <div class="field">
+        <label class="field-label">Email</label>
+        <div class="field-input">
+          <span class="field-icon">✉️</span>
+          <input type="email" id="email" placeholder="ton@email.com" autocomplete="email">
+        </div>
+      </div>
+      <div id="message"></div>
+      <button id="bouton" onclick="renvoyer()">
+        <span id="bouton-texte">→ Renvoyer le lien de confirmation</span>
+      </button>
+    </div>
+
+    <div id="message-seul" style="display:none"></div>
+
+    <div id="retour-login"><a href="/login.html">← Retour à la connexion</a></div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search)
+    const token = params.get('token')
+
+    const spin = document.getElementById('spin')
+    const titre = document.getElementById('titre')
+    const sousTitre = document.getElementById('sous-titre')
+    const blocRenvoi = document.getElementById('bloc-renvoi')
+    const msgSeul = document.getElementById('message-seul')
+
+    // Styles communs au bloc de message « seul » (succès final).
+    msgSeul.style.textAlign = 'center'
+    msgSeul.style.fontSize = '13px'
+    msgSeul.style.marginBottom = '14px'
+
+    function montrerRenvoi(infoTexte) {
+      spin.style.display = 'none'
+      titre.textContent = 'Lien invalide ou expiré'
+      sousTitre.textContent = 'Saisis ton email pour recevoir un nouveau lien de confirmation.'
+      blocRenvoi.style.display = 'block'
+      if (infoTexte) {
+        const m = document.getElementById('message')
+        m.className = ''; m.textContent = infoTexte
+        m.classList.remove('show'); void m.offsetWidth; m.classList.add('show')
+      }
+    }
+
+    async function verifier() {
+      try {
+        const res = await fetch('/auth/verifier-confirme', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token })
+        })
+        const data = await res.json().catch(() => ({}))
+        if (res.ok) {
+          spin.style.display = 'none'
+          titre.textContent = 'Compte confirmé'
+          sousTitre.textContent = 'Redirection vers la connexion…'
+          msgSeul.className = 'succes'; msgSeul.style.color = '#00c853'
+          msgSeul.style.display = 'block'; msgSeul.textContent = data.message || 'Compte confirmé.'
+          msgSeul.classList.add('show')
+          setTimeout(() => { window.location.href = '/login.html' }, 1700)
+        } else {
+          montrerRenvoi(data.erreur || 'Lien invalide ou expiré')
+        }
+      } catch {
+        montrerRenvoi('Erreur de connexion au serveur')
+      }
+    }
+
+    async function renvoyer() {
+      const email = document.getElementById('email').value.trim()
+      const bouton = document.getElementById('bouton')
+      const m = document.getElementById('message')
+      if (!email) {
+        m.className = ''; m.textContent = 'Saisis ton email'
+        m.classList.remove('show'); void m.offsetWidth; m.classList.add('show')
+        return
+      }
+      bouton.disabled = true
+      try {
+        const res = await fetch('/auth/verifier-renvoi', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        })
+        const data = await res.json().catch(() => ({}))
+        m.className = 'succes'; m.style.color = '#00c853'
+        m.textContent = data.message || 'Si un compte non confirmé existe, un email vient d\'être envoyé.'
+        m.classList.remove('show'); void m.offsetWidth; m.classList.add('show')
+      } catch {
+        m.className = ''; m.style.color = '#ff4444'
+        m.textContent = 'Erreur de connexion au serveur'
+        m.classList.remove('show'); void m.offsetWidth; m.classList.add('show')
+        bouton.disabled = false
+      }
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && blocRenvoi.style.display !== 'none') renvoyer()
+    })
+
+    if (token) {
+      verifier()
+    } else {
+      montrerRenvoi('')
+    }
+  </script>
+</body>
+</html>
