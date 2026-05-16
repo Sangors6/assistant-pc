@@ -175,6 +175,23 @@
     .fb-btn:hover { background: rgba(37,99,235,0.15); color: #93c5fd; }
     .fb-btn.fb-on { color: #22c55e; border-color: rgba(34,197,94,0.4); }
     .fb-btn:disabled { cursor: default; }
+    /* #006 Réponse actionnable : checklist d'étapes + script téléchargeable */
+    .bubble ol.pc-steps { list-style: none; padding-left: 0; }
+    .bubble ol.pc-steps > li { position: relative; padding: 7px 10px 7px 40px; border-radius: 9px; cursor: pointer; transition: background 0.15s; }
+    .bubble ol.pc-steps > li::before { counter-increment: pcstep; content: counter(pcstep); position: absolute; left: 8px; top: 7px; width: 21px; height: 21px; border-radius: 6px; background: rgba(59,130,246,0.14); border: 1px solid rgba(59,130,246,0.28); color: #93c5fd; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+    .bubble ol.pc-steps { counter-reset: pcstep; }
+    .bubble ol.pc-steps > li:hover { background: rgba(59,130,246,0.06); }
+    .bubble ol.pc-steps > li.pc-done { color: rgba(148,163,184,0.55); }
+    .bubble ol.pc-steps > li.pc-done::before { content: '✓'; background: rgba(34,197,94,0.18); border-color: rgba(34,197,94,0.45); color: #22c55e; }
+    .bubble ol.pc-steps > li.pc-done .pc-li-txt { text-decoration: line-through; text-decoration-color: rgba(148,163,184,0.5); }
+    .pc-prog { display: flex; align-items: center; gap: 8px; margin: 9px 0 2px; font-size: 11.5px; color: rgba(148,163,184,0.78); }
+    .pc-prog-bar { flex: 0 0 92px; height: 5px; border-radius: 3px; background: rgba(148,163,184,0.16); overflow: hidden; }
+    .pc-prog-fill { height: 100%; width: 0; background: linear-gradient(90deg,#3b82f6,#22c55e); border-radius: 3px; transition: width 0.28s ease; }
+    .pc-actions { margin-top: 11px; display: flex; flex-direction: column; gap: 8px; }
+    .pc-warn { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; line-height: 1.5; color: #e7c98a; background: linear-gradient(180deg, rgba(245,158,11,0.10), rgba(245,158,11,0.05)); border: 1px solid rgba(245,158,11,0.28); border-radius: 10px; padding: 8px 11px; }
+    .pc-dl-btn { align-self: flex-start; display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 13px; border-radius: 8px; background: rgba(37,99,235,0.14); border: 1px solid rgba(59,130,246,0.30); color: #bcd4ff; font-size: 12.5px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+    .pc-dl-btn:hover { background: rgba(37,99,235,0.24); color: #dbe7ff; border-color: rgba(59,130,246,0.5); }
+    @media (prefers-reduced-motion: reduce) { .pc-prog-fill, .bubble ol.pc-steps > li, .pc-dl-btn { transition: none; } }
     #proactif { display: none; align-items: center; gap: 10px; margin: 0 0 14px; padding: 11px 14px; border-radius: 12px; background: linear-gradient(180deg, rgba(245,158,11,0.10), rgba(245,158,11,0.05)); border: 1px solid rgba(245,158,11,0.28); font-size: 13px; color: #e7c98a; animation: proIn .35s cubic-bezier(.16,1,.3,1); }
     #proactif.show { display: flex; }
     @keyframes proIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
@@ -1284,6 +1301,98 @@ function afficherTempsReponse(ms) {
     fileInput.value = ''; inputEl.placeholder = 'Décris ton problème...'
   }
 
+  /* #006 — Réponse actionnable : transforme une réponse à étapes en
+     checklist cochable (persistée par message) + propose le téléchargement
+     d'un script à partir des blocs de code. 100% client, non bloquant :
+     si la réponse n'a ni étapes ni code, la fonction ne fait rien. */
+  function pcHash(s) {
+    let h = 5381
+    for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0
+    return (h >>> 0).toString(36)
+  }
+  function enrichirActions(bub, texte) {
+    if (!bub || bub.dataset.pcEnriched) return
+    bub.dataset.pcEnriched = '1'
+    const cle = 'pcck:' + pcHash(texte || bub.textContent || '')
+    // 1) Checklist sur étapes numérotées
+    const ol = bub.querySelector('ol')
+    const lis = ol ? Array.prototype.filter.call(ol.children, (n) => n.tagName === 'LI') : []
+    if (ol && lis.length >= 2) {
+      ol.classList.add('pc-steps')
+      let etat = {}
+      try { etat = JSON.parse(localStorage.getItem(cle) || '{}') } catch (e) { etat = {} }
+      const prog = document.createElement('div'); prog.className = 'pc-prog'
+      const barW = document.createElement('div'); barW.className = 'pc-prog-bar'
+      const fill = document.createElement('div'); fill.className = 'pc-prog-fill'
+      barW.appendChild(fill)
+      const lbl = document.createElement('span')
+      prog.appendChild(barW); prog.appendChild(lbl)
+      const maj = () => {
+        const done = lis.filter((_, i) => etat[i]).length
+        lbl.textContent = done + ' / ' + lis.length + ' étapes faites'
+        fill.style.width = Math.round(done / lis.length * 100) + '%'
+      }
+      lis.forEach((li, i) => {
+        const span = document.createElement('span'); span.className = 'pc-li-txt'
+        while (li.firstChild) span.appendChild(li.firstChild)
+        li.appendChild(span)
+        if (etat[i]) li.classList.add('pc-done')
+        li.setAttribute('role', 'button'); li.setAttribute('tabindex', '0')
+        li.setAttribute('aria-label', 'Marquer l’étape ' + (i + 1) + ' comme faite')
+        const tog = () => {
+          etat[i] = !etat[i]
+          li.classList.toggle('pc-done', !!etat[i])
+          try { localStorage.setItem(cle, JSON.stringify(etat)) } catch (e) {}
+          maj()
+        }
+        li.addEventListener('click', (e) => { if (e.target.closest('a,code,pre,button')) return; tog() })
+        li.addEventListener('keydown', (e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); tog() } })
+      })
+      maj()
+      ol.insertAdjacentElement('afterend', prog)
+    }
+    // 2) Téléchargement de script à partir des blocs de code
+    const blocs = Array.prototype.slice.call(bub.querySelectorAll('pre code'))
+    if (blocs.length) {
+      const detect = (c) => {
+        const m = (c.className || '').toLowerCase()
+        if (/powershell|ps1/.test(m)) return ['powershell', 'ps1']
+        if (/batch|\bbat\b|\bcmd\b/.test(m)) return ['bat', 'bat']
+        if (/bash|shell|zsh|\bsh\b/.test(m)) return ['bash', 'sh']
+        return null
+      }
+      let lang = null
+      for (let i = 0; i < blocs.length; i++) { const d = detect(blocs[i]); if (d) { lang = d; break } }
+      const ext = lang ? lang[1] : 'txt'
+      const contenu = blocs.map((b) => b.textContent.replace(/\s+$/, '')).join('\n\n')
+      if (contenu.trim().length >= 2) {
+        const box = document.createElement('div'); box.className = 'pc-actions'
+        const warn = document.createElement('div'); warn.className = 'pc-warn'
+        const wi = document.createElement('span'); wi.textContent = '⚠️'
+        const wt = document.createElement('span')
+        wt.textContent = 'Vérifie chaque commande avant de l’exécuter. Ne lance un script que si tu comprends ce qu’il fait.'
+        warn.appendChild(wi); warn.appendChild(wt)
+        const btn = document.createElement('button')
+        btn.type = 'button'; btn.className = 'pc-dl-btn'
+        btn.textContent = '⬇️ Télécharger le script (.' + ext + ')'
+        btn.onclick = () => {
+          let entete = 'Genere par PC Helper - verifie avant execution\n'
+          if (lang && lang[0] === 'powershell') entete = '# Genere par PC Helper - verifie avant execution\n'
+          else if (lang && lang[0] === 'bash') entete = '#!/usr/bin/env bash\n# Genere par PC Helper - verifie avant execution\n'
+          else if (lang && lang[0] === 'bat') entete = '@echo off\nREM Genere par PC Helper - verifie avant execution\n'
+          const blob = new Blob([entete + '\n' + contenu + '\n'], { type: 'text/plain;charset=utf-8' })
+          const u = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = u; a.download = 'pc-helper-script.' + ext
+          document.body.appendChild(a); a.click()
+          setTimeout(() => { URL.revokeObjectURL(u); a.remove() }, 0)
+        }
+        box.appendChild(warn); box.appendChild(btn)
+        bub.appendChild(box)
+      }
+    }
+  }
+
   /* Ajouter message */
   function ajouterMsg(texte, role) {
     welcomeCard.style.display = 'none'; sugGrid.style.display = 'none'; panelConv.style.display = 'none'
@@ -1301,7 +1410,7 @@ function afficherTempsReponse(ms) {
     if (texte === '__typing__') {
       bub.classList.add('typing'); bub.innerHTML = '<div class="typing-anim"><span></span><span></span><span></span></div>'
     } else if (role === 'assistant') {
-      bub.innerHTML = DOMPurify.sanitize(marked.parse(texte)); bub.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b))
+      bub.innerHTML = DOMPurify.sanitize(marked.parse(texte)); bub.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b)); enrichirActions(bub, texte)
     } else { bub.textContent = texte }
     if (role === 'assistant' && texte !== '__typing__') {
       const copyBtn = document.createElement('button'); copyBtn.className = 'copy-btn'; copyBtn.title = 'Copier'; copyBtn.textContent = '📋'
@@ -1371,6 +1480,7 @@ function afficherTempsReponse(ms) {
       const rendreMarkdown = () => {
         typingBub.innerHTML = DOMPurify.sanitize(marked.parse(texteReponse))
         typingBub.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b))
+        enrichirActions(typingBub, texteReponse)
       }
       const reduit = window.matchMedia('(prefers-reduced-motion: reduce)').matches
       if (reduit) {
