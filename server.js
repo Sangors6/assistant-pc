@@ -26,6 +26,28 @@ const limiteurChat = rateLimit({
   message: { erreur: 'Trop de messages. Attends un moment.' }
 })
 
+// Couche SUPPLÉMENTAIRE par compte (en plus du limiteur IP ci-dessus, qui
+// reste inchangé). Monté APRÈS authentifier : la clé est l'id utilisateur,
+// donc un même compte exploité depuis plusieurs IP (token volé, botnet) est
+// borné — ce que le limiteur par IP ne couvre pas.
+// Choix CONSERVATEUR : plafond (60/min) très au-dessus de tout usage humain
+// légitime d'un seul compte, lui-même déjà bridé à 20/min par IP. Un
+// utilisateur normal ne l'atteint jamais → aucun changement de comportement,
+// même message 429 que le limiteur existant.
+const limiteurChatCompte = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  message: { erreur: 'Trop de messages. Attends un moment.' },
+  // Clé = id du compte (req.utilisateur garanti car monté après authentifier).
+  // Repli défensif sur l'IP si jamais l'utilisateur n'est pas résolu.
+  keyGenerator: (req) => (req.utilisateur && req.utilisateur.id != null
+    ? 'compte:' + req.utilisateur.id
+    : 'ip:' + req.ip),
+  // keyGenerator personnalisé volontaire (non basé IP) : on neutralise la
+  // validation IP d'express-rate-limit pour éviter un faux avertissement.
+  validate: { keyGeneratorIpFallback: false }
+})
+
 const app = express()
 app.disable('x-powered-by') // ne pas révéler la stack (Express)
 // Derrière le proxy de l'hébergeur (Render/Railway/Vercel...) : indispensable
@@ -618,7 +640,7 @@ app.delete('/sessions/:sessionId', authentifier, async (req, res) => {
   }
 })
 
-app.post('/chat', limiteurChat, authentifier, async (req, res) => {
+app.post('/chat', limiteurChat, authentifier, limiteurChatCompte, async (req, res) => {
   const { message, sessionId, image } = req.body
 
   if (message !== undefined && message !== null && typeof message !== 'string') {
