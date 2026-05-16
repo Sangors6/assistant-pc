@@ -7,7 +7,11 @@
 const nodemailer = require('nodemailer')
 const https = require('https')
 
-const { EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, EMAIL_FROM, BREVO_API_KEY } = process.env
+const { EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, EMAIL_FROM } = process.env
+// .trim() indispensable : une clé collée dans un dashboard d'hébergeur
+// embarque souvent un espace ou un retour-ligne final invisible -> l'API
+// Brevo répond 401 et l'échec passe inaperçu (envoi non bloquant).
+const BREVO_API_KEY = (process.env.BREVO_API_KEY || '').trim()
 
 // Deux voies d'envoi possibles :
 //  - API HTTP Brevo (port 443) : fonctionne partout, y compris sur Render
