@@ -1605,6 +1605,168 @@ app.get('/health', async (req, res) => {
   }
 })
 
+// --- Bibliothèque de playbooks guidés (idée #009) ------------------------
+// Route PUBLIQUE, GET, LECTURE SEULE, SANS état, SANS I/O base, SANS auth.
+// But : URL propre et indexable par playbook (/playbooks/<slug>) avec
+// pré-rendu serveur (balises SEO + JSON-LD HowTo + contenu de repli pour les
+// crawlers sans JS). 100 % additif : ne touche aucune route existante, placée
+// APRÈS express.static (les vrais fichiers gagnent) et AVANT le 404.
+//
+// Données et templates = fichiers statiques de public/. Chargés une fois,
+// avec invalidation sur mtime (édition du JSON sans redéploiement possible
+// en local ; en prod le process redémarre de toute façon au déploiement).
+const PLAYBOOKS_DIR = path.join(__dirname, 'public', 'playbooks')
+const PLAYBOOK_TPL_PATH = path.join(__dirname, 'public', 'playbook.html')
+const PLAYBOOKS_JSON_PATH = path.join(PLAYBOOKS_DIR, 'playbooks.json')
+
+const _pbCache = { tpl: null, tplMtime: 0, data: null, dataMtime: 0 }
+
+function echapHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+}
+
+function chargerTemplatePlaybook() {
+  const st = fs.statSync(PLAYBOOK_TPL_PATH)
+  if (!_pbCache.tpl || st.mtimeMs !== _pbCache.tplMtime) {
+    _pbCache.tpl = fs.readFileSync(PLAYBOOK_TPL_PATH, 'utf8')
+    _pbCache.tplMtime = st.mtimeMs
+  }
+  return _pbCache.tpl
+}
+
+function chargerDonneesPlaybooks() {
+  const st = fs.statSync(PLAYBOOKS_JSON_PATH)
+  if (!_pbCache.data || st.mtimeMs !== _pbCache.dataMtime) {
+    _pbCache.data = JSON.parse(fs.readFileSync(PLAYBOOKS_JSON_PATH, 'utf8'))
+    _pbCache.dataMtime = st.mtimeMs
+  }
+  return _pbCache.data
+}
+
+// Chemin "le plus probable" (toujours Oui) pour produire un HowTo cohérent
+// et un repli lisible par les crawlers. Borné, anti-cycle.
+function cheminLineaire(pb) {
+  const etapes = []
+  const vus = new Set()
+  let id = pb.depart
+  let garde = 0
+  while (id && !vus.has(id) && garde++ < 60) {
+    vus.add(id)
+    const n = pb.noeuds[id]
+    if (!n) break
+    if (n.type === 'action') {
+      etapes.push({ titre: n.titre || 'Étape', texte: n.texte || '' })
+      id = n.suivant
+    } else if (n.type === 'question') {
+      etapes.push({ titre: 'Vérification', texte: n.question || '' })
+      id = n.oui
+    } else {
+      etapes.push({ titre: n.type === 'resolu' ? 'Résolu' : 'Aller plus loin', texte: n.texte || '' })
+      break
+    }
+  }
+  return etapes
+}
+
+function rendrePlaybook(pb, slug, base) {
+  let html = chargerTemplatePlaybook()
+
+  const titre = pb.metaTitle || (pb.titre + ' — PC Helper')
+  const desc = pb.metaDescription || pb.tagline || ''
+  const urlAbs = base + '/playbooks/' + slug
+  const etapes = cheminLineaire(pb)
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'HowTo',
+    name: pb.titre || slug,
+    description: desc,
+    totalTime: 'PT10M',
+    step: etapes.map((e, i) => ({
+      '@type': 'HowToStep',
+      position: i + 1,
+      name: e.titre,
+      text: e.texte
+    }))
+  }
+
+  const head = [
+    '<title>' + echapHtml(titre) + '</title>',
+    '<meta name="description" content="' + echapHtml(desc) + '">',
+    '<meta name="keywords" content="' + echapHtml(pb.motsCles || '') + '">',
+    '<link rel="canonical" href="' + echapHtml(urlAbs) + '">',
+    '<meta property="og:title" content="' + echapHtml(pb.titre || slug) + '">',
+    '<meta property="og:description" content="' + echapHtml(desc) + '">',
+    '<meta property="og:type" content="article">',
+    '<meta property="og:url" content="' + echapHtml(urlAbs) + '">',
+    '<script type="application/ld+json">' +
+      // </script> ne peut pas apparaître : JSON.stringify n'émet aucun '<'
+      // littéral problématique, mais on neutralise par sécurité.
+      JSON.stringify(jsonLd).replace(/</g, '\\u003c') + '<\/script>'
+  ].join('\n  ')
+
+  // Repli crawler : titre, accroche, et le parcours linéaire en texte pur.
+  const fallback = [
+    '<h2>' + echapHtml(pb.titre || slug) + '</h2>',
+    '<p>' + echapHtml(pb.tagline || '') + '</p>',
+    etapes.map((e, i) =>
+      '<h3>Étape ' + (i + 1) + ' — ' + echapHtml(e.titre) + '</h3>' +
+      '<p>' + echapHtml(e.texte) + '</p>'
+    ).join('\n  '),
+    '<p>Si ces étapes ne suffisent pas, <a href="/login.html">décrivez votre ' +
+      'problème à l\'assistant PC Helper</a>.</p>'
+  ].join('\n  ')
+
+  html = html.replace(
+    /<!-- SEO_HEAD[\s\S]*?\/SEO_HEAD -->/,
+    '<!-- SEO_HEAD (rendu serveur) -->\n  ' + head + '\n  <!-- /SEO_HEAD -->'
+  )
+  html = html.replace(
+    /<!-- SEO_FALLBACK[\s\S]*?\/SEO_FALLBACK -->/,
+    '<div id="seo-fallback">\n  ' + fallback + '\n  </div>'
+  )
+  return html
+}
+
+app.get('/playbooks/:slug', (req, res) => {
+  const slug = String(req.params.slug || '')
+  // Slug strict : si la requête vise un fichier réel de public/playbooks/
+  // (ex. playbooks.json), express.static l'a déjà servi en amont — on
+  // n'arrive ici que pour des slugs « logiques ».
+  if (!/^[a-z0-9-]{1,64}$/.test(slug)) {
+    return res.status(404).type('html').send(
+      '<!doctype html><meta charset="utf-8"><title>Guide introuvable</title>' +
+      '<p>Guide introuvable. <a href="/playbooks.html">Voir tous les guides</a>.</p>'
+    )
+  }
+  try {
+    const data = chargerDonneesPlaybooks()
+    const list = (data && Array.isArray(data.playbooks)) ? data.playbooks : []
+    const pb = list.find((p) => p && p.slug === slug)
+    if (!pb || !pb.noeuds || !pb.depart || !pb.noeuds[pb.depart]) {
+      return res.status(404).type('html').send(
+        '<!doctype html><meta charset="utf-8"><title>Guide introuvable — PC Helper</title>' +
+        '<p>Ce guide n\'existe pas. <a href="/playbooks.html">Voir tous les guides</a>.</p>'
+      )
+    }
+    // Base absolue dérivée comme le reste du code (cf. liens e-mail) :
+    // APP_URL en prod, sinon l'hôte de la requête. Aucun domaine en dur.
+    const base = process.env.APP_URL ? process.env.APP_URL.replace(/\/+$/, '')
+      : `${req.protocol}://${req.get('host')}`
+    res.setHeader('Cache-Control', 'no-cache')
+    res.type('html').send(rendrePlaybook(pb, slug, base))
+  } catch (e) {
+    // Jamais de 500 : repli propre vers l'index des guides.
+    console.error('Playbook (rendu) :', e.message)
+    res.status(404).type('html').send(
+      '<!doctype html><meta charset="utf-8"><title>Guide indisponible — PC Helper</title>' +
+      '<p>Guide momentanément indisponible. <a href="/playbooks.html">Tous les guides</a>.</p>'
+    )
+  }
+})
+
 // Route inconnue : réponse JSON cohérente avec le reste de l'API.
 app.use((req, res) => res.status(404).json({ erreur: 'Introuvable' }))
 

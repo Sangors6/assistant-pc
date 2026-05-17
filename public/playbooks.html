@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guides de depannage PC pas a pas — PC Helper</title>
+  <meta name="description" content="Bibliotheque de guides de depannage informatique pas a pas : pas de son, Wi-Fi, PC lent, ecran noir, imprimante. Diagnostic interactif gratuit, sans inscription.">
+  <link rel="canonical" href="https://assistant-pc.onrender.com/playbooks.html">
+  <meta property="og:title" content="Guides de depannage PC pas a pas — PC Helper">
+  <meta property="og:description" content="Resolvez les pannes PC les plus frequentes avec un diagnostic interactif guide, etape par etape.">
+  <meta property="og:type" content="website">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/favicon.svg">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#03070d">
+  <script>if('serviceWorker' in navigator){addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){})})}</script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --blue: #2563eb; --blue-light: #3b82f6; --blue-dark: #1d4ed8;
+      --cyan: #22d3ee; --bg: #060910;
+      --bg-panel: rgba(10, 15, 28, 0.92); --bg-card: rgba(13, 19, 35, 0.85);
+      --border: rgba(59, 130, 246, 0.12); --border-hover: rgba(59, 130, 246, 0.4);
+      --text: #e2e8f0; --text-dim: #475569; --text-mid: #94a3b8;
+      --glow: rgba(37, 99, 235, 0.4); --success: #22c55e; --danger: #ef4444;
+    }
+
+    body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+    #bg-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.5; }
+    #app { display: flex; flex-direction: column; flex: 1; position: relative; z-index: 1; }
+
+    /* TOPBAR (calque technicien.html) */
+    #topbar { display: flex; align-items: center; gap: 14px; padding: 14px 22px; border-bottom: 1px solid var(--border); background: linear-gradient(180deg, rgba(8,13,26,0.92), rgba(5,8,18,0.7)); backdrop-filter: blur(24px); flex-shrink: 0; position: relative; z-index: 10; }
+    #topbar::after { content: ''; position: absolute; left: 8%; right: 8%; bottom: -1px; height: 1px; background: linear-gradient(to right, transparent, var(--blue) 35%, var(--cyan) 55%, transparent); opacity: 0.4; }
+    .back-btn { display: flex; align-items: center; gap: 7px; padding: 8px 13px; border-radius: 10px; font-size: 12.5px; font-weight: 600; color: var(--text-mid); text-decoration: none; border: 1px solid var(--border); background: rgba(6,10,20,0.6); transition: color .18s ease, border-color .18s ease, transform .18s ease, background .18s ease; }
+    .back-btn:hover { color: #bcd4f5; border-color: var(--border-hover); transform: translateX(-2px); background: rgba(37,99,235,0.08); }
+    .back-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+    #tb-id { display: flex; align-items: center; gap: 12px; }
+    #tb-icon { width: 40px; height: 40px; background: linear-gradient(135deg, var(--blue-light), var(--blue-dark)); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 19px; box-shadow: 0 6px 18px rgba(37,99,235,0.4), inset 0 1px 0 rgba(255,255,255,0.18); flex-shrink: 0; }
+    #tb-name { font-size: 15.5px; font-weight: 700; color: #fff; letter-spacing: -0.4px; }
+    #tb-sub { font-size: 10px; color: var(--text-dim); font-weight: 600; letter-spacing: 1.1px; text-transform: uppercase; margin-top: 2px; }
+    #tb-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+    .tb-chip { display: flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 700; color: var(--cyan); background: rgba(34,211,238,0.08); border: 1px solid rgba(34,211,238,0.22); padding: 5px 11px; border-radius: 20px; letter-spacing: 0.4px; }
+    .tb-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+
+    /* CONTENU */
+    #wrap { flex: 1; overflow-y: auto; padding: 36px 22px 56px; }
+    #inner { max-width: 980px; margin: 0 auto; }
+
+    .hero { padding: 26px 26px 24px; border-radius: 20px; background: linear-gradient(160deg, rgba(13,19,35,0.85), rgba(8,12,24,0.6)); border: 1px solid var(--border); position: relative; overflow: hidden; animation: rise .5s cubic-bezier(.22,1,.36,1) both; }
+    .hero::before { content: ''; position: absolute; inset: 0; background: radial-gradient(620px 200px at 12% -20%, rgba(37,99,235,0.16), transparent 70%); pointer-events: none; }
+    .hero h1 { font-size: 23px; font-weight: 700; color: #fff; letter-spacing: -0.5px; position: relative; }
+    .hero p { font-size: 14px; color: var(--text-mid); line-height: 1.65; margin-top: 10px; max-width: 680px; position: relative; }
+    .hero .htags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; position: relative; }
+    .hero .htag { font-size: 11.5px; font-weight: 600; color: #bcd4f5; background: rgba(37,99,235,0.1); border: 1px solid rgba(59,130,246,0.2); padding: 6px 12px; border-radius: 20px; }
+
+    @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 26px; }
+    .pb-card { display: flex; flex-direction: column; padding: 22px; border-radius: 16px; background: var(--bg-card); border: 1px solid var(--border); text-decoration: none; color: inherit; position: relative; overflow: hidden; transition: border-color .18s ease, transform .18s ease, background .18s ease, box-shadow .18s ease; animation: rise .5s cubic-bezier(.22,1,.36,1) both; }
+    .pb-card:nth-child(1){animation-delay:.04s}.pb-card:nth-child(2){animation-delay:.09s}.pb-card:nth-child(3){animation-delay:.14s}.pb-card:nth-child(4){animation-delay:.19s}.pb-card:nth-child(5){animation-delay:.24s}.pb-card:nth-child(6){animation-delay:.29s}
+    .pb-card:hover { border-color: var(--border-hover); transform: translateY(-3px); background: rgba(37,99,235,0.07); box-shadow: 0 14px 34px rgba(2,6,16,0.5); }
+    .pb-card:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+    .pb-ic { width: 48px; height: 48px; border-radius: 13px; display: flex; align-items: center; justify-content: center; font-size: 24px; background: linear-gradient(135deg, rgba(59,130,246,0.16), rgba(34,211,238,0.08)); border: 1px solid var(--border); margin-bottom: 16px; }
+    .pb-card h2 { font-size: 16.5px; font-weight: 700; color: #fff; letter-spacing: -0.3px; }
+    .pb-card .tag { font-size: 13px; color: var(--text-mid); line-height: 1.55; margin-top: 8px; flex: 1; }
+    .pb-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 18px; }
+    .pb-duree { font-size: 11px; font-weight: 600; color: var(--text-dim); letter-spacing: 0.3px; }
+    .pb-go { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--cyan); }
+    .pb-go svg { width: 14px; height: 14px; transition: transform .18s ease; }
+    .pb-card:hover .pb-go svg { transform: translateX(3px); }
+
+    .foot-note { margin-top: 34px; text-align: center; font-size: 12.5px; color: var(--text-dim); line-height: 1.7; }
+    .foot-note a { color: var(--cyan); text-decoration: none; }
+    .foot-note a:hover { text-decoration: underline; }
+
+    @media (max-width: 720px) {
+      #topbar { padding: 12px 14px; gap: 10px; }
+      #tb-sub { display: none; }
+      .tb-chip span:not(.dot) { display: none; }
+      #wrap { padding: 22px 14px 44px; }
+      .hero { padding: 20px; } .hero h1 { font-size: 19px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { scroll-behavior: auto !important; }
+      .hero, .pb-card { animation: none !important; opacity: 1; transform: none; }
+      .pb-card:hover, .pb-card:hover .pb-go svg { transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="bg-canvas"></canvas>
+  <div id="app">
+    <div id="topbar">
+      <a class="back-btn" href="/" title="Retour a l accueil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Accueil</a>
+      <div id="tb-id">
+        <div id="tb-icon">📚</div>
+        <div>
+          <div id="tb-name">Guides de depannage</div>
+          <div id="tb-sub">Diagnostic interactif pas a pas</div>
+        </div>
+      </div>
+      <div id="tb-actions">
+        <div class="tb-chip"><span class="dot"></span><span>Gratuit · sans inscription</span></div>
+      </div>
+    </div>
+
+    <div id="wrap">
+      <div id="inner">
+        <section class="hero">
+          <h1>Reparez votre PC, etape par etape</h1>
+          <p>Choisissez votre panne. PC Helper vous pose les bonnes questions une par une et vous guide jusqu a la solution — sans jargon, sans inscription. Si le guide ne suffit pas, l assistant IA prend le relais.</p>
+          <div class="htags">
+            <span class="htag">Reponses Oui / Non</span>
+            <span class="htag">Solutions concretes</span>
+            <span class="htag">Partageable</span>
+          </div>
+        </section>
+
+        <main class="grid" id="grid" aria-label="Liste des guides de depannage">
+          <p id="loading" style="grid-column:1/-1;color:var(--text-mid);font-size:13px">Chargement des guides…</p>
+        </main>
+
+        <p class="foot-note">
+          Vous ne trouvez pas votre probleme ? <a href="/login.html">Decrivez-le a l assistant PC Helper</a> — il diagnostique tous les cas, meme rares.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* Reseau de particules (calque allege du fond technicien.html). */
+    (function () {
+      var c = document.getElementById('bg-canvas'); if (!c) return;
+      var x = c.getContext('2d', { alpha: true }); if (!x) return;
+      if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      var DPR = Math.min(window.devicePixelRatio || 1, 2), W = 0, H = 0, parts = [], raf = null;
+      function init() {
+        var n = Math.round(Math.min(90, Math.max(36, (W * H) / 22000)));
+        parts = [];
+        for (var i = 0; i < n; i++) parts.push({ x: Math.random()*W, y: Math.random()*H, vx:(Math.random()-.5)*.18, vy:(Math.random()-.5)*.18, r:.7+Math.random()*1.4 });
+      }
+      function resize() { W=innerWidth; H=innerHeight; c.width=W*DPR|0; c.height=H*DPR|0; x.setTransform(DPR,0,0,DPR,0,0); init(); }
+      function frame() {
+        x.clearRect(0,0,W,H); x.globalCompositeOperation='lighter';
+        for (var i=0;i<parts.length;i++){ var a=parts[i];
+          for (var j=i+1;j<parts.length;j++){ var b=parts[j], dx=a.x-b.x, dy=a.y-b.y, d2=dx*dx+dy*dy;
+            if (d2<20000){ var al=(1-Math.sqrt(d2)/141)*.32; if(al>.004){ x.strokeStyle='rgba(130,196,255,'+al.toFixed(3)+')'; x.lineWidth=.5; x.beginPath(); x.moveTo(a.x,a.y); x.lineTo(b.x,b.y); x.stroke(); } } } }
+        for (var k=0;k<parts.length;k++){ var p=parts[k]; p.x+=p.vx; p.y+=p.vy;
+          if(p.x<-20)p.x=W+20; else if(p.x>W+20)p.x=-20; if(p.y<-20)p.y=H+20; else if(p.y>H+20)p.y=-20;
+          x.globalAlpha=.5; x.fillStyle='rgba(120,190,255,1)'; x.beginPath(); x.arc(p.x,p.y,p.r,0,6.2832); x.fill(); }
+        x.globalAlpha=1; x.globalCompositeOperation='source-over'; raf=requestAnimationFrame(frame);
+      }
+      resize(); var rt;
+      addEventListener('resize', function(){ clearTimeout(rt); rt=setTimeout(resize,180); });
+      document.addEventListener('visibilitychange', function(){ if(document.hidden){ if(raf){cancelAnimationFrame(raf);raf=null;} } else if(!raf) raf=requestAnimationFrame(frame); });
+      raf = requestAnimationFrame(frame);
+    })();
+
+    /* Echappement strict : tout texte issu du JSON est insere via textContent
+       ou createElement — aucune interpolation HTML. Defense en profondeur. */
+    function el(tag, cls, txt) {
+      var e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (txt != null) e.textContent = txt;
+      return e;
+    }
+    var ARROW = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+
+    fetch('/playbooks/playbooks.json', { cache: 'no-cache' })
+      .then(function (r) { if (!r.ok) throw new Error('http'); return r.json(); })
+      .then(function (data) {
+        var grid = document.getElementById('grid');
+        grid.innerHTML = '';
+        var list = (data && Array.isArray(data.playbooks)) ? data.playbooks : [];
+        if (!list.length) { grid.appendChild(el('p', null, 'Aucun guide disponible pour le moment.')); return; }
+        list.forEach(function (pb) {
+          if (!pb || typeof pb.slug !== 'string' || !/^[a-z0-9-]+$/.test(pb.slug)) return;
+          var card = document.createElement('a');
+          card.className = 'pb-card';
+          card.href = '/playbooks/' + pb.slug;
+          card.setAttribute('aria-label', 'Guide : ' + (pb.titre || pb.slug));
+          card.appendChild(el('div', 'pb-ic', pb.icone || '🛠️'));
+          card.appendChild(el('h2', null, pb.titre || pb.slug));
+          card.appendChild(el('p', 'tag', pb.tagline || ''));
+          var foot = el('div', 'pb-foot');
+          foot.appendChild(el('span', 'pb-duree', pb.duree ? ('≈ ' + pb.duree) : ''));
+          var go = el('span', 'pb-go', 'Demarrer');
+          var arr = document.createElement('span');
+          arr.innerHTML = ARROW; // SVG constant, non issu du JSON
+          go.appendChild(arr.firstChild);
+          foot.appendChild(go);
+          card.appendChild(foot);
+          grid.appendChild(card);
+        });
+      })
+      .catch(function () {
+        var grid = document.getElementById('grid');
+        grid.innerHTML = '';
+        grid.appendChild(el('p', null, 'Impossible de charger les guides. Reessayez plus tard.'));
+      });
+  </script>
+</body>
+</html>

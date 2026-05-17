@@ -253,3 +253,88 @@ test('non-régression : POST /chat sans token → 401 (garde inchangée)', async
   })
   assert.equal(r.status, 401)
 })
+
+/* --- Bibliothèque de playbooks guidés (#009 — additif, public, no-auth) --- */
+
+test('#009 /playbooks.html servi (200, public)', async () => {
+  const r = await fetch(`${BASE}/playbooks.html`)
+  assert.equal(r.status, 200)
+  const t = await r.text()
+  assert.match(t, /Guides de depannage/i)
+})
+
+test('#009 /playbooks/playbooks.json servi + JSON valide + 5 playbooks', async () => {
+  const r = await fetch(`${BASE}/playbooks/playbooks.json`)
+  assert.equal(r.status, 200)
+  const j = await r.json()
+  assert.ok(Array.isArray(j.playbooks))
+  assert.equal(j.playbooks.length, 5)
+  for (const p of j.playbooks) {
+    assert.match(p.slug, /^[a-z0-9-]+$/)
+    assert.ok(p.noeuds && p.depart && p.noeuds[p.depart], `playbook ${p.slug} cohérent`)
+  }
+})
+
+test('#009 /sitemap.xml servi (200) + XML bien formé + playbooks listés', async () => {
+  const r = await fetch(`${BASE}/sitemap.xml`)
+  assert.equal(r.status, 200)
+  const x = await r.text()
+  assert.match(x, /^<\?xml/)
+  assert.match(x, /<urlset[\s\S]*<\/urlset>/)
+  assert.equal((x.match(/<loc>/g) || []).length, (x.match(/<\/loc>/g) || []).length)
+  assert.match(x, /\/playbooks\/pas-de-son/)
+})
+
+test('#009 /robots.txt servi (200) + Sitemap déclaré', async () => {
+  const r = await fetch(`${BASE}/robots.txt`)
+  assert.equal(r.status, 200)
+  const t = await r.text()
+  assert.match(t, /User-agent:/i)
+  assert.match(t, /Sitemap:\s*https?:\/\/\S+\/sitemap\.xml/i)
+})
+
+test('#009 route playbook par slug → 200 + titre SEO + JSON-LD HowTo', async () => {
+  const r = await fetch(`${BASE}/playbooks/pas-de-son`)
+  assert.equal(r.status, 200)
+  assert.match(r.headers.get('content-type') || '', /text\/html/)
+  const t = await r.text()
+  assert.match(t, /<title>[^<]*[Pp]as de son[^<]*<\/title>/)
+  assert.match(t, /application\/ld\+json/)
+  assert.match(t, /"@type"\s*:\s*"HowTo"/)
+  assert.match(t, /id="seo-fallback"/)
+})
+
+test('#009 chaque slug du JSON est rendu (200) par la route', async () => {
+  const data = await (await fetch(`${BASE}/playbooks/playbooks.json`)).json()
+  for (const p of data.playbooks) {
+    const r = await fetch(`${BASE}/playbooks/${p.slug}`)
+    assert.equal(r.status, 200, `slug ${p.slug} doit répondre 200`)
+  }
+})
+
+test('#009 slug inexistant → 404 propre HTML (jamais 500)', async () => {
+  const r = await fetch(`${BASE}/playbooks/slug-qui-nexiste-pas`)
+  assert.equal(r.status, 404)
+  assert.match(r.headers.get('content-type') || '', /text\/html/)
+  const t = await r.text()
+  assert.match(t, /introuvable/i)
+})
+
+test('#009 slug malformé → 404 (jamais 500, pas de fuite)', async () => {
+  for (const bad of ['/playbooks/AAA', '/playbooks/a_b', '/playbooks/x.y']) {
+    const r = await fetch(`${BASE}${bad}`)
+    assert.equal(r.status, 404, `${bad} doit donner 404, reçu ${r.status}`)
+    assert.notEqual(r.status, 500)
+  }
+})
+
+test('#009 non-régression : /chat & /technicien toujours 401 sans token', async () => {
+  for (const p of ['/chat', '/technicien']) {
+    const r = await fetch(`${BASE}${p}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ message: 'test' })
+    })
+    assert.equal(r.status, 401, `${p} garde inchangée`)
+  }
+})

@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- SEO_HEAD : remplace par le serveur (route /playbooks/:slug). Valeurs
+       par defaut ci-dessous = page chargee directement en statique (fallback
+       client : le JS resout ?p=slug). -->
+  <title>Guide de depannage PC pas a pas — PC Helper</title>
+  <meta name="description" content="Diagnostic informatique guide, etape par etape, pour resoudre les pannes PC les plus frequentes. Gratuit, sans inscription.">
+  <!-- /SEO_HEAD -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/favicon.svg">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#03070d">
+  <script>if('serviceWorker' in navigator){addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){})})}</script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --blue: #2563eb; --blue-light: #3b82f6; --blue-dark: #1d4ed8;
+      --cyan: #22d3ee; --bg: #060910;
+      --bg-panel: rgba(10, 15, 28, 0.92); --bg-card: rgba(13, 19, 35, 0.85);
+      --border: rgba(59, 130, 246, 0.12); --border-hover: rgba(59, 130, 246, 0.4);
+      --text: #e2e8f0; --text-dim: #475569; --text-mid: #94a3b8;
+      --glow: rgba(37, 99, 235, 0.4); --success: #22c55e; --danger: #ef4444;
+      --amber: #fbbf24;
+    }
+
+    body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+    #bg-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.5; }
+    #app { display: flex; flex-direction: column; flex: 1; position: relative; z-index: 1; }
+
+    #topbar { display: flex; align-items: center; gap: 14px; padding: 14px 22px; border-bottom: 1px solid var(--border); background: linear-gradient(180deg, rgba(8,13,26,0.92), rgba(5,8,18,0.7)); backdrop-filter: blur(24px); flex-shrink: 0; position: relative; z-index: 10; }
+    #topbar::after { content: ''; position: absolute; left: 8%; right: 8%; bottom: -1px; height: 1px; background: linear-gradient(to right, transparent, var(--blue) 35%, var(--cyan) 55%, transparent); opacity: 0.4; }
+    .back-btn { display: flex; align-items: center; gap: 7px; padding: 8px 13px; border-radius: 10px; font-size: 12.5px; font-weight: 600; color: var(--text-mid); text-decoration: none; border: 1px solid var(--border); background: rgba(6,10,20,0.6); transition: color .18s ease, border-color .18s ease, transform .18s ease, background .18s ease; }
+    .back-btn:hover { color: #bcd4f5; border-color: var(--border-hover); transform: translateX(-2px); background: rgba(37,99,235,0.08); }
+    .back-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+    #tb-id { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    #tb-icon { width: 40px; height: 40px; background: linear-gradient(135deg, var(--blue-light), var(--blue-dark)); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 19px; box-shadow: 0 6px 18px rgba(37,99,235,0.4), inset 0 1px 0 rgba(255,255,255,0.18); flex-shrink: 0; }
+    #tb-name { font-size: 15.5px; font-weight: 700; color: #fff; letter-spacing: -0.4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #tb-sub { font-size: 10px; color: var(--text-dim); font-weight: 600; letter-spacing: 1.1px; text-transform: uppercase; margin-top: 2px; }
+    #tb-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+    .tb-restart { display: flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 10px; font-size: 12.5px; font-weight: 600; color: var(--text-mid); cursor: pointer; border: 1px solid var(--border); background: rgba(6,10,20,0.6); transition: color .18s ease, border-color .18s ease, background .18s ease; }
+    .tb-restart:hover { color: #bcd4f5; border-color: var(--border-hover); background: rgba(37,99,235,0.08); }
+
+    #wrap { flex: 1; overflow-y: auto; padding: 30px 22px 56px; }
+    #inner { max-width: 760px; margin: 0 auto; }
+
+    /* Fil d Ariane */
+    #breadcrumb { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; margin-bottom: 22px; font-size: 11.5px; }
+    #breadcrumb a { color: var(--text-mid); text-decoration: none; }
+    #breadcrumb a:hover { color: var(--cyan); }
+    #breadcrumb .sep { color: var(--text-dim); }
+    #breadcrumb .cur { color: #bcd4f5; font-weight: 600; }
+
+    .pb-head { padding: 24px 26px; border-radius: 18px; background: linear-gradient(160deg, rgba(13,19,35,0.85), rgba(8,12,24,0.6)); border: 1px solid var(--border); position: relative; overflow: hidden; }
+    .pb-head::before { content: ''; position: absolute; inset: 0; background: radial-gradient(560px 180px at 12% -20%, rgba(37,99,235,0.16), transparent 70%); pointer-events: none; }
+    .pb-head .row { display: flex; align-items: center; gap: 14px; position: relative; }
+    .pb-head .ic { width: 46px; height: 46px; border-radius: 13px; display: flex; align-items: center; justify-content: center; font-size: 23px; background: linear-gradient(135deg, rgba(59,130,246,0.16), rgba(34,211,238,0.08)); border: 1px solid var(--border); flex-shrink: 0; }
+    .pb-head h1 { font-size: 21px; font-weight: 700; color: #fff; letter-spacing: -0.5px; }
+    .pb-head p { font-size: 13px; color: var(--text-mid); line-height: 1.6; margin-top: 12px; position: relative; }
+
+    /* Etapes parcourues (historique) */
+    #trail { margin-top: 24px; display: flex; flex-direction: column; gap: 10px; }
+    .trail-item { display: flex; gap: 12px; align-items: flex-start; padding: 13px 16px; border-radius: 13px; background: rgba(6,10,20,0.5); border: 1px solid var(--border); font-size: 13px; line-height: 1.6; color: var(--text-mid); }
+    .trail-item .ti-q { color: var(--text); }
+    .trail-item .ti-a { display: inline-flex; align-items: center; gap: 5px; margin-top: 6px; font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 14px; }
+    .trail-item .ti-a.oui { color: var(--success); background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.24); }
+    .trail-item .ti-a.non { color: #fda4af; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.22); }
+    .trail-item .ti-num { width: 22px; height: 22px; border-radius: 50%; background: rgba(37,99,235,0.14); border: 1px solid var(--border); color: #bcd4f5; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+    /* Carte du noeud courant */
+    #node { margin-top: 14px; padding: 24px 26px; border-radius: 18px; background: var(--bg-card); border: 1px solid var(--border-hover); box-shadow: 0 14px 40px rgba(2,6,16,0.5); animation: rise .4s cubic-bezier(.22,1,.36,1) both; }
+    @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .node-kind { display: inline-flex; align-items: center; gap: 7px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; padding: 5px 11px; border-radius: 16px; margin-bottom: 16px; }
+    .node-kind.question { color: var(--cyan); background: rgba(34,211,238,0.08); border: 1px solid rgba(34,211,238,0.22); }
+    .node-kind.action { color: #bcd4f5; background: rgba(37,99,235,0.1); border: 1px solid rgba(59,130,246,0.22); }
+    .node-kind.resolu { color: var(--success); background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.26); }
+    .node-kind.assistant { color: var(--amber); background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.24); }
+    #node h2 { font-size: 18px; font-weight: 700; color: #fff; letter-spacing: -0.3px; line-height: 1.4; }
+    #node .node-text { font-size: 14px; color: var(--text); line-height: 1.75; margin-top: 14px; white-space: pre-wrap; }
+
+    .answers { display: flex; gap: 12px; margin-top: 22px; flex-wrap: wrap; }
+    .ans { flex: 1; min-width: 130px; padding: 14px 18px; border-radius: 13px; font-size: 14px; font-weight: 700; cursor: pointer; border: 1px solid var(--border); background: rgba(6,10,20,0.6); color: var(--text); transition: transform .18s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease; display: flex; align-items: center; justify-content: center; gap: 9px; }
+    .ans:hover { transform: translateY(-2px); }
+    .ans:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+    .ans.oui { color: var(--success); }
+    .ans.oui:hover { border-color: rgba(34,197,94,0.5); background: rgba(34,197,94,0.1); box-shadow: 0 8px 22px rgba(34,197,94,0.18); }
+    .ans.non { color: #fda4af; }
+    .ans.non:hover { border-color: rgba(239,68,68,0.5); background: rgba(239,68,68,0.09); box-shadow: 0 8px 22px rgba(239,68,68,0.16); }
+    .ans .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
+
+    .next-btn { margin-top: 22px; padding: 14px 22px; border-radius: 13px; font-size: 14px; font-weight: 700; color: #fff; cursor: pointer; border: none; background: linear-gradient(135deg, var(--blue), var(--blue-dark)); box-shadow: 0 8px 22px rgba(37,99,235,0.32); transition: transform .18s ease, box-shadow .18s ease; display: inline-flex; align-items: center; gap: 9px; }
+    .next-btn:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(37,99,235,0.46); }
+    .next-btn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+    .next-btn svg { width: 15px; height: 15px; }
+
+    .end-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+    .end-btn { padding: 14px 22px; border-radius: 13px; font-size: 14px; font-weight: 700; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 9px; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease; }
+    .end-btn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+    .end-btn.primary { color: #fff; border: none; background: linear-gradient(135deg, var(--blue), var(--blue-dark)); box-shadow: 0 8px 22px rgba(37,99,235,0.32); }
+    .end-btn.primary:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(37,99,235,0.46); }
+    .end-btn.ghost { color: var(--text-mid); border: 1px solid var(--border); background: rgba(6,10,20,0.6); }
+    .end-btn.ghost:hover { color: #bcd4f5; border-color: var(--border-hover); background: rgba(37,99,235,0.08); }
+    .end-btn svg { width: 15px; height: 15px; }
+
+    #err { display: none; margin-top: 20px; padding: 22px 26px; border-radius: 16px; background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.22); }
+    #err h2 { font-size: 16px; color: #fda4af; font-weight: 700; }
+    #err p { font-size: 13px; color: var(--text-mid); line-height: 1.6; margin-top: 8px; }
+    #err a { color: var(--cyan); text-decoration: none; font-weight: 600; }
+
+    /* Pre-rendu crawler : visible sans JS, masque des que l app monte. */
+    #seo-fallback { margin-top: 24px; }
+    #seo-fallback h2 { font-size: 15px; color: #fff; margin: 20px 0 8px; }
+    #seo-fallback h3 { font-size: 13.5px; color: #bcd4f5; margin: 14px 0 5px; }
+    #seo-fallback p { font-size: 13px; color: var(--text-mid); line-height: 1.7; }
+    #seo-fallback ul { margin: 6px 0 6px 20px; font-size: 13px; color: var(--text-mid); line-height: 1.7; }
+
+    @media (max-width: 720px) {
+      #topbar { padding: 12px 14px; gap: 10px; }
+      #tb-sub { display: none; }
+      #wrap { padding: 22px 14px 44px; }
+      .pb-head, #node { padding: 20px; }
+      .pb-head h1 { font-size: 18px; } #node h2 { font-size: 16px; }
+      .answers { flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { scroll-behavior: auto !important; }
+      #node { animation: none !important; opacity: 1; transform: none; }
+      .ans:hover, .next-btn:hover, .end-btn:hover { transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="bg-canvas"></canvas>
+  <div id="app">
+    <div id="topbar">
+      <a class="back-btn" href="/playbooks.html" title="Tous les guides"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Tous les guides</a>
+      <div id="tb-id">
+        <div id="tb-icon">📋</div>
+        <div>
+          <div id="tb-name">Guide de depannage</div>
+          <div id="tb-sub">Diagnostic interactif</div>
+        </div>
+      </div>
+      <div id="tb-actions">
+        <button class="tb-restart" id="restart-btn" type="button" title="Recommencer le guide depuis le debut">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v5h5"/></svg>
+          Recommencer
+        </button>
+      </div>
+    </div>
+
+    <div id="wrap">
+      <div id="inner">
+        <nav id="breadcrumb" aria-label="Fil d Ariane">
+          <a href="/">Accueil</a><span class="sep">/</span>
+          <a href="/playbooks.html">Guides</a><span class="sep">/</span>
+          <span class="cur" id="bc-cur">Guide</span>
+        </nav>
+
+        <header class="pb-head">
+          <div class="row">
+            <div class="ic" id="pb-ic">🛠️</div>
+            <div>
+              <h1 id="pb-titre">Guide de depannage</h1>
+            </div>
+          </div>
+          <p id="pb-tagline"></p>
+        </header>
+
+        <div id="trail" aria-live="polite"></div>
+        <section id="node" aria-live="polite"></section>
+
+        <div id="err">
+          <h2>Guide introuvable</h2>
+          <p>Ce guide n existe pas ou plus. <a href="/playbooks.html">Voir tous les guides disponibles →</a></p>
+        </div>
+
+        <!-- SEO_FALLBACK : pre-rendu serveur pour les robots. Remplace par
+             le contenu reel du playbook (route /playbooks/:slug). Masque
+             par le JS des que l app interactive monte. -->
+        <div id="seo-fallback"></div>
+        <!-- /SEO_FALLBACK -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var c = document.getElementById('bg-canvas'); if (!c) return;
+      var x = c.getContext('2d', { alpha: true }); if (!x) return;
+      if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      var DPR = Math.min(window.devicePixelRatio || 1, 2), W = 0, H = 0, parts = [], raf = null;
+      function init() { var n = Math.round(Math.min(80, Math.max(30, (W*H)/24000))); parts = [];
+        for (var i=0;i<n;i++) parts.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.16,vy:(Math.random()-.5)*.16,r:.7+Math.random()*1.3}); }
+      function resize(){ W=innerWidth;H=innerHeight;c.width=W*DPR|0;c.height=H*DPR|0;x.setTransform(DPR,0,0,DPR,0,0);init(); }
+      function frame(){ x.clearRect(0,0,W,H);x.globalCompositeOperation='lighter';
+        for(var i=0;i<parts.length;i++){var a=parts[i];
+          for(var j=i+1;j<parts.length;j++){var b=parts[j],dx=a.x-b.x,dy=a.y-b.y,d2=dx*dx+dy*dy;
+            if(d2<19000){var al=(1-Math.sqrt(d2)/138)*.3;if(al>.004){x.strokeStyle='rgba(130,196,255,'+al.toFixed(3)+')';x.lineWidth=.5;x.beginPath();x.moveTo(a.x,a.y);x.lineTo(b.x,b.y);x.stroke();}}}}
+        for(var k=0;k<parts.length;k++){var p=parts[k];p.x+=p.vx;p.y+=p.vy;
+          if(p.x<-20)p.x=W+20;else if(p.x>W+20)p.x=-20;if(p.y<-20)p.y=H+20;else if(p.y>H+20)p.y=-20;
+          x.globalAlpha=.5;x.fillStyle='rgba(120,190,255,1)';x.beginPath();x.arc(p.x,p.y,p.r,0,6.2832);x.fill();}
+        x.globalAlpha=1;x.globalCompositeOperation='source-over';raf=requestAnimationFrame(frame);}
+      resize();var rt;addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(resize,180);});
+      document.addEventListener('visibilitychange',function(){if(document.hidden){if(raf){cancelAnimationFrame(raf);raf=null;}}else if(!raf)raf=requestAnimationFrame(frame);});
+      raf=requestAnimationFrame(frame);
+    })();
+
+    /* ---- Moteur d arbre de decision ---------------------------------------
+       Securite : 100 % du contenu issu du JSON est insere via textContent.
+       Aucune chaine du JSON n est jamais injectee en innerHTML. Les seuls
+       innerHTML utilises portent sur des SVG constants definis dans ce code. */
+    (function () {
+      function $(id) { return document.getElementById(id); }
+      function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
+
+      // slug : route serveur /playbooks/<slug> OU statique ?p=<slug>.
+      function lireSlug() {
+        var m = location.pathname.match(/^\/playbooks\/([a-z0-9-]+)\/?$/);
+        if (m) return m[1];
+        var p = new URLSearchParams(location.search).get('p') || '';
+        return /^[a-z0-9-]+$/.test(p) ? p : '';
+      }
+      var slug = lireSlug();
+
+      function erreur() {
+        $('seo-fallback').innerHTML = '';
+        $('node').style.display = 'none';
+        $('trail').style.display = 'none';
+        $('err').style.display = 'block';
+        document.title = 'Guide introuvable — PC Helper';
+      }
+
+      if (!slug) { erreur(); return; }
+
+      var PB = null, MAX = 60;
+
+      fetch('/playbooks/playbooks.json', { cache: 'no-cache' })
+        .then(function (r) { if (!r.ok) throw new Error('http'); return r.json(); })
+        .then(function (data) {
+          var list = (data && Array.isArray(data.playbooks)) ? data.playbooks : [];
+          for (var i = 0; i < list.length; i++) {
+            if (list[i] && list[i].slug === slug) { PB = list[i]; break; }
+          }
+          if (!PB || !PB.noeuds || !PB.depart || !PB.noeuds[PB.depart]) { erreur(); return; }
+          monter();
+        })
+        .catch(function () { erreur(); });
+
+      var historique = []; // [{ id, choix:'oui'|'non'|null }]
+
+      function monter() {
+        // L app interactive prend le relais : on retire le pre-rendu SEO
+        // (il a deja servi aux crawlers dans le HTML initial).
+        var sf = $('seo-fallback'); if (sf) sf.innerHTML = '';
+        document.title = (PB.metaTitle || PB.titre || 'Guide') + ' — PC Helper';
+        $('pb-ic').textContent = PB.icone || '🛠️';
+        $('pb-titre').textContent = PB.titre || slug;
+        $('pb-tagline').textContent = PB.tagline || '';
+        $('bc-cur').textContent = PB.titre || slug;
+        $('tb-name').textContent = PB.titre || slug;
+        $('restart-btn').addEventListener('click', recommencer);
+        recommencer();
+      }
+
+      // Respecte prefers-reduced-motion : pas de défilement animé (a11y, R1 Design).
+      var REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      function scrollWrap(top) {
+        $('wrap').scrollTo({ top: top, behavior: REDUCED ? 'auto' : 'smooth' });
+      }
+
+      function recommencer() {
+        historique = [];
+        rendre(PB.depart);
+        $('wrap').scrollTop = 0;
+      }
+
+      function rendreTrail() {
+        var t = $('trail'); t.innerHTML = '';
+        historique.forEach(function (h, i) {
+          var n = PB.noeuds[h.id]; if (!n) return;
+          var item = el('div', 'trail-item');
+          item.appendChild(el('span', 'ti-num', String(i + 1)));
+          var body = el('div');
+          var label = (n.type === 'question') ? n.question
+            : ((n.titre || n.texte || '') + '');
+          body.appendChild(el('div', 'ti-q', label));
+          if (h.choix) {
+            var a = el('span', 'ti-a ' + h.choix);
+            a.appendChild(el('span', 'dot'));
+            a.appendChild(document.createTextNode(h.choix === 'oui' ? 'Oui' : 'Non'));
+            body.appendChild(a);
+          }
+          item.appendChild(body);
+          t.appendChild(item);
+        });
+      }
+
+      function avancer(id, choixPrecedent) {
+        if (historique.length) historique[historique.length - 1].choix = choixPrecedent || null;
+        if (historique.length > MAX) { erreur(); return; }
+        rendre(id);
+      }
+
+      function rendre(id) {
+        var n = PB.noeuds[id];
+        if (!n) { erreur(); return; }
+        historique.push({ id: id, choix: null });
+        rendreTrail();
+
+        var box = $('node');
+        box.style.display = 'block';
+        box.innerHTML = '';
+        // Re-jouer l animation d entree.
+        box.style.animation = 'none'; void box.offsetWidth; box.style.animation = '';
+
+        var kind = el('span', 'node-kind ' + n.type);
+        kind.textContent = n.type === 'question' ? 'Question'
+          : n.type === 'action' ? 'A faire'
+          : n.type === 'resolu' ? 'Resolu'
+          : 'Assistant';
+        box.appendChild(kind);
+
+        if (n.type === 'question') {
+          box.appendChild(el('h2', null, n.question || ''));
+          var ans = el('div', 'answers');
+          ans.setAttribute('role', 'group');
+          ans.setAttribute('aria-label', 'Repondre a la question');
+          ['oui', 'non'].forEach(function (k) {
+            var b = el('button', 'ans ' + k);
+            b.type = 'button';
+            b.setAttribute('aria-label', k === 'oui' ? 'Repondre Oui' : 'Repondre Non');
+            b.appendChild(el('span', 'dot'));
+            b.appendChild(document.createTextNode(k === 'oui' ? 'Oui' : 'Non'));
+            b.addEventListener('click', function () {
+              var cible = n[k];
+              if (typeof cible !== 'string' || !PB.noeuds[cible]) { erreur(); return; }
+              avancer(cible, k);
+              scrollWrap($('node').offsetTop - 90);
+            });
+            ans.appendChild(b);
+          });
+          box.appendChild(ans);
+
+        } else if (n.type === 'action') {
+          box.appendChild(el('h2', null, n.titre || 'Etape'));
+          box.appendChild(el('div', 'node-text', n.texte || ''));
+          var cible = n.suivant;
+          if (typeof cible !== 'string' || !PB.noeuds[cible]) { erreur(); return; }
+          var nb = el('button', 'next-btn');
+          nb.type = 'button';
+          nb.appendChild(document.createTextNode('Continuer'));
+          var arr = document.createElement('span');
+          arr.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+          nb.appendChild(arr.firstChild);
+          nb.addEventListener('click', function () {
+            avancer(cible, null);
+            scrollWrap($('node').offsetTop - 90);
+          });
+          box.appendChild(nb);
+
+        } else { // resolu | assistant
+          box.appendChild(el('h2', null, n.type === 'resolu' ? 'Probleme resolu' : 'Allons plus loin'));
+          box.appendChild(el('div', 'node-text', n.texte || ''));
+          var acts = el('div', 'end-actions');
+
+          if (n.type === 'assistant') {
+            var toAssist = document.createElement('a');
+            toAssist.className = 'end-btn primary';
+            toAssist.href = '/login.html';
+            toAssist.appendChild(document.createTextNode('Ouvrir l assistant PC Helper'));
+            var ar = document.createElement('span');
+            ar.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+            toAssist.appendChild(ar.firstChild);
+            acts.appendChild(toAssist);
+          } else {
+            var other = document.createElement('a');
+            other.className = 'end-btn primary';
+            other.href = '/playbooks.html';
+            other.appendChild(document.createTextNode('Voir les autres guides'));
+            acts.appendChild(other);
+          }
+
+          var restart = el('button', 'end-btn ghost');
+          restart.type = 'button';
+          restart.appendChild(document.createTextNode('Recommencer ce guide'));
+          restart.addEventListener('click', function () {
+            recommencer();
+            scrollWrap(0);
+          });
+          acts.appendChild(restart);
+
+          // Si "resolu", proposer quand meme l assistant en repli doux.
+          if (n.type === 'resolu') {
+            var stillA = document.createElement('a');
+            stillA.className = 'end-btn ghost';
+            stillA.href = '/login.html';
+            stillA.appendChild(document.createTextNode('Ca n a pas marche → assistant'));
+            acts.appendChild(stillA);
+          }
+          box.appendChild(acts);
+        }
+      }
+    })();
+  </script>
+</body>
+</html>

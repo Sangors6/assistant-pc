@@ -1,0 +1,22 @@
+User-agent: *
+Allow: /$
+Allow: /index.html
+Allow: /playbooks.html
+Allow: /playbooks/
+Disallow: /app.html
+Disallow: /login.html
+Disallow: /reset.html
+Disallow: /verifier.html
+Disallow: /technicien.html
+Disallow: /chargement.html
+Disallow: /auth/
+Disallow: /profil
+Disallow: /sessions
+Disallow: /historique
+Disallow: /chat
+Disallow: /technicien
+Disallow: /resolution
+Disallow: /feedback
+Disallow: /paiement/
+
+Sitemap: https://assistant-pc.onrender.com/sitemap.xml
