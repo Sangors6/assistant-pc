@@ -311,6 +311,40 @@
     .feature strong { display: block; font-size: 14px; font-weight: 700; }
     .feature span:last-child { display: block; font-size: 12px; color: var(--muted-2); margin-top: 2px; }
 
+    /* — Comment ça marche : 3 étapes — */
+    .how { margin-top: 30px; }
+    .how-title { text-align: center; font-size: 22px; font-weight: 800; letter-spacing: -.02em; margin-bottom: 4px; }
+    .how-sub { text-align: center; font-size: 13.5px; color: var(--muted); margin-bottom: 24px; }
+    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .step {
+      position: relative; padding: 22px 20px; border-radius: 16px;
+      border: 1px solid var(--border); background: rgba(8,16,30,.62);
+      backdrop-filter: blur(10px);
+    }
+    .step .n {
+      width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center;
+      font-size: 14px; font-weight: 800; color: var(--bg);
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      margin-bottom: 13px;
+    }
+    .step strong { display: block; font-size: 15px; font-weight: 700; margin-bottom: 5px; }
+    .step span { display: block; font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+    /* — Exemples de questions (chips -> inscription) — */
+    .examples { margin-top: 30px; text-align: center; }
+    .examples .lbl { font-size: 13px; color: var(--muted-2); margin-bottom: 13px; }
+    .qchips { display: flex; flex-wrap: wrap; justify-content: center; gap: 9px; }
+    .qchip {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 9px 15px; border-radius: 999px;
+      border: 1px solid var(--border); background: rgba(120,170,255,.05);
+      color: var(--text); font-size: 13px; text-decoration: none;
+      transition: border-color .18s, background .18s, transform .18s;
+    }
+    .qchip:hover { border-color: var(--border-strong); background: rgba(45,130,255,.10); transform: translateY(-2px); }
+    .qchip svg { width: 14px; height: 14px; stroke: var(--blue-soft); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    @media (max-width: 720px) { .steps { grid-template-columns: 1fr; } }
+
     /* — Entrée / sortie de page (transition douce, sans son) — */
     .page { animation: pageIn .7s cubic-bezier(.16,1,.3,1) both; }
     @keyframes pageIn {
@@ -421,6 +455,40 @@
       <div class="feature"><span class="ic"><svg class="ico" aria-hidden="true"><use href="#i-bolt"/></svg></span><div><strong>Performances</strong><span>FPS, lenteurs, jeux</span></div></div>
       <div class="feature"><span class="ic"><svg class="ico" aria-hidden="true"><use href="#i-wifi"/></svg></span><div><strong>Réseau &amp; Wi‑Fi</strong><span>Ping &amp; stabilité</span></div></div>
       <div class="feature"><span class="ic"><svg class="ico" aria-hidden="true"><use href="#i-shield"/></svg></span><div><strong>Sécurité</strong><span>Menaces &amp; mises à jour</span></div></div>
+    </section>
+
+    <section class="how" aria-labelledby="how-h">
+      <h2 class="how-title" id="how-h">Comment ça marche</h2>
+      <p class="how-sub">Aucune compétence technique requise — vous parlez normalement, on s'occupe du reste.</p>
+      <div class="steps">
+        <div class="step">
+          <div class="n">1</div>
+          <strong>Décrivez votre souci</strong>
+          <span>En langage de tous les jours, comme à un ami. « Mon PC est lent », « écran bleu »… ça suffit.</span>
+        </div>
+        <div class="step">
+          <div class="n">2</div>
+          <strong>PC&nbsp;Helper diagnostique</strong>
+          <span>Il remonte à la <em>cause</em> du problème, pas au symptôme — réponse claire en moins de 30 s.</span>
+        </div>
+        <div class="step">
+          <div class="n">3</div>
+          <strong>Vous réparez, guidé</strong>
+          <span>Pas à pas, expliqué à <em>votre</em> niveau — du débutant à l'expert. Vous gardez la main.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="examples" aria-labelledby="ex-h">
+      <p class="lbl" id="ex-h">Des exemples de ce que vous pouvez demander :</p>
+      <div class="qchips">
+        <a href="/login.html" class="qchip"><svg viewBox="0 0 24 24"><path d="M5 18a9 9 0 1 1 14 0"/><path d="M12 13l4-3"/></svg> Mon PC rame</a>
+        <a href="/login.html" class="qchip"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg> Écran bleu au démarrage</a>
+        <a href="/login.html" class="qchip"><svg viewBox="0 0 24 24"><path d="M4 9a13 13 0 0 1 16 0"/><path d="M8 13a7 7 0 0 1 8 0"/><circle cx="12" cy="17" r="1"/></svg> Mon Wi-Fi coupe sans arrêt</a>
+        <a href="/login.html" class="qchip"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z"/></svg> Quel composant changer pour jouer ?</a>
+        <a href="/login.html" class="qchip"><svg viewBox="0 0 24 24"><path d="M10 13V5a2 2 0 0 1 4 0v8a4 4 0 1 1-4 0Z"/></svg> Mon PC chauffe et le ventilo hurle</a>
+        <a href="/login.html" class="qchip"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3Z"/></svg> Enlever virus et pubs intempestives</a>
+      </div>
     </section>
   </main>
 
