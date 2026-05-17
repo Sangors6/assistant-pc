@@ -67,6 +67,8 @@
     #input-box.disabled { opacity: .5; pointer-events: none; }
     #welcome .wmeta { display: flex; align-items: center; gap: 8px; margin-top: 14px; font-size: 12px; color: var(--text-mid); position: relative; }
     #welcome .wmeta .wdot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); box-shadow: 0 0 8px var(--success); flex-shrink: 0; }
+    #welcome .weta { display: inline-flex; align-items: center; gap: 7px; margin-top: 10px; font-size: 11.5px; font-weight: 600; color: #bcd4f5; background: rgba(37,99,235,0.09); border: 1px solid rgba(59,130,246,0.2); padding: 6px 12px; border-radius: 20px; position: relative; }
+    #welcome .weta.lent { color: #fbbf24; background: rgba(251,191,36,0.07); border-color: rgba(251,191,36,0.22); }
     .tb-new { padding: 8px 14px; border-radius: 10px; font-size: 12.5px; font-weight: 600; color: #fff; cursor: pointer; border: none; background: linear-gradient(135deg, var(--blue), var(--blue-dark)); box-shadow: 0 8px 22px rgba(37,99,235,0.32); transition: transform .18s ease, box-shadow .18s ease; }
     .tb-new:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(37,99,235,0.46); }
 
@@ -272,7 +274,7 @@
       <div class="nfx-dots"><i></i><i></i><i></i></div>
     </div>
   </div>
-  <audio id="snd-swoosh" src="/swoosh%20tech.mp3?v=3" preload="auto"></audio>
+  <audio id="snd-swoosh" src="/swoosh%20tech.mp3?v=4" preload="auto"></audio>
   <script>
   /* Transition fluide Dashboard ⇄ Contacter un technicien. Couvre l'écran
      très tôt (anti-flash), puis se retire au chargement. navTo() est exposé
@@ -292,10 +294,94 @@
     // double son). Garde idempotente : impossible de le jouer deux fois.
     var snd = document.getElementById('snd-swoosh')
     var swooshFait = false
+
+    /* --- Swoosh ÉCHANTILLON-PRÉCIS via Web Audio API -------------------------
+       Pourquoi : un <audio>.play() classique a une latence et un jitter
+       imprévisibles (préparation du pipeline média, décodage paresseux,
+       throttling). Résultat : le son arrivait ~quelques dizaines de ms après
+       le départ visuel du glissement → effet « pas synchro ».
+
+       Solution : on décode le mp3 en AudioBuffer DÈS le chargement (zéro
+       décodage au moment du trigger). On détecte le silence de tête réel du
+       fichier (scan PCM) pour démarrer la lecture pile sur l'attaque sonore.
+       Au trigger, on lit avec source.start(ctx.currentTime) DANS LE MÊME TICK
+       que le commit du transform CSS → écart audio/visuel < ~16 ms.
+       Fallback propre sur l'<audio> si Web Audio indisponible/bloqué. */
+    var AC = window.AudioContext || window.webkitAudioContext
+    var actx = null            // AudioContext partagé
+    var swBuf = null           // AudioBuffer décodé, prêt à jouer
+    var swOffset = 0           // offset (s) pour sauter le silence de tête
+    var swReady = false        // décodage terminé → chemin Web Audio armé
+
+    function detecterSilence (buf) {
+      // Premier échantillon dépassant un seuil bas (≈ -54 dBFS) = attaque
+      // sonore réelle. On recule de ~3 ms pour ne pas tronquer le transitoire.
+      try {
+        var ch = buf.getChannelData(0)
+        var sr = buf.sampleRate
+        var seuil = 0.002
+        var limite = Math.min(ch.length, Math.floor(sr * 0.5))  // cherche dans la 1re 1/2 s
+        var i = 0
+        while (i < limite && Math.abs(ch[i]) < seuil) i++
+        if (i >= limite) return 0
+        return Math.max(0, (i / sr) - 0.003)
+      } catch (e) { return 0 }
+    }
+
+    function armerWebAudio () {
+      if (!AC || swReady || swBuf) return
+      try {
+        if (!actx) actx = new AC()
+        fetch('/swoosh%20tech.mp3?v=4')
+          .then(function (r) { return r.arrayBuffer() })
+          .then(function (ab) {
+            return new Promise(function (res, rej) {
+              // Signature callback : compat Safari/anciens navigateurs.
+              var p = actx.decodeAudioData(ab, res, rej)
+              if (p && p.then) p.then(res, rej)
+            })
+          })
+          .then(function (buf) { swBuf = buf; swOffset = detecterSilence(buf); swReady = true })
+          .catch(function () { swReady = false; swBuf = null })   // → fallback <audio>
+      } catch (e) {}
+    }
+
+    function reprendreContexte () {
+      if (actx && actx.state === 'suspended') { try { actx.resume() } catch (e) {} }
+    }
+
+    // Autoplay policy : on arme + tente direct, et on ré-essaie au 1er geste
+    // (le clic d'origine était sur le dashboard, page déjà déchargée ici).
+    armerWebAudio()
+    reprendreContexte()
+    function premierGeste () {
+      reprendreContexte()
+      document.removeEventListener('pointerdown', premierGeste, true)
+      document.removeEventListener('keydown', premierGeste, true)
+    }
+    document.addEventListener('pointerdown', premierGeste, true)
+    document.addEventListener('keydown', premierGeste, true)
+
     function swoosh () {
-      if (REDUIT || !snd || swooshFait) return
+      if (REDUIT || swooshFait) return
       swooshFait = true
-      try { snd.currentTime = 0; snd.volume = 0.55; var p = snd.play(); if (p && p.catch) p.catch(function () {}) } catch (e) {}
+      // Chemin précis : AudioContext prêt + buffer décodé → lecture immédiate
+      // dans le tick courant (aucun rAF de décalage avant le start).
+      if (actx && swReady && swBuf && actx.state === 'running') {
+        try {
+          var src = actx.createBufferSource()
+          src.buffer = swBuf
+          var g = actx.createGain()
+          g.gain.value = 0.55
+          src.connect(g); g.connect(actx.destination)
+          src.start(actx.currentTime, swOffset)   // saute le silence de tête
+          return
+        } catch (e) {}
+      }
+      // Fallback robuste : l'élément <audio> historique (toujours ?v=4).
+      try {
+        if (snd) { snd.currentTime = 0; snd.volume = 0.55; var p = snd.play(); if (p && p.catch) p.catch(function () {}) }
+      } catch (e) {}
     }
     window.navTo = function (u, d) {
       if (REDUIT || !fx) { location.href = u; return }
@@ -320,6 +406,10 @@
       if (retire || !(pret && miniEcoule)) return
       retire = true
       requestAnimationFrame(function () { requestAnimationFrame(function () {
+        // MÊME TICK : on arme la transition, on déclenche le son (lecture
+        // échantillon-précise, silence de tête déjà compensé) puis on commite
+        // le transform. start() et commit transform sont adjacents → l'attaque
+        // sonore tombe sur la 1re frame peinte du glissement (écart < ~16 ms).
         fx.style.transition = 'transform .46s cubic-bezier(.7,0,.3,1)'
         if (d === 'forward') swoosh()            // son UNIQUEMENT en arrivant sur le technicien
         fx.style.transform = (d === 'back') ? 'translateX(100%)' : 'translateX(-100%)'
@@ -368,6 +458,7 @@
               <span class="wtag">Multi-OS bas niveau</span>
             </div>
             <div class="wmeta"><span class="wdot" id="wmeta-dot"></span><span id="wmeta-txt">En ligne — répond généralement en moins d'une minute</span></div>
+            <div class="weta" id="wmeta-eta">⏱️ <span id="wmeta-eta-txt">Temps de réponse estimé : ~1 min</span></div>
           </div>
           <div class="sug-grid" id="sug-grid">
             <div class="sug" onclick="suggerer(this)"><span class="sug-ic">🧩</span><span class="sug-text">Mon PC freeze aléatoirement, voici l'Observateur d'événements — analyse les logs</span></div>
@@ -476,6 +567,8 @@
     const inputBox = document.getElementById('input-box')
     const wmetaDot = document.getElementById('wmeta-dot')
     const wmetaTxt = document.getElementById('wmeta-txt')
+    const wmetaEta = document.getElementById('wmeta-eta')
+    const wmetaEtaTxt = document.getElementById('wmeta-eta-txt')
     let etatServeur = 'en_ligne'   // santé réelle du service (du serveur)
     let etatActuel = 'en_ligne'    // visuel courant ; SEUL 'hors_ligne' bloque
     let enDiscussion = false
@@ -512,6 +605,12 @@
       chipLabel.textContent = cfg.label
       if (wmetaTxt) wmetaTxt.textContent = cfg.wmeta
       if (wmetaDot) { wmetaDot.style.background = cfg.wdot; wmetaDot.style.boxShadow = (v === 'nuit' || v === 'hors_ligne') ? 'none' : '0 0 8px ' + cfg.wdot }
+      // ETA générale : se met à jour quand l'état passe occupé/soir/nuit/HS.
+      if (wmetaEta && wmetaEtaTxt) {
+        const e = etaPresence(v)
+        wmetaEtaTxt.textContent = e.txt
+        wmetaEta.classList.toggle('lent', !!e.lent)
+      }
       const bloque = (v === 'hors_ligne')   // la nuit NE bloque PAS (message différé, pas une panne)
       inputBox.classList.toggle('disabled', bloque)
       offlineBanner.classList.toggle('show', bloque)
@@ -541,6 +640,37 @@
       occupe:     { vu: [42000, 100000], pre: [5000, 11000], fr: 1.25, note: { cls: 'occupe', txt: '🛠️ Le technicien est actuellement avec un autre client. Votre message est dans la file — il y répond dès qu’il se libère.' } },
       soiree:     { vu: [40000, 120000], pre: [4000, 9000],  fr: 1.15, note: { cls: '',       txt: '🌙 Il se fait tard côté technicien. Il a bien reçu votre message et vous répond, un peu plus lentement que d’habitude.' } },
       nuit:       { vu: [120000, 300000],pre: [5000, 10000], fr: 1.2,  note: { cls: 'nuit',   txt: '🌙 Le technicien est hors ligne (il est tard). Votre message est bien noté — il vous répondra dès son retour. Vous pouvez fermer cette page et revenir plus tard, ou patienter ici.' } }
+    }
+
+    /* --- Temps de réponse estimé (pour débutant, sans fausse précision) -----
+       Source unique : on réutilise DELAIS (vu + pre = délai avant que le
+       technicien commence à écrire, ce que ressent vraiment le client). On
+       arrondit en paliers lisibles et on rend une FOURCHETTE humaine. */
+    function arrondiLisible (ms) {
+      const s = ms / 1000
+      if (s < 45) return '~30 s'
+      if (s < 90) return '~1 min'
+      const m = s / 60
+      if (m < 9.5) return '~' + Math.round(m) + ' min'
+      if (m < 18) return '~15 min'
+      if (m < 45) return '~30 min'
+      return '~1 h'
+    }
+    // Fourchette « basse–haute » à partir des bornes vu+pre d'un scénario.
+    function etaScenario (scn) {
+      const d = DELAIS[scn]; if (!d) return null
+      const bas = d.vu[0] + d.pre[0]
+      const haut = d.vu[1] + d.pre[1]
+      const a = arrondiLisible(bas), b = arrondiLisible(haut)
+      return a === b ? a : a + '–' + b.replace('~', '')
+    }
+    // Estimation générale selon la présence VISIBLE (welcome).
+    function etaPresence (v) {
+      if (v === 'hors_ligne') return { txt: 'Réponse différée — le technicien est hors ligne', lent: true }
+      if (v === 'nuit')       return { txt: 'Temps de réponse estimé : plus long la nuit (réponse différée)', lent: true }
+      if (v === 'occupe')     return { txt: 'Temps de réponse estimé : ' + (etaScenario('occupe') || '~2–5 min'), lent: true }
+      if (v === 'soiree')     return { txt: 'Temps de réponse estimé : ' + (etaScenario('soiree') || '~1–3 min'), lent: true }
+      return { txt: 'Temps de réponse estimé : ' + (etaScenario('disponible') || '~1 min'), lent: false }
     }
 
     const attendre = (ms) => new Promise((r) => setTimeout(r, Math.max(0, ms)))
@@ -1124,6 +1254,11 @@
       // 1) Envoyé → Distribué
       await patienter(reduit ? 250 : rng(1400, 3500), stopErr)
       seen.classList.add('show'); seen.querySelector('span').textContent = 'Distribué'
+
+      // ETA du message : fourchette lisible calculée depuis le scénario tiré
+      // (réutilise DELAIS via etaScenario — aucune logique dupliquée).
+      const eta = etaScenario(scn)
+      if (eta) noteSysteme('⏱️ Temps de réponse estimé : ' + eta, scn === 'occupe' ? 'occupe' : (scn === 'nuit' ? 'nuit' : ''))
 
       // Note de contexte (occupé / soir / nuit) : explique l'attente
       let note = d.note ? noteSysteme(d.note.txt, d.note.cls) : null
