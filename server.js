@@ -167,6 +167,105 @@ function validerMotDePasse(mdp) {
   return null
 }
 
+// ---------------------------------------------------------------------------
+// Profil PC saisi par l'utilisateur (modale « première connexion »).
+// Liste blanche STRICTE de champs courts. Ces valeurs finissent dans le
+// bloc <materiel> du prompt : même posture que le reste du code — ce sont
+// des DONNÉES, jamais des instructions. On les nettoie ici (caractères de
+// contrôle retirés, espaces compactés, longueur bornée) AVANT toute écriture
+// en base. La neutralisation anti prompt-injection du bloc <materiel> est
+// déjà assurée par suffixeContexte()/promptTechnicien() (délimiteurs +
+// consigne explicite au modèle). Jamais d'exception ici : entrée invalide
+// = champ ignoré, jamais de 500.
+const PC_CHAMPS = {
+  // champ : longueur max (caractères, après nettoyage)
+  cpu: 80,
+  ram: 16,
+  os: 24,
+  gpu: 80,
+  stockage_type: 16,
+  stockage_cap: 8,
+  ecran: 48
+}
+// Sélecteurs à choix fermé : on n'accepte que des valeurs connues (les
+// <option> de la modale Design). Tout le reste -> champ ignoré.
+const PC_ENUMS = {
+  ram: ['4', '8', '16', '32', '64', 'autre'],
+  os: ['windows11', 'windows10', 'windows-autre', 'macos', 'linux', 'je-ne-sais-pas'],
+  stockage_type: ['ssd', 'hdd', 'ssd+hdd', 'je-ne-sais-pas'],
+  stockage_cap: ['128', '256', '512', '1000', '2000']
+}
+
+// Nettoie + valide une entrée brute de profil PC. Renvoie un objet propre
+// (uniquement les champs reconnus et non vides) ou {} si rien d'exploitable.
+// Ne lève jamais : robuste à n'importe quel payload.
+function nettoyerProfilPc(brut) {
+  const out = {}
+  if (!brut || typeof brut !== 'object' || Array.isArray(brut)) return out
+  for (const champ of Object.keys(PC_CHAMPS)) {
+    const v = brut[champ]
+    if (typeof v !== 'string') continue
+    // Caractères de contrôle retirés, espaces compactés, trim, borne dure.
+    const propre = v
+      .replace(/[\u0000-\u001F\u007F]+/g, ' ')
+      // Défense en profondeur (S-1, reco Sécurité) : retire < > — une vraie
+      // spec matérielle n'en a jamais besoin (« 27" 1440p » préservé) → ferme
+      // l'évasion de balises <materiel> sans dépendre du seul wrapper LLM.
+      .replace(/[<>]/g, ' ')
+      .replace(/\s{2,}/g, ' ')
+      .trim()
+      .slice(0, PC_CHAMPS[champ])
+    if (!propre) continue
+    if (PC_ENUMS[champ]) {
+      // Champ à choix fermé : doit être une valeur connue, sinon ignoré.
+      if (PC_ENUMS[champ].includes(propre)) out[champ] = propre
+    } else {
+      out[champ] = propre
+    }
+  }
+  return out
+}
+
+// Construit la ligne « matériel déclaré » lisible par le modèle à partir du
+// profil_pc stocké. Renvoie '' si rien d'exploitable. Volontairement compact.
+function materielDepuisProfil(profil) {
+  if (!profil || typeof profil !== 'object') return ''
+  const RAM = { 4: '4 Go', 8: '8 Go', 16: '16 Go', 32: '32 Go', 64: '64 Go' }
+  const OS = {
+    windows11: 'Windows 11', windows10: 'Windows 10',
+    'windows-autre': 'Windows (autre)', macos: 'macOS', linux: 'Linux'
+  }
+  const STK = { ssd: 'SSD', hdd: 'disque dur (HDD)', 'ssd+hdd': 'SSD + HDD' }
+  const CAP = { 1000: '1 To', 2000: '2 To+' }
+  const parts = []
+  if (profil.cpu) parts.push('CPU ' + profil.cpu)
+  if (profil.ram && RAM[profil.ram]) parts.push('RAM ' + RAM[profil.ram])
+  if (profil.gpu) parts.push('GPU ' + profil.gpu)
+  if (profil.os && OS[profil.os]) parts.push('OS ' + OS[profil.os])
+  const st = profil.stockage_type && STK[profil.stockage_type]
+  const cap = profil.stockage_cap && (CAP[profil.stockage_cap] || profil.stockage_cap + ' Go')
+  if (st || cap) parts.push('Stockage ' + [st, cap].filter(Boolean).join(' · '))
+  if (profil.ecran) parts.push('Écran ' + profil.ecran)
+  return parts.join(' | ').slice(0, 400)
+}
+
+// Fusionne le matériel DÉCLARÉ par l'utilisateur (profil_pc persistant) et le
+// matériel AUTO-détecté envoyé par l'app cliente (extension/navigateur, déjà
+// borné/nettoyé par la route). Les deux cohabitent dans le même bloc, étiquetés
+// pour que le modèle sache distinguer la spec déclarée (stable, fiable) de la
+// télémétrie temps réel (approximative). Si l'un est absent, on renvoie l'autre
+// tel quel -> zéro changement de comportement quand aucun profil n'est saisi.
+function fusionnerMateriel(declare, auto) {
+  const d = (declare || '').trim()
+  const a = (auto || '').trim()
+  if (d && a) {
+    return `PC déclaré par l'utilisateur : ${d}
+Télémétrie temps réel (auto-détectée, approximative) : ${a}`
+  }
+  if (d) return `PC déclaré par l'utilisateur : ${d}`
+  return a || null
+}
+
 function motDePasseCompromis(mdp) {
   return new Promise((resolve) => {
     try {
@@ -936,7 +1035,7 @@ app.get('/auth/moi', authentifier, async (req, res) => {
 
 app.get('/profil', authentifier, async (req, res) => {
   try {
-    const utilisateur = await one('SELECT id, email, plan, messages_utilises, cree_le FROM utilisateurs WHERE id = $1', [req.utilisateur.id])
+    const utilisateur = await one('SELECT id, email, plan, messages_utilises, cree_le, profil_pc, pc_onboarding_vu FROM utilisateurs WHERE id = $1', [req.utilisateur.id])
 
     const nbConversations = await one(
       'SELECT COUNT(DISTINCT session_id) as total FROM conversations WHERE utilisateur_id = $1',
@@ -971,7 +1070,13 @@ app.get('/profil', authentifier, async (req, res) => {
       nb_messages: Number(nbMessages.total),
       derniere_activite: derniereActivite.derniere,
       tokens_estimes: tokensEstimes,
-      cout_estime_eur: coutEstimeEur
+      cout_estime_eur: coutEstimeEur,
+      // Profil PC saisi + flag onboarding : permettent au client de décider
+      // l'ouverture de la modale « 1re connexion » de façon FIABLE et
+      // multi-appareils (source serveur, pas un localStorage isolé).
+      // profil_pc JSONB est déjà désérialisé par `pg` (objet ou null).
+      profil_pc: utilisateur.profil_pc || null,
+      pc_onboarding_vu: utilisateur.pc_onboarding_vu === true
     })
   } catch (erreur) {
     console.error('Profil :', erreur.message)
@@ -1001,6 +1106,48 @@ app.post('/profil/mot-de-passe', authentifier, async (req, res) => {
   } catch (erreur) {
     console.error('Changement mot de passe :', erreur.message)
     res.status(500).json({ erreur: 'Modification impossible' })
+  }
+})
+
+// Enregistrement des composants PC saisis par l'utilisateur (modale
+// « première connexion »). Calque les patterns existants : authentifier +
+// validation stricte + jamais de 500. Rate-limité par compte (réutilise
+// limiteurChatCompte : plafond 60/min, très au-dessus de tout usage humain
+// d'un formulaire — un utilisateur normal ne le sent jamais). Le payload
+// est passé par la liste blanche nettoyerProfilPc() : champs inconnus
+// ignorés, longueurs bornées, caractères de contrôle retirés, sélecteurs
+// validés contre leurs options. Ces données entrent ensuite dans le bloc
+// <materiel> du prompt, déjà durci anti prompt-injection (DONNÉE, jamais
+// instruction). « plus tard » / fermeture : { plus_tard: true } -> on pose
+// seulement le flag onboarding (pas de profil), pour ne pas re-pop en boucle.
+app.post('/profil/pc', authentifier, limiteurChatCompte, async (req, res) => {
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {}
+
+    // Sortie gracieuse (skip / Échap / clic overlay) : on mémorise juste
+    // « vu » côté serveur, sans toucher le profil déjà éventuellement saisi.
+    if (body.plus_tard === true) {
+      await run('UPDATE utilisateurs SET pc_onboarding_vu = TRUE WHERE id = $1', [req.utilisateur.id])
+      return res.json({ message: 'Enregistré', pc_onboarding_vu: true })
+    }
+
+    const profil = nettoyerProfilPc(body)
+    // Au moins un champ exploitable, sinon 400 explicite (jamais 500).
+    if (Object.keys(profil).length === 0) {
+      return res.status(400).json({ erreur: 'Renseignez au moins un composant (processeur ou système).' })
+    }
+
+    // Écrit le profil ET pose le flag onboarding dans la même requête :
+    // l'utilisateur a fait son choix, la modale ne doit plus se rouvrir
+    // automatiquement (le bouton « Éditer » reste le chemin manuel).
+    await run(
+      'UPDATE utilisateurs SET profil_pc = $1, pc_onboarding_vu = TRUE WHERE id = $2',
+      [JSON.stringify(profil), req.utilisateur.id]
+    )
+    res.json({ message: 'PC enregistré', profil_pc: profil, pc_onboarding_vu: true })
+  } catch (erreur) {
+    console.error('Profil PC :', erreur.message)
+    res.status(500).json({ erreur: 'Enregistrement impossible' })
   }
 })
 
@@ -1243,6 +1390,15 @@ app.post('/chat', limiteurChat, authentifier, limiteurChatCompte, async (req, re
   if (utilisateur.plan === 'gratuit' && utilisateur.messages_utilises >= LIMITE_GRATUIT) {
     return res.status(403).json({ erreur: 'limite_atteinte' })
   }
+
+  // Matériel DÉCLARÉ (profil_pc persistant, saisi via la modale) fusionné
+  // avec la télémétrie AUTO envoyée par le client. Si aucun profil n'est
+  // saisi, fusionnerMateriel renvoie le contexte auto inchangé -> flux
+  // identique à l'existant, zéro régression pour extension/navigateur.
+  contexteMateriel = fusionnerMateriel(
+    materielDepuisProfil(utilisateur.profil_pc),
+    contexteMateriel
+  )
 
   const id = sessionId || crypto.randomUUID()
 
@@ -1547,6 +1703,12 @@ app.post('/technicien', limiteurChat, authentifier, limiteurChatCompte, async (r
   if (utilisateur.plan === 'gratuit' && utilisateur.messages_utilises >= LIMITE_GRATUIT) {
     return res.status(403).json({ erreur: 'limite_atteinte' })
   }
+
+  // Même fusion matériel déclaré/auto que /chat (cf. fusionnerMateriel).
+  contexteMateriel = fusionnerMateriel(
+    materielDepuisProfil(utilisateur.profil_pc),
+    contexteMateriel
+  )
 
   const id = sessionId || crypto.randomUUID()
 

@@ -109,6 +109,19 @@ async function initDb() {
   // Lien vers le client Stripe (rempli lors du 1er paiement). Inerte tant que
   // Stripe n'est pas configuré — ne change rien au comportement existant.
   await pool.query(`ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT`)
+  // Composants PC saisis par l'utilisateur (modale « première connexion »).
+  // JSONB : liste blanche de champs courts, validée/bornée côté route AVANT
+  // écriture (jamais d'instruction, simple DONNÉE de contexte). NULL = pas
+  // encore renseigné. Additif, idempotent, non destructif : les comptes
+  // existants restent NULL et le flux /chat /technicien ne change pas tant
+  // que rien n'est saisi (la fusion matériel ne s'active que si non-NULL).
+  await pool.query(`ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS profil_pc JSONB`)
+  // Flag onboarding PC : passe à TRUE dès que l'utilisateur a soit enregistré
+  // son PC, soit choisi « plus tard » / fermé la modale. Sert à décider
+  // l'ouverture de la modale de façon FIABLE et multi-appareils (pas un
+  // simple localStorage). DEFAULT FALSE -> la modale s'ouvre une fois pour
+  // les comptes existants comme nouveaux (comportement voulu, non bloquant).
+  await pool.query(`ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS pc_onboarding_vu BOOLEAN DEFAULT FALSE`)
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_conv_user ON conversations(utilisateur_id)`)
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_conv_session ON conversations(utilisateur_id, session_id)`)
   // Sert exactement les requêtes chaudes : historique et chargement du

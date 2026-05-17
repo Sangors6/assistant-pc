@@ -131,6 +131,68 @@ test('/feedback sans token → 401 (route protégée, aucune écriture)', async 
   assert.equal(r.status, 401)
 })
 
+/* --- Profil PC (modale « première connexion ») — additif, non destructif ---
+   Aucune écriture : sans token les routes rejettent AVANT toute requête DB. */
+
+test('POST /profil/pc sans token → 401 (garde-accès, aucune écriture)', async () => {
+  const r = await fetch(`${BASE}/profil/pc`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ cpu: 'Intel Core i5' })
+  })
+  assert.equal(r.status, 401)
+})
+
+test('POST /profil/pc token bidon → 401 (jamais 500, aucune fuite)', async () => {
+  const r = await fetch(`${BASE}/profil/pc`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'Authorization': 'Bearer bidon' },
+    body: JSON.stringify({ cpu: 'x' })
+  })
+  assert.equal(r.status, 401)
+  assert.notEqual(r.status, 500)
+})
+
+test('POST /profil/pc payload vide + token bidon → 401 (auth avant validation)', async () => {
+  const r = await fetch(`${BASE}/profil/pc`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'Authorization': 'Bearer bidon' },
+    body: '{}'
+  })
+  // L'auth prime : 401 attendu, jamais 500.
+  assert.equal(r.status, 401)
+  assert.notEqual(r.status, 500)
+})
+
+test('GET /profil sans token → 401 (le flag onboarding reste protégé)', async () => {
+  const r = await fetch(`${BASE}/profil`)
+  assert.equal(r.status, 401)
+})
+
+test('non-régression : /chat & /technicien toujours 401 (fusion matériel n’a rien cassé)', async () => {
+  for (const p of ['/chat', '/technicien']) {
+    const r = await fetch(`${BASE}${p}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ message: 'test' })
+    })
+    assert.equal(r.status, 401, `${p} garde inchangée`)
+  }
+})
+
+test('app.html : hooks modale PC + suppression appel mesurerPing périodique', () => {
+  const APP_HTML = readFileSync(join(RACINE, 'public', 'app.html'), 'utf8')
+  // Hooks critiques de la modale / sidebar refondue présents.
+  for (const h of ['id="pc-onboard-overlay"', 'id="pc-onboard-form"',
+    'window.ouvrirOnboardPC', 'window.fermerOnboardPC', 'id="pc-card"',
+    'id="s-ping"', 'id="s-stockage"', 'id="s-os"', "fetch('/profil/pc'"]) {
+    assert.ok(APP_HTML.includes(h), `hook manquant dans app.html : ${h}`)
+  }
+  // Le polling latence est retiré (plus de setInterval(mesurerPing…)).
+  assert.ok(!/setInterval\(\s*mesurerPing/.test(APP_HTML),
+    'setInterval(mesurerPing) doit être retiré (latence non affichée)')
+})
+
 test('#008 /resolution sans token → 401 (route protégée)', async () => {
   const r = await fetch(`${BASE}/resolution`, {
     method: 'POST',

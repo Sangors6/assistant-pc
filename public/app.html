@@ -30,64 +30,87 @@
     #bg-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
     #app { display: flex; flex: 1; overflow: hidden; position: relative; z-index: 1; }
 
-    /* SIDEBAR */
-    #sidebar { width: 264px; flex-shrink: 0; background: linear-gradient(180deg, rgba(8,13,26,0.92), rgba(5,8,18,0.97)); backdrop-filter: blur(24px); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: relative; z-index: 10; }
-    #sidebar::after { content: ''; position: absolute; top: 10%; right: -1px; bottom: 10%; width: 1px; background: linear-gradient(to bottom, transparent, var(--blue) 35%, var(--cyan) 55%, transparent); opacity: 0.45; }
+    /* ════ SIDEBAR REFONDUE (BLOC Design #1 — DA validée) ════
+       Seules les RÈGLES CSS changent : aucun id/classe/contrat JS retiré. */
+    #sidebar { width: 270px; flex-shrink: 0; background: linear-gradient(180deg, rgba(9,14,28,0.94), rgba(5,8,18,0.98)); backdrop-filter: blur(26px); -webkit-backdrop-filter: blur(26px); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: relative; z-index: 10; }
+    #sidebar::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(120% 60% at 0% 0%, rgba(37,99,235,0.10), transparent 55%); opacity: 0.9; }
+    #sidebar::after { content: ''; position: absolute; top: 8%; right: -1px; bottom: 8%; width: 1px; background: linear-gradient(to bottom, transparent, var(--blue) 32%, var(--cyan) 55%, transparent); opacity: 0.5; }
 
-    #logo-box { padding: 18px 16px 12px; display: flex; align-items: center; gap: 11px; }
-    #logo-icon { width: 38px; height: 38px; background: linear-gradient(135deg, var(--blue-light), var(--blue-dark)); border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 6px 18px rgba(37,99,235,0.4), inset 0 1px 0 rgba(255,255,255,0.18); flex-shrink: 0; }
-    #logo-name { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: -0.4px; }
-    #logo-sub { font-size: 9px; color: var(--text-dim); font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; margin-top: 2px; }
+    #logo-box { padding: 20px 18px 14px; display: flex; align-items: center; gap: 12px; position: relative; }
+    #logo-icon { width: 40px; height: 40px; background: linear-gradient(135deg, var(--blue-light), var(--blue-dark)); border-radius: 13px; display: flex; align-items: center; justify-content: center; font-size: 19px; box-shadow: 0 8px 22px rgba(37,99,235,0.42), inset 0 1px 0 rgba(255,255,255,0.22); flex-shrink: 0; }
+    #logo-name { font-size: 15.5px; font-weight: 700; color: #fff; letter-spacing: -0.4px; }
+    #logo-sub { font-size: 9px; color: var(--text-dim); font-weight: 600; letter-spacing: 1.3px; text-transform: uppercase; margin-top: 2px; }
 
-    .nav-group { padding: 6px 12px 4px; }
-    .nav-label { font-size: 9px; font-weight: 700; color: rgba(100,116,139,0.7); text-transform: uppercase; letter-spacing: 1.6px; padding: 4px 8px 7px; }
+    .nav-group { padding: 8px 12px 4px; }
+    .nav-label { font-size: 9px; font-weight: 700; color: rgba(100,116,139,0.65); text-transform: uppercase; letter-spacing: 1.7px; padding: 6px 8px 8px; }
 
-    .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 11px; border-radius: 10px; font-size: 13px; font-weight: 500; color: var(--text-mid); cursor: pointer; transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease; position: relative; margin-bottom: 3px; border: 1px solid transparent; }
-    .nav-item:hover { background: rgba(37,99,235,0.08); color: #bcd4f5; }
-    .nav-item.active { background: rgba(37,99,235,0.14); color: #fff; border-color: rgba(59,130,246,0.22); }
-    .nav-item.active::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); height: 54%; width: 2.5px; border-radius: 0 3px 3px 0; background: linear-gradient(180deg, var(--blue-light), var(--cyan)); }
+    .nav-item { display: flex; align-items: center; gap: 11px; padding: 10px 12px; border-radius: 11px; font-size: 13px; font-weight: 500; color: var(--text-mid); cursor: pointer; transition: background .2s ease, color .2s ease, transform .2s ease, box-shadow .2s ease, border-color .2s ease; position: relative; margin-bottom: 3px; border: 1px solid transparent; }
+    .nav-item:hover { background: rgba(37,99,235,0.09); color: #cfe0fb; transform: translateX(2px); }
+    .nav-item.active { background: rgba(37,99,235,0.15); color: #fff; border-color: rgba(59,130,246,0.24); }
+    .nav-item.active::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); height: 56%; width: 3px; border-radius: 0 3px 3px 0; background: linear-gradient(180deg, var(--blue-light), var(--cyan)); box-shadow: 0 0 10px rgba(34,211,238,0.5); }
     .nav-icon { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
-    /* Action principale (1er nav-item = Nouveau chat) : CTA premium discret */
-    .nav-item.primary { background: linear-gradient(135deg, var(--blue), var(--blue-dark)); color: #fff; font-weight: 600; border-color: transparent; box-shadow: 0 8px 22px rgba(37,99,235,0.32); margin-bottom: 8px; }
-    .nav-item.primary:hover { color: #fff; transform: translateY(-1px); box-shadow: 0 10px 26px rgba(37,99,235,0.46); }
+    /* Action principale (1er nav-item = Nouveau chat) : CTA plein, lueur portée */
+    .nav-item.primary { background: linear-gradient(135deg, var(--blue), var(--blue-dark)); color: #fff; font-weight: 600; border-color: transparent; box-shadow: 0 10px 26px rgba(37,99,235,0.34), inset 0 1px 0 rgba(255,255,255,0.14); margin-bottom: 9px; }
+    .nav-item.primary:hover { color: #fff; transform: translateY(-1px); box-shadow: 0 12px 30px rgba(37,99,235,0.5), inset 0 1px 0 rgba(255,255,255,0.14); }
     .nav-item.primary.active::before { display: none; }
-    /* Escalade premium : "Contacter un technicien" — sort de la SPA vers un
-       expert. Accent cyan discret pour le distinguer sans rivaliser avec le CTA. */
-    .nav-item.escalate { color: #bcd4f5; border-color: rgba(34,211,238,0.16); background: linear-gradient(135deg, rgba(34,211,238,0.06), rgba(37,99,235,0.05)); }
-    .nav-item.escalate::after { content: ''; position: absolute; right: 11px; top: 50%; width: 5px; height: 5px; border-radius: 50%; transform: translateY(-50%); background: var(--cyan); box-shadow: 0 0 7px rgba(34,211,238,0.7); opacity: 0.85; }
-    .nav-item.escalate:hover { color: #fff; border-color: rgba(34,211,238,0.4); background: linear-gradient(135deg, rgba(34,211,238,0.12), rgba(37,99,235,0.1)); transform: translateY(-1px); }
-    @media (prefers-reduced-motion: reduce) { .nav-item, .nav-item.escalate:hover, .nav-item.primary:hover { transition: none; transform: none; } }
+    /* Escalade premium : "Contacter un technicien" / "Centre de pilotage" —
+       sort de la SPA. Accent cyan discret pour le distinguer du CTA. */
+    .nav-item.escalate { color: #c2d6f6; border-color: rgba(34,211,238,0.16); background: linear-gradient(135deg, rgba(34,211,238,0.06), rgba(37,99,235,0.05)); }
+    .nav-item.escalate::after { content: ''; position: absolute; right: 12px; top: 50%; width: 5px; height: 5px; border-radius: 50%; transform: translateY(-50%); background: var(--cyan); box-shadow: 0 0 8px rgba(34,211,238,0.75); opacity: 0.85; }
+    .nav-item.escalate:hover { color: #fff; border-color: rgba(34,211,238,0.42); background: linear-gradient(135deg, rgba(34,211,238,0.13), rgba(37,99,235,0.1)); transform: translateX(2px); }
+    @media (prefers-reduced-motion: reduce) { .nav-item, .nav-item:hover, .nav-item.escalate:hover, .nav-item.primary:hover { transition: none; transform: none; } }
 
-    /* Carte premium réutilisable (Santé / Système) — langage visuel unifié */
-    .side-card { margin: 10px 12px 0; padding: 13px 14px; border-radius: 14px; background: rgba(6,10,20,0.6); border: 1px solid var(--border); }
-    .sc-head { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 600; color: var(--text-mid); margin-bottom: 11px; }
-    .sc-head .sc-ic { font-size: 12px; opacity: 0.85; }
+    /* Carte premium réutilisable — verre profond, halo de tête subtil */
+    .side-card { margin: 12px 12px 0; padding: 14px 15px; border-radius: 15px; background: linear-gradient(180deg, rgba(13,19,35,0.66), rgba(6,10,20,0.62)); border: 1px solid var(--border); position: relative; overflow: hidden; }
+    .side-card::before { content: ''; position: absolute; top: -50px; right: -50px; width: 130px; height: 130px; background: radial-gradient(circle, rgba(37,99,235,0.07) 0%, transparent 70%); pointer-events: none; }
+    .sc-head { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 600; color: var(--text-mid); margin-bottom: 12px; letter-spacing: 0.2px; }
+    .sc-head .sc-ic { font-size: 12px; opacity: 0.9; }
 
-    .badge-ok { margin-left: auto; background: rgba(34,197,94,0.1); color: var(--success); font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 20px; border: 1px solid rgba(34,197,94,0.22); letter-spacing: 0.3px; transition: color .3s, background .3s, border-color .3s; }
+    .badge-ok { margin-left: auto; background: rgba(34,197,94,0.1); color: var(--success); font-size: 9px; font-weight: 700; padding: 3px 9px; border-radius: 20px; border: 1px solid rgba(34,197,94,0.22); letter-spacing: 0.3px; transition: color .3s, background .3s, border-color .3s; }
     .badge-ok.warn { color: #f59e0b; background: rgba(245,158,11,0.10); border-color: rgba(245,158,11,0.25); }
     .badge-ok.down { color: var(--danger); background: rgba(239,68,68,0.10); border-color: rgba(239,68,68,0.28); }
 
-    /* Santé PC — score hero, élément mémorable */
-    .health-head { display: flex; align-items: baseline; gap: 4px; font-family: 'JetBrains Mono', monospace; }
-    #health-score { font-size: 30px; font-weight: 800; line-height: 1; color: var(--success); transition: color .35s; }
+    /* Santé PC — hero chiffré */
+    .health-head { display: flex; align-items: baseline; gap: 5px; font-family: 'JetBrains Mono', monospace; }
+    #health-score { font-size: 32px; font-weight: 800; line-height: 1; color: var(--success); transition: color .35s; text-shadow: 0 0 18px rgba(34,197,94,0.28); }
     .health-100 { font-size: 11px; color: var(--text-dim); font-weight: 600; }
-    .health-bar { margin-top: 9px; height: 6px; border-radius: 4px; background: rgba(148,163,184,0.12); overflow: hidden; }
-    #health-fill { height: 100%; width: 0%; border-radius: 4px; background: var(--success); transition: width .7s cubic-bezier(.16,1,.3,1), background .4s; }
+    .health-bar { margin-top: 11px; height: 6px; border-radius: 4px; background: rgba(148,163,184,0.12); overflow: hidden; }
+    #health-fill { height: 100%; width: 0%; border-radius: 4px; background: var(--success); transition: width .7s cubic-bezier(.16,1,.3,1), background .4s; box-shadow: 0 0 12px rgba(34,197,94,0.45); }
     @media (prefers-reduced-motion: reduce) { #health-fill { transition: none; } }
 
-    /* Système — stats compactes alignées */
-    .pc-row { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; }
-    .pc-row + .pc-row { border-top: 1px solid rgba(148,163,184,0.06); }
-    .pc-label { font-size: 10px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; letter-spacing: 0.5px; }
-    .pc-val { font-size: 10.5px; color: #7fb0ee; font-weight: 600; font-family: 'JetBrains Mono', monospace; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* « Mon PC » : carte Système 2 états (.is-empty sur #pc-card) */
+    #pc-card .sc-head { margin-bottom: 0; }
+    .pc-edit { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font-size: 9.5px; font-weight: 600; color: #7fb0ee; background: rgba(59,130,246,0.09); border: 1px solid rgba(59,130,246,0.18); padding: 3px 9px; border-radius: 20px; cursor: pointer; transition: background .18s, color .18s, border-color .18s; letter-spacing: 0.2px; }
+    .pc-edit:hover { background: rgba(59,130,246,0.18); color: #cfe0fb; border-color: var(--border-hover); }
+    .pc-edit:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
 
-    #user-bar { margin: 12px; padding: 10px 12px; border-radius: 13px; background: rgba(6,10,20,0.7); border: 1px solid var(--border); display: flex; align-items: center; gap: 10px; transition: border-color 0.2s ease, background 0.2s ease; cursor: pointer; }
-    #user-bar:hover { border-color: var(--border-hover); background: rgba(37,99,235,0.06); }
-    #user-avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, var(--blue-light), var(--blue-dark)); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0; box-shadow: 0 4px 12px rgba(37,99,235,0.4); }
-    #user-pseudo { font-size: 12px; font-weight: 600; color: #cdd9ea; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
-    #user-plan { font-size: 8.5px; color: var(--blue-light); font-weight: 700; background: rgba(37,99,235,0.12); padding: 1px 7px; border-radius: 10px; border: 1px solid rgba(59,130,246,0.2); display: inline-block; margin-top: 3px; letter-spacing: 0.4px; }
-    #deconnexion { margin-left: auto; font-size: 14px; cursor: pointer; color: rgba(100,116,139,0.5); transition: color 0.15s, background 0.15s; padding: 5px; border-radius: 7px; }
-    #deconnexion:hover { color: var(--danger); background: rgba(239,68,68,0.08); }
+    .pc-grid { display: grid; grid-template-columns: 1fr; gap: 1px; margin-top: 12px; }
+    .pc-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 0; }
+    .pc-row + .pc-row { border-top: 1px solid rgba(148,163,184,0.07); }
+    .pc-l { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .pc-ic { font-size: 12px; opacity: 0.75; width: 15px; text-align: center; }
+    .pc-label { font-size: 10px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; letter-spacing: 0.5px; text-transform: uppercase; }
+    .pc-val { font-size: 10.5px; color: #8fbcf2; font-weight: 600; font-family: 'JetBrains Mono', monospace; max-width: 138px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
+    .pc-val.unset { color: rgba(100,116,139,0.55); font-style: italic; font-weight: 500; }
+
+    #pc-empty { display: none; flex-direction: column; align-items: flex-start; gap: 10px; margin-top: 12px; }
+    #pc-card.is-empty #pc-empty { display: flex; }
+    #pc-card.is-empty .pc-grid { display: none; }
+    .pc-empty-txt { font-size: 11px; line-height: 1.55; color: var(--text-mid); }
+    .pc-empty-txt b { color: #cfe0fb; font-weight: 600; }
+    .pc-cta { width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 9px 10px; border-radius: 10px; font-size: 11.5px; font-weight: 600; color: #fff; background: linear-gradient(135deg, var(--blue), var(--blue-dark)); border: 1px solid transparent; cursor: pointer; transition: transform .18s, box-shadow .18s; box-shadow: 0 7px 18px rgba(37,99,235,0.3); }
+    .pc-cta:hover { transform: translateY(-1px); box-shadow: 0 9px 22px rgba(37,99,235,0.45); }
+    .pc-cta:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+
+    #user-bar { margin: 12px; padding: 11px 13px; border-radius: 14px; background: linear-gradient(180deg, rgba(13,19,35,0.7), rgba(6,10,20,0.72)); border: 1px solid var(--border); display: flex; align-items: center; gap: 11px; transition: border-color .2s ease, background .2s ease, transform .2s ease; cursor: pointer; position: relative; }
+    #user-bar::before { content: ''; position: absolute; left: 14px; right: 14px; top: -1px; height: 1px; background: linear-gradient(90deg, transparent, rgba(59,130,246,0.3), transparent); }
+    #user-bar:hover { border-color: var(--border-hover); background: rgba(37,99,235,0.07); transform: translateY(-1px); }
+    #user-avatar { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, var(--blue-light), var(--blue-dark)); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0; box-shadow: 0 5px 14px rgba(37,99,235,0.42); }
+    #user-pseudo { font-size: 12px; font-weight: 600; color: #cdd9ea; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 118px; }
+    #user-plan { font-size: 8.5px; color: var(--blue-light); font-weight: 700; background: rgba(37,99,235,0.13); padding: 1px 7px; border-radius: 10px; border: 1px solid rgba(59,130,246,0.2); display: inline-block; margin-top: 3px; letter-spacing: 0.4px; }
+    #deconnexion { margin-left: auto; font-size: 14px; cursor: pointer; color: rgba(100,116,139,0.55); transition: color .15s, background .15s; padding: 6px; border-radius: 8px; }
+    #deconnexion:hover { color: var(--danger); background: rgba(239,68,68,0.09); }
+    @media (prefers-reduced-motion: reduce) { #user-bar:hover, .pc-cta:hover { transition: none; transform: none; } }
 
     /* MAIN */
     #main { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; z-index: 1; }
@@ -255,16 +278,68 @@
     /* (section Raccourcis retirée — refonte sidebar) */
 
     /* Périphériques (intégré dans une .side-card) */
-    .periph-section { padding: 0; }
-    .periph-list { display: flex; flex-direction: column; gap: 3px; margin: 0 0 8px; }
-    .periph-item { display: flex; align-items: center; gap: 7px; padding: 4px 6px; border-radius: 6px; transition: background 0.15s; }
-    .periph-item:hover { background: rgba(59,130,246,0.05); }
+    .periph-section { padding: 14px 15px 16px; }
+    .periph-list { display: flex; flex-direction: column; gap: 3px; margin: 0 0 10px; }
+    .periph-item { display: flex; align-items: center; gap: 8px; padding: 5px 7px; border-radius: 7px; transition: background 0.15s; }
+    .periph-item:hover { background: rgba(59,130,246,0.06); }
     .periph-icon { font-size: 12px; flex-shrink: 0; }
-    .periph-name { font-size: 10.5px; color: rgba(71,85,105,0.7); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .periph-name { font-size: 10.5px; color: rgba(148,163,184,0.72); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .periph-dot { width: 5px; height: 5px; border-radius: 50%; background: #22c55e; flex-shrink: 0; box-shadow: 0 0 6px rgba(34,197,94,0.5); animation: blink 3s infinite; }
-    .periph-analyse-btn { width: 100%; padding: 6px 8px; background: rgba(59,130,246,0.07); border: 1px solid rgba(59,130,246,0.15); border-radius: 6px; color: #3b82f6; font-size: 10.5px; cursor: pointer; transition: background 0.2s; text-align: center; }
-    .periph-analyse-btn:hover { background: rgba(59,130,246,0.15); }
-    .periph-loading { font-size: 10px; color: rgba(71,85,105,0.4); padding: 3px 6px; }
+    .periph-analyse-btn { width: 100%; padding: 8px 8px; background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.16); border-radius: 9px; color: #7fb0ee; font-size: 10.5px; font-weight: 600; cursor: pointer; transition: background 0.2s, color .2s, border-color .2s; text-align: center; }
+    .periph-analyse-btn:hover { background: rgba(59,130,246,0.16); color: #cfe0fb; border-color: var(--border-hover); }
+    .periph-analyse-btn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+    .periph-loading { font-size: 10px; color: rgba(100,116,139,0.5); padding: 4px 6px; }
+    @media (prefers-reduced-motion: reduce) { .periph-dot { animation: none; } }
+
+    /* ════ MODALE « PREMIÈRE CONNEXION » (BLOC Design #2 — DA validée) ════ */
+    #pc-onboard-overlay { position: fixed; inset: 0; background: rgba(2,5,12,0.66); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); z-index: 1200; display: none; align-items: center; justify-content: center; padding: 20px; opacity: 0; transition: opacity .34s ease; }
+    #pc-onboard-overlay.visible { display: flex; }
+    #pc-onboard-overlay.in { opacity: 1; }
+    #pc-onboard { width: 460px; max-width: 100%; max-height: 92vh; overflow: hidden; display: flex; flex-direction: column; background: linear-gradient(180deg, rgba(12,17,32,0.99), rgba(8,12,24,0.99)); border: 1px solid rgba(59,130,246,0.22); border-radius: 22px; box-shadow: 0 28px 90px rgba(0,0,0,0.72), 0 0 0 1px rgba(255,255,255,0.02) inset; position: relative; transform: translateY(26px) scale(0.965); opacity: 0; transition: transform .42s cubic-bezier(.16,1,.3,1), opacity .34s ease; }
+    #pc-onboard-overlay.in #pc-onboard { transform: translateY(0) scale(1); opacity: 1; }
+    #pc-onboard::before { content: ''; position: absolute; top: -70px; right: -70px; width: 220px; height: 220px; background: radial-gradient(circle, rgba(37,99,235,0.12) 0%, transparent 70%); pointer-events: none; }
+    #pc-onboard::after { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--blue) 35%, var(--cyan) 60%, transparent); opacity: 0.55; }
+    .po-head { padding: 26px 28px 18px; position: relative; }
+    .po-eyebrow { display: inline-flex; align-items: center; gap: 7px; font-size: 9.5px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: var(--cyan); background: rgba(34,211,238,0.08); border: 1px solid rgba(34,211,238,0.2); padding: 4px 10px; border-radius: 20px; }
+    .po-title { font-size: 21px; font-weight: 700; color: #fff; letter-spacing: -0.5px; margin-top: 14px; }
+    .po-sub { font-size: 12.5px; line-height: 1.6; color: var(--text-mid); margin-top: 7px; }
+    .po-close { position: absolute; top: 22px; right: 22px; width: 30px; height: 30px; border-radius: 9px; background: rgba(148,163,184,0.06); border: 1px solid rgba(148,163,184,0.12); color: var(--text-mid); font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .15s, color .15s; }
+    .po-close:hover { background: rgba(239,68,68,0.1); color: var(--danger); }
+    .po-close:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+    .po-body { padding: 4px 28px 8px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(37,99,235,0.2) transparent; }
+    .po-body::-webkit-scrollbar { width: 4px; }
+    .po-body::-webkit-scrollbar-thumb { background: rgba(37,99,235,0.25); border-radius: 4px; }
+    .po-field { margin-top: 16px; }
+    .po-field > label { display: block; font-size: 11.5px; font-weight: 600; color: #cfe0fb; margin-bottom: 7px; }
+    .po-field .po-hint { font-size: 10.5px; color: var(--text-dim); font-weight: 400; margin-left: 6px; }
+    .po-input, .po-select { width: 100%; padding: 11px 13px; background: rgba(6,10,20,0.7); border: 1px solid var(--border); border-radius: 11px; color: var(--text); font-family: 'Inter', sans-serif; font-size: 13px; transition: border-color .18s, box-shadow .18s, background .18s; }
+    .po-input::placeholder { color: rgba(100,116,139,0.6); }
+    .po-input:focus, .po-select:focus { outline: none; border-color: var(--border-hover); background: rgba(37,99,235,0.06); box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
+    .po-select { appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 13px center; padding-right: 36px; cursor: pointer; }
+    .po-select option { background: #0c1120; color: var(--text); }
+    .po-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .po-autofill { display: inline-flex; align-items: center; gap: 5px; font-size: 9.5px; font-weight: 600; color: var(--success); background: rgba(34,197,94,0.09); border: 1px solid rgba(34,197,94,0.2); padding: 2px 8px; border-radius: 20px; margin-left: 6px; vertical-align: middle; }
+    .po-err { font-size: 11px; color: #fca5a5; margin-top: 8px; min-height: 0; display: none; }
+    .po-err.show { display: block; }
+    .po-foot { padding: 18px 28px 24px; display: flex; align-items: center; gap: 12px; border-top: 1px solid var(--border); margin-top: 18px; background: rgba(6,10,20,0.4); }
+    .po-skip { font-size: 12px; font-weight: 500; color: var(--text-mid); background: none; border: none; cursor: pointer; padding: 10px 6px; transition: color .15s; }
+    .po-skip:hover { color: #cfe0fb; }
+    .po-skip:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; border-radius: 6px; }
+    .po-save { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; padding: 12px 22px; border-radius: 12px; font-size: 13px; font-weight: 600; color: #fff; background: linear-gradient(135deg, var(--blue), var(--blue-dark)); border: 1px solid transparent; cursor: pointer; transition: transform .18s, box-shadow .18s; box-shadow: 0 10px 26px rgba(37,99,235,0.34), inset 0 1px 0 rgba(255,255,255,0.14); }
+    .po-save:hover { transform: translateY(-1px); box-shadow: 0 13px 32px rgba(37,99,235,0.5), inset 0 1px 0 rgba(255,255,255,0.14); }
+    .po-save:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+    .po-save[disabled] { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
+    @media (prefers-reduced-motion: reduce) {
+      #pc-onboard-overlay, #pc-onboard { transition: opacity .15s ease; }
+      #pc-onboard, #pc-onboard-overlay.in #pc-onboard { transform: none; }
+      .po-save:hover { transform: none; }
+    }
+    @media (max-width: 520px) {
+      #pc-onboard { width: 100%; border-radius: 18px; }
+      .po-row2 { grid-template-columns: 1fr; }
+      .po-foot { flex-wrap: wrap; }
+      .po-save { width: 100%; justify-content: center; margin-left: 0; }
+    }
 
     /* Image dans chat */
     .msg-image { max-width: 280px; max-height: 200px; border-radius: 10px; object-fit: cover; border: 1px solid rgba(59,130,246,0.2); display: block; margin-bottom: 6px; cursor: pointer; transition: opacity 0.15s; }
@@ -772,13 +847,57 @@
         <div class="health-bar"><div id="health-fill"></div></div>
       </div>
 
-      <div class="side-card">
-        <div class="sc-head"><span class="sc-ic">⚙️</span> Système</div>
-        <div class="pc-row"><span class="pc-label">CPU</span><span class="pc-val" id="s-cpu">—</span></div>
-        <div class="pc-row"><span class="pc-label">RAM</span><span class="pc-val" id="s-ram">—</span></div>
-        <div class="pc-row"><span class="pc-label">GPU</span><span class="pc-val" id="s-gpu">—</span></div>
-        <div class="pc-row"><span class="pc-label">ÉCRAN</span><span class="pc-val" id="s-ecran">—</span></div>
-        <div class="pc-row"><span class="pc-label">RÉSEAU</span><span class="pc-val" id="s-ping">—</span></div>
+      <!-- Carte « Mon PC » : 2 états (.is-empty sur #pc-card -> invite).
+           #s-cpu/#s-ram/#s-gpu/#s-ecran : auto-détectés (infoSysteme()).
+           #s-stockage/#s-os : saisis via la modale. #s-ping conservé en
+           ancre cachée (contrat mesurerPing(), non affiché — demande
+           fondateur, suppression latence). -->
+      <div class="side-card" id="pc-card">
+        <div class="sc-head">
+          <span class="sc-ic">🖥️</span> Mon PC
+          <button type="button" class="pc-edit" id="pc-edit-btn"
+                  onclick="ouvrirOnboardPC('edit')"
+                  title="Modifier les composants de mon PC">✎ Éditer</button>
+        </div>
+
+        <div class="pc-grid">
+          <div class="pc-row">
+            <span class="pc-l"><span class="pc-ic">⚡</span><span class="pc-label">CPU</span></span>
+            <span class="pc-val" id="s-cpu">—</span>
+          </div>
+          <div class="pc-row">
+            <span class="pc-l"><span class="pc-ic">🧠</span><span class="pc-label">RAM</span></span>
+            <span class="pc-val" id="s-ram">—</span>
+          </div>
+          <div class="pc-row">
+            <span class="pc-l"><span class="pc-ic">🎮</span><span class="pc-label">GPU</span></span>
+            <span class="pc-val" id="s-gpu">—</span>
+          </div>
+          <div class="pc-row">
+            <span class="pc-l"><span class="pc-ic">💾</span><span class="pc-label">Stockage</span></span>
+            <span class="pc-val unset" id="s-stockage" data-empty="Non renseigné">Non renseigné</span>
+          </div>
+          <div class="pc-row">
+            <span class="pc-l"><span class="pc-ic">🪟</span><span class="pc-label">OS</span></span>
+            <span class="pc-val unset" id="s-os" data-empty="Non renseigné">Non renseigné</span>
+          </div>
+          <div class="pc-row">
+            <span class="pc-l"><span class="pc-ic">🖼️</span><span class="pc-label">Écran</span></span>
+            <span class="pc-val" id="s-ecran">—</span>
+          </div>
+        </div>
+
+        <div id="pc-empty">
+          <div class="pc-empty-txt">
+            Dites-nous <b>ce qu'il y a dans votre PC</b> pour des solutions
+            adaptées à votre machine.
+          </div>
+          <button type="button" class="pc-cta" onclick="ouvrirOnboardPC('empty')">
+            🖥️ Renseigner mon PC
+          </button>
+        </div>
+
+        <span id="s-ping" hidden aria-hidden="true"></span>
       </div>
 
       <div class="side-card periph-section">
@@ -977,6 +1096,121 @@
   </div>
 </div>
 
+<!-- MODALE « PREMIÈRE CONNEXION » — saisie composants PC (BLOC Design #2b).
+     Ouverture décidée par le flag serveur (GET /profil -> pc_onboarding_vu).
+     Soumission -> POST /profil/pc. Sortie gracieuse -> { plus_tard:true }. -->
+<div id="pc-onboard-overlay"
+     role="dialog" aria-modal="true" aria-labelledby="po-title-h"
+     data-firstrun-modal>
+  <div id="pc-onboard">
+    <form id="pc-onboard-form" novalidate>
+      <div class="po-head">
+        <span class="po-eyebrow">✦ Personnalisons votre aide</span>
+        <button type="button" class="po-close" data-action="skip"
+                aria-label="Fermer" onclick="fermerOnboardPC()">✕</button>
+        <h2 class="po-title" id="po-title-h">Parlez-nous de votre PC</h2>
+        <p class="po-sub">Quelques infos sur votre ordinateur nous permettent
+          de vous donner des solutions <b>vraiment adaptées</b> à votre machine.
+          Tout est facultatif — remplissez ce que vous connaissez.</p>
+      </div>
+
+      <div class="po-body">
+        <div class="po-field">
+          <label for="po-cpu">Processeur (CPU)
+            <span class="po-hint">le « cerveau » du PC — ex. Intel Core i5, Ryzen 5</span>
+            <span class="po-autofill" id="po-cpu-auto" hidden>✓ détecté</span>
+          </label>
+          <input class="po-input" id="po-cpu" name="cpu" type="text"
+                 autocomplete="off" placeholder="Ex. Intel Core i5-10400" maxlength="80">
+        </div>
+
+        <div class="po-row2">
+          <div class="po-field">
+            <label for="po-ram">Mémoire (RAM)
+              <span class="po-autofill" id="po-ram-auto" hidden>✓ détecté</span>
+            </label>
+            <select class="po-select" id="po-ram" name="ram">
+              <option value="">— Choisir —</option>
+              <option value="4">4 Go</option>
+              <option value="8">8 Go</option>
+              <option value="16">16 Go</option>
+              <option value="32">32 Go</option>
+              <option value="64">64 Go</option>
+              <option value="autre">Autre / je ne sais pas</option>
+            </select>
+          </div>
+          <div class="po-field">
+            <label for="po-os">Système (OS)</label>
+            <select class="po-select" id="po-os" name="os">
+              <option value="">— Choisir —</option>
+              <option value="windows11">Windows 11</option>
+              <option value="windows10">Windows 10</option>
+              <option value="windows-autre">Windows (autre)</option>
+              <option value="macos">macOS</option>
+              <option value="linux">Linux</option>
+              <option value="je-ne-sais-pas">Je ne sais pas</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="po-field">
+          <label for="po-gpu">Carte graphique (GPU)
+            <span class="po-hint">facultatif — ex. NVIDIA GTX 1660, ou « intégrée »</span>
+            <span class="po-autofill" id="po-gpu-auto" hidden>✓ détecté</span>
+          </label>
+          <input class="po-input" id="po-gpu" name="gpu" type="text"
+                 autocomplete="off" placeholder="Ex. NVIDIA GeForce GTX 1660" maxlength="80">
+        </div>
+
+        <div class="po-row2">
+          <div class="po-field">
+            <label for="po-stockage-type">Type de stockage</label>
+            <select class="po-select" id="po-stockage-type" name="stockage_type">
+              <option value="">— Choisir —</option>
+              <option value="ssd">SSD (rapide)</option>
+              <option value="hdd">Disque dur (HDD)</option>
+              <option value="ssd+hdd">SSD + Disque dur</option>
+              <option value="je-ne-sais-pas">Je ne sais pas</option>
+            </select>
+          </div>
+          <div class="po-field">
+            <label for="po-stockage-cap">Capacité
+              <span class="po-hint">facultatif</span>
+            </label>
+            <select class="po-select" id="po-stockage-cap" name="stockage_cap">
+              <option value="">— Choisir —</option>
+              <option value="128">128 Go</option>
+              <option value="256">256 Go</option>
+              <option value="512">512 Go</option>
+              <option value="1000">1 To</option>
+              <option value="2000">2 To +</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="po-field">
+          <label for="po-ecran">Écran
+            <span class="po-hint">taille ou résolution — facultatif</span>
+            <span class="po-autofill" id="po-ecran-auto" hidden>✓ détecté</span>
+          </label>
+          <input class="po-input" id="po-ecran" name="ecran" type="text"
+                 autocomplete="off" placeholder="Ex. 24 pouces · 1920×1080" maxlength="48">
+        </div>
+
+        <div class="po-err" id="po-err" role="alert">Veuillez renseigner au moins votre processeur ou votre système.</div>
+      </div>
+
+      <div class="po-foot">
+        <button type="button" class="po-skip" data-action="skip"
+                onclick="fermerOnboardPC()">Plus tard</button>
+        <button type="submit" class="po-save" data-action="save" id="po-save-btn">
+          Enregistrer mon PC →
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- MODALE suppression -->
 <div id="modale-overlay">
   <div id="modale">
@@ -1116,6 +1350,12 @@ async function infoSysteme() {
     : window.screen.width + '×' + window.screen.height
 
   majSanteScore(hw)
+  // La détection auto vient de peupler #s-cpu/#s-ram/#s-gpu/#s-ecran :
+  // on resynchronise l'état « vide/rempli » de la carte « Mon PC » (le
+  // fetch /profil a pu résoudre AVANT cette détection asynchrone).
+  if (typeof window.__pcCarteResync === 'function') {
+    try { window.__pcCarteResync() } catch (e) {}
+  }
 }
 
 // Score de santé PC 0-100 (estimé) : pénalise charge CPU et RAM utilisée.
@@ -1172,8 +1412,12 @@ async function mesurerPing() {
 }
 
 infoSysteme()
-mesurerPing()
-setInterval(mesurerPing, 10000)
+// Latence : la ligne RÉSEAU n'est plus affichée (refonte sidebar, demande
+// fondateur). #s-ping est conservé en ancre cachée (contrat mesurerPing()
+// préservé : zéro crash JS), MAIS l'appel périodique est retiré — plus
+// rien ne lit #s-ping, donc la requête /favicon.svg toutes les 10 s était
+// du trafic mort. La fonction mesurerPing() reste définie (sans appelant,
+// inoffensive) pour ne casser aucune référence éventuelle.
 chargerRecents()
 chargerPeripheriques()
 verifierRelance()
@@ -2072,6 +2316,242 @@ Analyse cette configuration : est-elle équilibrée ? Quels sont les points faib
       document.getElementById('mdp-confirm').value = ''
     } catch { msg.textContent = 'Erreur de connexion' }
   }
+
+  /* ─────────────────────────────────────────────────────────────────────
+     MODALE « PREMIÈRE CONNEXION » — saisie composants PC.
+     Persistance serveur (POST /profil/pc) + ouverture décidée par le flag
+     serveur (GET /profil -> pc_onboarding_vu) : fiable et multi-appareils,
+     pas un localStorage isolé. 100 % additif, dégradation gracieuse.
+     ───────────────────────────────────────────────────────────────────── */
+  (function () {
+    var overlay = document.getElementById('pc-onboard-overlay')
+    var form = document.getElementById('pc-onboard-form')
+    if (!overlay || !form) return
+    var btnSave = document.getElementById('po-save-btn')
+    var errBox = document.getElementById('po-err')
+
+    // Libellés d'affichage carte sidebar (miroir de materielDepuisProfil côté serveur).
+    var LBL_RAM = { '4':'4 Go','8':'8 Go','16':'16 Go','32':'32 Go','64':'64 Go' }
+    var LBL_OS = { windows11:'Windows 11', windows10:'Windows 10',
+      'windows-autre':'Windows', macos:'macOS', linux:'Linux' }
+    var LBL_STK = { ssd:'SSD', hdd:'HDD', 'ssd+hdd':'SSD+HDD' }
+    var LBL_CAP = { '128':'128 Go','256':'256 Go','512':'512 Go','1000':'1 To','2000':'2 To+' }
+
+    function setVal(id, txt) {
+      var el = document.getElementById(id)
+      if (!el) return
+      if (txt) { el.textContent = txt; el.classList.remove('unset') }
+      else {
+        var d = el.getAttribute('data-empty')
+        if (d) { el.textContent = d; el.classList.add('unset') }
+      }
+    }
+
+    // Remplit la carte « Mon PC » depuis un profil enregistré (objet serveur).
+    // Ne touche PAS #s-cpu/#s-ram/#s-gpu/#s-ecran auto-détectés s'il n'y a
+    // pas de valeur déclarée (la détection live garde la priorité visuelle).
+    // L'état « vide » (.is-empty) ne s'affiche QUE si l'on ne sait
+    // strictement RIEN du PC : ni profil saisi, ni télémétrie auto. Sinon
+    // la grille reste visible (zéro régression vs. l'ancienne carte
+    // « Système » qui montrait toujours CPU/RAM/GPU/Écran auto-détectés).
+    function detectionAuto() {
+      var ids = ['s-cpu', 's-ram', 's-gpu', 's-ecran']
+      for (var i = 0; i < ids.length; i++) {
+        var el = document.getElementById(ids[i])
+        if (!el) continue
+        var t = (el.textContent || '').trim()
+        if (t && t !== '—' && t !== 'n/a') return true
+      }
+      return false
+    }
+    function appliquerProfilCarte(p) {
+      var card = document.getElementById('pc-card')
+      if (p && typeof p === 'object') {
+        if (p.cpu) setVal('s-cpu', p.cpu)
+        if (p.ram && LBL_RAM[p.ram]) setVal('s-ram', LBL_RAM[p.ram])
+        if (p.gpu) setVal('s-gpu', p.gpu)
+        if (p.ecran) setVal('s-ecran', p.ecran)
+        var st = p.stockage_type && LBL_STK[p.stockage_type]
+        var cap = p.stockage_cap && (LBL_CAP[p.stockage_cap] || (p.stockage_cap + ' Go'))
+        if (st || cap) setVal('s-stockage', [st, cap].filter(Boolean).join(' · '))
+        if (p.os && LBL_OS[p.os]) setVal('s-os', LBL_OS[p.os])
+      }
+      if (!card) return
+      var aProfil = p && typeof p === 'object' && Object.keys(p).length > 0
+      if (aProfil || detectionAuto()) card.classList.remove('is-empty')
+      else card.classList.add('is-empty')
+    }
+
+    // Préremplit le formulaire : valeurs déjà enregistrées (priorité) sinon
+    // valeurs auto-détectées dans la sidebar (badge « ✓ détecté »).
+    function prefill(profil) {
+      profil = profil || {}
+      function autoTxt(id) {
+        var el = document.getElementById(id)
+        if (!el) return ''
+        var t = (el.textContent || '').trim()
+        return (t && t !== '—' && t !== 'n/a') ? t : ''
+      }
+      function badge(id, on) {
+        var b = document.getElementById(id)
+        if (b) b.hidden = !on
+      }
+      var cpu = document.getElementById('po-cpu')
+      var gpu = document.getElementById('po-gpu')
+      var ecran = document.getElementById('po-ecran')
+      var ram = document.getElementById('po-ram')
+      var os = document.getElementById('po-os')
+
+      if (profil.cpu) { cpu.value = profil.cpu; badge('po-cpu-auto', false) }
+      else { var ac = autoTxt('s-cpu'); if (ac) { cpu.value = ac; badge('po-cpu-auto', true) } }
+
+      if (profil.gpu) { gpu.value = profil.gpu; badge('po-gpu-auto', false) }
+      else { var ag = autoTxt('s-gpu'); if (ag) { gpu.value = ag; badge('po-gpu-auto', true) } }
+
+      if (profil.ecran) { ecran.value = profil.ecran; badge('po-ecran-auto', false) }
+      else { var ae = autoTxt('s-ecran'); if (ae) { ecran.value = ae; badge('po-ecran-auto', true) } }
+
+      if (profil.ram && ram.querySelector('option[value="' + profil.ram + '"]')) ram.value = profil.ram
+      if (profil.os && os.querySelector('option[value="' + profil.os + '"]')) os.value = profil.os
+      if (profil.stockage_type) {
+        var s1 = document.getElementById('po-stockage-type')
+        if (s1.querySelector('option[value="' + profil.stockage_type + '"]')) s1.value = profil.stockage_type
+      }
+      if (profil.stockage_cap) {
+        var s2 = document.getElementById('po-stockage-cap')
+        if (s2.querySelector('option[value="' + profil.stockage_cap + '"]')) s2.value = profil.stockage_cap
+      }
+    }
+
+    var profilCourant = null
+
+    // Hook appelé par infoSysteme() une fois la détection auto terminée :
+    // réévalue l'état « vide/rempli » sans écraser le profil déjà appliqué.
+    window.__pcCarteResync = function () { appliquerProfilCarte(profilCourant) }
+
+    // Exposées globalement : appelées par les onclick du markup Design.
+    window.ouvrirOnboardPC = function (origine) {
+      if (errBox) errBox.classList.remove('show')
+      prefill(profilCourant)
+      overlay.classList.add('visible')
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () { overlay.classList.add('in') })
+      })
+      var f = document.getElementById('po-cpu')
+      if (f) setTimeout(function () { try { f.focus() } catch (e) {} }, 420)
+    }
+
+    var fermeture = null
+    window.fermerOnboardPC = function () {
+      overlay.classList.remove('in')
+      var done = function () {
+        overlay.classList.remove('visible')
+        overlay.removeEventListener('transitionend', done)
+        if (fermeture) { clearTimeout(fermeture); fermeture = null }
+      }
+      overlay.addEventListener('transitionend', done)
+      fermeture = setTimeout(done, 460) // filet reduced-motion
+    }
+
+    // Sortie gracieuse : Échap + clic sur l'overlay. Mémorise « plus tard »
+    // côté serveur (non bloquant) pour ne pas re-pop à chaque session.
+    function sortieGracieuse() {
+      window.fermerOnboardPC()
+      try {
+        fetch('/profil/pc', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ plus_tard: true })
+        }).catch(function () {})
+      } catch (e) {}
+    }
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && overlay.classList.contains('visible')) sortieGracieuse()
+    })
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay) sortieGracieuse()
+    })
+    // Boutons « Plus tard » / croix : data-action="skip" -> même traitement.
+    overlay.querySelectorAll('[data-action="skip"]').forEach(function (b) {
+      b.addEventListener('click', function (ev) { ev.preventDefault(); sortieGracieuse() })
+    })
+
+    // Soumission -> persistance serveur. Anti double-submit, erreurs claires.
+    var enCours = false
+    form.addEventListener('submit', function (e) {
+      e.preventDefault()
+      if (enCours) return
+      var cpu = document.getElementById('po-cpu').value.trim()
+      var os = document.getElementById('po-os').value
+      if (!cpu && !os) {
+        if (errBox) errBox.classList.add('show')
+        return
+      }
+      if (errBox) errBox.classList.remove('show')
+
+      var payload = {
+        cpu: cpu,
+        ram: document.getElementById('po-ram').value,
+        os: os,
+        gpu: document.getElementById('po-gpu').value.trim(),
+        stockage_type: document.getElementById('po-stockage-type').value,
+        stockage_cap: document.getElementById('po-stockage-cap').value,
+        ecran: document.getElementById('po-ecran').value.trim()
+      }
+
+      enCours = true
+      var libelle = btnSave ? btnSave.textContent : ''
+      if (btnSave) { btnSave.disabled = true; btnSave.textContent = 'Enregistrement…' }
+
+      fetch('/profil/pc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify(payload)
+      }).then(function (r) {
+        return r.json().then(function (d) { return { ok: r.ok, d: d } })
+      }).then(function (res) {
+        if (!res.ok) {
+          if (errBox) {
+            errBox.textContent = (res.d && res.d.erreur) || 'Enregistrement impossible. Réessayez.'
+            errBox.classList.add('show')
+          }
+          return
+        }
+        profilCourant = res.d && res.d.profil_pc ? res.d.profil_pc : payload
+        appliquerProfilCarte(profilCourant)
+        window.fermerOnboardPC()
+      }).catch(function () {
+        if (errBox) {
+          errBox.textContent = 'Connexion impossible. Réessayez.'
+          errBox.classList.add('show')
+        }
+      }).finally(function () {
+        enCours = false
+        if (btnSave) { btnSave.disabled = false; btnSave.textContent = libelle }
+      })
+    })
+
+    // Décision d'ouverture : source serveur (fiable, multi-appareils).
+    // - profil_pc présent  -> remplit la carte (état « rempli »)
+    // - sinon              -> carte état « vide »
+    // - !pc_onboarding_vu  -> ouvre la modale une fois (après l'intro)
+    if (typeof token === 'string' && token) {
+      fetch('/profil', { headers: { 'Authorization': 'Bearer ' + token } })
+        .then(function (r) { return r.ok ? r.json() : null })
+        .then(function (data) {
+          if (!data) return
+          profilCourant = data.profil_pc || null
+          appliquerProfilCarte(profilCourant)
+          if (!data.pc_onboarding_vu) {
+            // Laisse l'intro/onboarding existant respirer : ouverture différée.
+            setTimeout(function () {
+              if (!overlay.classList.contains('visible')) window.ouvrirOnboardPC('firstrun')
+            }, 4200)
+          }
+        })
+        .catch(function () { /* profil indispo : carte garde l'état auto */ })
+    }
+  })()
 </script>
 </body>
 </html>
