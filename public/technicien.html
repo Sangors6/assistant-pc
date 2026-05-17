@@ -210,6 +210,21 @@
     #nav-fx .nfx-logo b { background: linear-gradient(90deg, #cfe0ff, #7aa7ee); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700; }
     @keyframes nfxBreath { from { opacity: .6; transform: scale(.97); } to { opacity: 1; transform: scale(1); } }
 
+    /* Anti-flash : conversation en cours de restauration → on masque
+       l'accueil AVANT le 1er paint et on montre un squelette soigné. */
+    html.tech-restore #welcome, html.tech-restore #sug-grid { display: none !important; }
+    #chat-skeleton { display: none; max-width: 860px; margin: 26px auto 0; padding: 0 4px; }
+    html.tech-restore #chat-skeleton { display: block; }
+    .skl-row { display: flex; gap: 13px; margin: 22px 0; align-items: flex-start; }
+    .skl-row.me { flex-direction: row-reverse; }
+    .skl-av { width: 32px; height: 32px; border-radius: 10px; flex-shrink: 0; }
+    .skl-lines { max-width: 70%; }
+    .skl-row.me .skl-lines { display: flex; flex-direction: column; align-items: flex-end; }
+    .skl-b { height: 12px; border-radius: 7px; margin: 7px 0; }
+    .skl-shim { background: linear-gradient(100deg, rgba(148,163,184,0.06) 30%, rgba(148,163,184,0.16) 50%, rgba(148,163,184,0.06) 70%); background-size: 220% 100%; animation: sklShim 1.25s linear infinite; }
+    @keyframes sklShim { from { background-position: 220% 0; } to { background-position: -220% 0; } }
+    .skl-cap { text-align: center; font-size: 12px; color: var(--text-dim); margin-top: 26px; letter-spacing: .3px; }
+
     /* --- Bulle « pense à activer les notifications » --- */
     #notif-bubble { position: fixed; right: 22px; bottom: 22px; z-index: 60; width: 340px; max-width: calc(100vw - 32px); display: flex; gap: 12px; padding: 15px 16px; border-radius: 16px; background: linear-gradient(160deg, rgba(15,23,42,0.98), rgba(8,12,24,0.98)); border: 1px solid rgba(59,130,246,0.3); box-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 0 0 1px rgba(37,99,235,0.08); opacity: 0; transform: translateY(20px) scale(.96); pointer-events: none; transition: opacity .32s ease, transform .42s cubic-bezier(.22,1.2,.36,1); }
     #notif-bubble.show { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
@@ -229,6 +244,7 @@
       #notif-bubble { transition: opacity .2s ease; }
       #notif-bubble .nb-ic { animation: none; }
       #nav-fx .nfx-logo { animation: none; }
+      .skl-shim { animation: none; }
     }
   </style>
 </head>
@@ -238,7 +254,13 @@
   /* Transition fluide Dashboard ⇄ Contacter un technicien. Couvre l'écran
      très tôt (anti-flash), puis se retire au chargement. navTo() est exposé
      pour les liens. Respecte prefers-reduced-motion. */
-  (function () {
+  // Anti-flash : si une conversation va être restaurée, on masque TOUT DE
+  // SUITE l'écran d'accueil (avant le 1er paint) et on montre un squelette
+  // propre à la place. La classe est posée sur <html> avant le rendu.
+  try { if (localStorage.getItem('sessionIdTech')) document.documentElement.classList.add('tech-restore') } catch (e) {}
+  // Signal « contenu prêt » : par défaut inerte (pas de transition en cours).
+  window.pageContenuPret = function () {}
+  ;(function () {
     var fx = document.getElementById('nav-fx')
     var REDUIT = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     window.navTo = function (u, d) {
@@ -255,14 +277,23 @@
     var d = null
     try { d = sessionStorage.getItem('navfx'); sessionStorage.removeItem('navfx') } catch (e) {}
     if (!d) return
+    // Le voile reste en place jusqu'à ce que la conversation soit prête
+    // (jamais l'accueil ni le squelette visibles pendant la transition),
+    // avec une durée mini et un filet de sécurité anti-blocage.
     fx.style.display = 'flex'; fx.style.transition = 'none'; fx.style.transform = 'translateX(0)'
-    addEventListener('load', function () {
+    var pret = false, miniEcoule = false, retire = false
+    function retirer () {
+      if (retire || !(pret && miniEcoule)) return
+      retire = true
       requestAnimationFrame(function () { requestAnimationFrame(function () {
         fx.style.transition = 'transform .46s cubic-bezier(.7,0,.3,1)'
         fx.style.transform = (d === 'back') ? 'translateX(100%)' : 'translateX(-100%)'
         setTimeout(function () { fx.style.display = 'none' }, 480)
       }) })
-    })
+    }
+    setTimeout(function () { miniEcoule = true; retirer() }, 320)
+    setTimeout(function () { pret = true; retirer() }, 4000)  // filet : jamais bloqué
+    window.pageContenuPret = function () { pret = true; retirer() }
   })()
   </script>
   <canvas id="bg-canvas"></canvas>
@@ -308,6 +339,12 @@
             <div class="sug" onclick="suggerer(this)"><span class="sug-ic">⚙️</span><span class="sug-text">Écris-moi un script PowerShell robuste pour diagnostiquer un démarrage lent</span></div>
             <div class="sug" onclick="suggerer(this)"><span class="sug-ic">🌐</span><span class="sug-text">Latence et pertes de paquets en jeu — comment isoler la cause réseau ?</span></div>
             <div class="sug" onclick="suggerer(this)"><span class="sug-ic">💾</span><span class="sug-text">Mon SSD NVMe ralentit avec le temps : diagnostic SMART et causes probables</span></div>
+          </div>
+          <div id="chat-skeleton" aria-hidden="true">
+            <div class="skl-row"><div class="skl-av skl-shim"></div><div class="skl-lines"><div class="skl-b skl-shim" style="width:200px"></div><div class="skl-b skl-shim" style="width:320px"></div><div class="skl-b skl-shim" style="width:270px"></div></div></div>
+            <div class="skl-row me"><div class="skl-av skl-shim"></div><div class="skl-lines"><div class="skl-b skl-shim" style="width:170px"></div><div class="skl-b skl-shim" style="width:240px"></div></div></div>
+            <div class="skl-row"><div class="skl-av skl-shim"></div><div class="skl-lines"><div class="skl-b skl-shim" style="width:300px"></div><div class="skl-b skl-shim" style="width:220px"></div><div class="skl-b skl-shim" style="width:340px"></div><div class="skl-b skl-shim" style="width:180px"></div></div></div>
+            <div class="skl-cap">Récupération de votre conversation…</div>
           </div>
         </div>
       </div>
@@ -597,18 +634,27 @@
     // Recharge l'auto-restauration de la DERNIÈRE conversation à l'ouverture
     // (ne rien perdre si on a quitté la page). Ne vide rien : page neuve.
     async function chargerHistoriqueTech () {
-      if (!sessionId) return
+      const oterSquelette = () => {
+        document.documentElement.classList.remove('tech-restore')
+        const skel = document.getElementById('chat-skeleton')
+        if (skel) skel.remove()
+      }
+      const signaler = () => { try { window.pageContenuPret() } catch (e) {} }
+      const versAccueil = () => { oterSquelette(); welcome.style.display = ''; sugGrid.style.display = ''; signaler() }
+      if (!sessionId) { versAccueil(); return }
       try {
         const r = await fetch('/historique/' + sessionId, { headers: { 'Authorization': 'Bearer ' + token } })
         if (r.status === 401) { localStorage.removeItem('token'); window.location.href = '/login.html'; return }
-        if (!r.ok) return
+        if (!r.ok) { versAccueil(); return }
         const msgs = await r.json()
-        if (!Array.isArray(msgs) || !msgs.length) return
+        if (!Array.isArray(msgs) || !msgs.length) { versAccueil(); return }
         welcome.style.display = 'none'; sugGrid.style.display = 'none'
+        oterSquelette()                                  // retiré AVANT de peindre les messages
         msgs.forEach((m) => ajouterMsg(m.contenu, m.role, m.cree_le))
         chatArea.scrollTop = chatArea.scrollHeight
         srLive.textContent = 'Conversation précédente restaurée.'
-      } catch {}
+        signaler()                                       // conversation prête → on lève le voile
+      } catch { versAccueil() }
     }
 
     const histOverlay = document.getElementById('hist-overlay')
