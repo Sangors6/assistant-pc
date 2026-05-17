@@ -53,7 +53,13 @@
     .tb-chip.etat-hors_ligne .dot { background: #64748b; box-shadow: none; }
     .msg-seen { display: flex; gap: 5px; align-items: center; justify-content: flex-end; font-size: 10px; color: var(--text-dim); margin-top: 5px; padding: 0 4px; opacity: 0; max-height: 0; transition: opacity .35s ease; }
     .msg-seen.show { opacity: 1; max-height: 20px; }
-    .msg-seen svg { width: 12px; height: 12px; color: var(--cyan); }
+    .msg-seen svg { width: 12px; height: 12px; color: var(--text-dim); transition: color .3s ease; }
+    .msg-seen.vu svg { color: var(--cyan); }
+    .sys-note { display: flex; justify-content: center; margin: 16px 0; animation: rise .4s cubic-bezier(.22,1,.36,1) both; }
+    .sys-note span { display: inline-flex; align-items: center; gap: 8px; max-width: 86%; font-size: 11.5px; line-height: 1.5; color: var(--text-mid); background: rgba(8,13,26,0.7); border: 1px solid var(--border); padding: 8px 14px; border-radius: 20px; text-align: center; }
+    .sys-note.nuit span { color: #cbd5e1; background: rgba(99,102,241,0.07); border-color: rgba(99,102,241,0.22); }
+    .sys-note.occupe span { color: #fbbf24; background: rgba(251,191,36,0.06); border-color: rgba(251,191,36,0.2); }
+    .msg-name .badge { font-size: 9.5px; font-weight: 600; color: var(--cyan); background: rgba(34,211,238,0.1); border: 1px solid rgba(34,211,238,0.2); padding: 1px 6px; border-radius: 6px; margin-left: 7px; letter-spacing: .3px; vertical-align: middle; }
     #offline-banner { display: none; align-items: center; gap: 11px; margin-bottom: 11px; padding: 11px 15px; border-radius: 12px; background: rgba(148,163,184,0.07); border: 1px solid rgba(148,163,184,0.22); color: var(--text-mid); font-size: 12.5px; line-height: 1.55; }
     #offline-banner.show { display: flex; }
     #offline-banner .ob-ic { font-size: 16px; flex-shrink: 0; }
@@ -154,7 +160,7 @@
       * { scroll-behavior: auto !important; }
       .typing-anim span { animation: none; opacity: .6; }
       .tb-chip.etat-en_ligne .dot::after { animation: none; opacity: 0; }
-      #welcome, .sug { animation: none !important; opacity: 1; transform: none; }
+      #welcome, .sug, .sys-note { animation: none !important; opacity: 1; transform: none; }
     }
   </style>
 </head>
@@ -269,41 +275,95 @@
     const inputBox = document.getElementById('input-box')
     const wmetaDot = document.getElementById('wmeta-dot')
     const wmetaTxt = document.getElementById('wmeta-txt')
-    let etatActuel = 'en_ligne'
+    let etatServeur = 'en_ligne'   // santé réelle du service (du serveur)
+    let etatActuel = 'en_ligne'    // visuel courant ; SEUL 'hors_ligne' bloque
     let enDiscussion = false
 
-    const PRESENCE = {
-      en_ligne:   { label: 'En ligne',        wmeta: 'En ligne — répond généralement en moins d\'une minute', wdot: 'var(--success)' },
-      occupe:     { label: 'Très sollicité',  wmeta: 'Très sollicité — la réponse peut prendre un peu plus longtemps', wdot: '#fbbf24' },
-      hors_ligne: { label: 'Hors ligne',      wmeta: 'Hors ligne — le technicien revient dès que possible', wdot: '#64748b' }
+    // Présence "humaine" : un vrai technicien n'est pas H24 sur sa boîte.
+    // L'état visible dépend de l'heure LOCALE de l'utilisateur (journée /
+    // soirée / nuit) et de la santé serveur, qui prime en cas de panne.
+    const VISUEL = {
+      en_ligne:   { cls: 'etat-en_ligne',   label: 'En ligne',              wmeta: 'En ligne — répond généralement en quelques minutes',          wdot: 'var(--success)' },
+      soiree:     { cls: 'etat-en_ligne',   label: 'En ligne · soirée',     wmeta: 'En soirée — la réponse peut prendre quelques minutes',         wdot: 'var(--success)' },
+      occupe:     { cls: 'etat-occupe',     label: 'Avec un autre client',  wmeta: 'Occupé avec un autre client — réponse un peu plus longue',     wdot: '#fbbf24' },
+      nuit:       { cls: 'etat-hors_ligne', label: 'Hors ligne · nuit',     wmeta: 'Hors ligne (il est tard) — message reçu, réponse différée',    wdot: '#64748b' },
+      hors_ligne: { cls: 'etat-hors_ligne', label: 'Hors ligne',            wmeta: 'Hors ligne — le technicien revient dès que possible',          wdot: '#64748b' }
     }
 
-    function appliquerEtat (etat) {
-      if (!PRESENCE[etat]) etat = 'en_ligne'
-      etatActuel = etat
+    const heure = () => new Date().getHours()
+    function presenceJour () {
+      const h = heure()
+      if (h >= 23 || h < 7) return 'nuit'
+      if (h < 8 || h >= 19) return 'soiree'
+      return 'disponible'
+    }
+    function visuelCourant () {
+      if (etatServeur === 'hors_ligne') return 'hors_ligne'  // vraie panne → bloque
+      if (etatServeur === 'occupe') return 'occupe'
+      const p = presenceJour()
+      return p === 'disponible' ? 'en_ligne' : p             // 'soiree' | 'nuit'
+    }
+    function rendrePresence () {
+      if (enDiscussion) return
+      const v = visuelCourant(); const cfg = VISUEL[v]; etatActuel = v
       chip.classList.remove('etat-en_ligne', 'etat-occupe', 'etat-hors_ligne')
-      chip.classList.add('etat-' + etat)
-      chipLabel.textContent = PRESENCE[etat].label
-      if (wmetaTxt) wmetaTxt.textContent = PRESENCE[etat].wmeta
-      if (wmetaDot) { wmetaDot.style.background = PRESENCE[etat].wdot; wmetaDot.style.boxShadow = etat === 'hors_ligne' ? 'none' : '0 0 8px ' + PRESENCE[etat].wdot }
-      const horsLigne = etat === 'hors_ligne'
-      inputBox.classList.toggle('disabled', horsLigne)
-      offlineBanner.classList.toggle('show', horsLigne)
-      sendBtn.disabled = horsLigne || (inputEl.value.trim().length === 0 && !imageJointe)
+      chip.classList.add(cfg.cls)
+      chipLabel.textContent = cfg.label
+      if (wmetaTxt) wmetaTxt.textContent = cfg.wmeta
+      if (wmetaDot) { wmetaDot.style.background = cfg.wdot; wmetaDot.style.boxShadow = (v === 'nuit' || v === 'hors_ligne') ? 'none' : '0 0 8px ' + cfg.wdot }
+      const bloque = (v === 'hors_ligne')   // la nuit NE bloque PAS (message différé, pas une panne)
+      inputBox.classList.toggle('disabled', bloque)
+      offlineBanner.classList.toggle('show', bloque)
+      sendBtn.disabled = bloque || (inputEl.value.trim().length === 0 && !imageJointe)
     }
 
     async function rafraichirStatut () {
       try {
         const r = await fetch('/technicien/statut', { headers: { 'Authorization': 'Bearer ' + token } })
-        if (!r.ok) return
-        const d = await r.json()
-        if (d && d.etat && !enDiscussion) appliquerEtat(d.etat)
+        if (r.ok) { const d = await r.json(); if (d && d.etat) etatServeur = d.etat }
       } catch {}
+      rendrePresence()
+    }
+
+    // Scénario tiré à CHAQUE échange (variabilité = réalisme).
+    function tirerScenario () {
+      if (etatServeur === 'occupe') return 'occupe'
+      const h = heure()
+      if (h >= 23 || h < 7) return 'nuit'
+      if (h < 8 || h >= 19) return 'soiree'
+      return Math.random() < 0.42 ? 'occupe' : 'disponible'
+    }
+
+    // Fourchettes de délais (ms) [min,max] — un humain lit, réfléchit, écrit.
+    const DELAIS = {
+      disponible: { vu: [12000, 33000],  pre: [3000, 7000],  fr: 1.0,  note: null },
+      occupe:     { vu: [42000, 100000], pre: [5000, 11000], fr: 1.25, note: { cls: 'occupe', txt: '🛠️ Le technicien est actuellement avec un autre client. Votre message est dans la file — il y répond dès qu’il se libère.' } },
+      soiree:     { vu: [40000, 120000], pre: [4000, 9000],  fr: 1.15, note: { cls: '',       txt: '🌙 Il se fait tard côté technicien. Il a bien reçu votre message et vous répond, un peu plus lentement que d’habitude.' } },
+      nuit:       { vu: [120000, 300000],pre: [5000, 10000], fr: 1.2,  note: { cls: 'nuit',   txt: '🌙 Le technicien est hors ligne (il est tard). Votre message est bien noté — il vous répondra dès son retour. Vous pouvez fermer cette page et revenir plus tard, ou patienter ici.' } }
     }
 
     const attendre = (ms) => new Promise((r) => setTimeout(r, Math.max(0, ms)))
-    const alea = (base, variation) => base + (Math.random() * 2 - 1) * variation
+    const rng = (a, b) => a + Math.random() * (b - a)
     const borne = (v, min, max) => Math.max(min, Math.min(max, v))
+    // Attente longue mais INTERRUPTIBLE : si une erreur arrive (API en panne),
+    // un humain s'excuse vite — on ne fait pas semblant d'attendre 5 min.
+    async function patienter (ms, stop) {
+      const fin = Date.now() + ms
+      while (Date.now() < fin) {
+        if (stop && stop()) return 'coupe'
+        await attendre(Math.min(450, fin - Date.now()))
+      }
+      return 'fini'
+    }
+    function noteSysteme (txt, cls) {
+      const n = document.createElement('div'); n.className = 'sys-note' + (cls ? ' ' + cls : '')
+      const s = document.createElement('span'); s.textContent = txt
+      n.appendChild(s); chatArea.appendChild(n); chatArea.scrollTop = chatArea.scrollHeight
+      return n
+    }
+    function humaniserErreur (msg) {
+      return 'Désolé, j’ai un souci technique de mon côté à l’instant — réessayez dans un moment. (' + msg + ')'
+    }
 
     marked.setOptions({ breaks: true, gfm: true })
 
@@ -472,16 +532,18 @@
       return bub
     }
 
-    /* Envoi — comportement "humain". Le fetch SSE tourne EN PARALLÈLE des
-       délais (la latence réseau chevauche l'attente humaine : on n'empile
-       jamais "délai humain + temps API", on prend le max-ish). Séquence :
-       accusé Vu → délai de lecture → bulle "écrit…" maintenue une durée
-       réaliste → révélation progressive naturelle. */
-    function revelerHumain (bub, texte, reduit) {
+    /* Envoi — comportement "humain" RÉALISTE. Un vrai technicien :
+       1) ne voit pas le message instantanément (accusé Envoyé → Distribué →
+          Vu, le "Vu" arrivant après un délai qui dépend de sa présence) ;
+       2) réfléchit, puis écrit (bulle "écrit…" avec de vraies pauses) ;
+       3) envoie sa réponse d'un bloc (pas un télétype artificiel).
+       Le fetch SSE tourne EN PARALLÈLE : la réponse est prête tôt et "tenue"
+       jusqu'au bon moment de la timeline humaine. Délais longs mais
+       INTERRUPTIBLES si l'API tombe (pas de fausse attente de 5 min). */
+    function revelerBloc (bub, texte, reduit) {
       return new Promise((resolve) => {
-        bub.classList.remove('typing'); bub.classList.add('streaming'); bub.textContent = ''
-        const finaliser = () => {
-          bub.classList.remove('streaming')
+        bub.classList.remove('typing', 'streaming')
+        const peindre = () => {
           bub.innerHTML = DOMPurify.sanitize(marked.parse(texte))
           bub.querySelectorAll('pre code').forEach((b) => hljs.highlightElement(b))
           enrichirActions(bub)
@@ -491,25 +553,38 @@
             c.onclick = () => { navigator.clipboard.writeText(texte); c.textContent = '✅'; c.classList.add('copied'); setTimeout(() => { c.textContent = '📋'; c.classList.remove('copied') }, 2000) }
             w.appendChild(c)
           }
-          srLive.textContent = 'Réponse du technicien reçue.'
-          resolve()
-        }
-        const total = reduit ? 0 : borne(texte.length * 4.5, 1100, 3000)
-        if (total <= 0) { finaliser(); return }
-        const t0 = performance.now()
-        function step (t) {
-          const p = Math.min(1, (t - t0) / total)
-          bub.textContent = texte.slice(0, Math.floor(p * texte.length))
           chatArea.scrollTop = chatArea.scrollHeight
-          if (p < 1) requestAnimationFrame(step)
-          else finaliser()
+          srLive.textContent = 'Réponse du technicien reçue.'
         }
-        requestAnimationFrame(step)
+        if (reduit) { peindre(); resolve(); return }
+        bub.style.transition = 'opacity .28s ease'
+        bub.style.opacity = '0'
+        requestAnimationFrame(() => {
+          peindre()
+          requestAnimationFrame(() => { bub.style.opacity = '1'; setTimeout(resolve, 280) })
+        })
       })
+    }
+
+    // Bulle "écrit…" maintenue `ms`, avec 1–2 vraies pauses de réflexion.
+    async function typer (bub, ms, reduit) {
+      const dots = '<div class="typing-anim"><span></span><span></span><span></span></div>'
+      const segs = reduit ? 1 : (Math.random() < 0.6 ? 3 : 2)
+      const part = ms / segs
+      for (let i = 0; i < segs; i++) {
+        bub.classList.add('typing'); bub.innerHTML = dots
+        await attendre(part)
+        if (i < segs - 1) {
+          bub.classList.remove('typing')
+          bub.innerHTML = '<span style="font-size:12px;color:var(--text-dim)">le technicien réfléchit…</span>'
+          await attendre(rng(1600, 3800))
+        }
+      }
     }
 
     function finDiscussion () {
       enDiscussion = false
+      rendrePresence()
       sendBtn.disabled = etatActuel === 'hors_ligne' || (inputEl.value.trim().length === 0 && !imageJointe)
       inputEl.focus()
       rafraichirStatut()
@@ -536,7 +611,8 @@
       if (texte) { const t = document.createElement('span'); t.textContent = texte; bub.appendChild(t) }
       welcome.style.display = 'none'; sugGrid.style.display = 'none'
       const seen = document.createElement('div'); seen.className = 'msg-seen'
-      seen.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M2 13l4 4L13 7"/><path d="M9 17l1 1L22 6"/></svg><span>Envoyé</span>'
+      const coche = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M2 13l4 4L13 7"/><path d="M9 17l1 1L22 6"/></svg>'
+      seen.innerHTML = coche + '<span>Envoyé</span>'
       wrap.appendChild(meta); wrap.appendChild(bub); wrap.appendChild(seen)
       row.appendChild(av); row.appendChild(wrap)
       chatArea.appendChild(row); chatArea.scrollTop = chatArea.scrollHeight
@@ -599,34 +675,55 @@
       })()
 
       const reduit = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      const scn = tirerScenario()
+      const d = DELAIS[scn]
+      const stopErr = () => !!erreurMsg && !limite
+      const ech = (ms, div, plancher) => reduit ? Math.max(plancher, ms / div) : ms
 
-      // 1) Accusé "Envoyé" → "Vu à HH:MM" (comme une vraie messagerie)
-      await attendre(reduit ? 200 : 650)
-      seen.classList.add('show')
-      await attendre(reduit ? 200 : 600)
-      seen.querySelector('span').textContent = 'Vu à ' + now()
+      // 1) Envoyé → Distribué
+      await patienter(reduit ? 250 : rng(1400, 3500), stopErr)
+      seen.classList.add('show'); seen.querySelector('span').textContent = 'Distribué'
 
-      // 2) Délai de "lecture" avant que le technicien commence à écrire
-      const lng = (texte ? texte.length : 0) + (imageEnvoyee ? 280 : 0)
-      let lectureMs = borne(alea(950 + lng * 13, 450), 1300, 4800)
-      if (reduit) lectureMs = Math.min(lectureMs, 800)
-      await attendre(lectureMs)
+      // Note de contexte (occupé / soir / nuit) : explique l'attente
+      let note = d.note ? noteSysteme(d.note.txt, d.note.cls) : null
 
-      // 3) Bulle "écrit…"
+      // 2) Délai avant le "Vu" — dépend de la présence, interruptible
+      await patienter(ech(rng(d.vu[0], d.vu[1]), 6, 4000), stopErr)
+
+      // API déjà en panne → un humain s'excuse vite (pas de fausse attente)
+      if (stopErr()) {
+        if (note) { note.remove(); note = null }
+        seen.classList.add('vu'); seen.querySelector('span').textContent = 'Vu à ' + now()
+        await patienter(ech(rng(2500, 5000), 4, 1200), () => false)
+        const eb = ajouterMsg('__typing__', 'assistant')
+        await attendre(reduit ? 400 : rng(2000, 4000))
+        eb.classList.remove('typing'); eb.textContent = humaniserErreur(erreurMsg)
+        if (indispo) etatServeur = 'occupe'
+        return finDiscussion()
+      }
+
+      // 3) Vu
+      seen.classList.add('vu'); seen.querySelector('span').textContent = 'Vu à ' + now()
+      srLive.textContent = 'Le technicien a vu votre message.'
+      if (note && scn !== 'nuit') { note.remove(); note = null }   // garde la note nuit (attente longue)
+
+      // 4) Petit temps avant de commencer à écrire
+      await patienter(ech(rng(d.pre[0], d.pre[1]), 3, 1200), stopErr)
+
+      // 5) Bulle "écrit…" — tient au moins jusqu'à ce que la réponse soit prête
       const typingBub = ajouterMsg('__typing__', 'assistant')
       srLive.textContent = 'Le technicien rédige une réponse…'
-      const dotsAt = Date.now()
-
-      // 4) Attendre la réponse complète (déjà en cours en arrière-plan)
       await recuP
+      if (note) { note.remove(); note = null }
 
       if (limite) {
         typingBub.classList.remove('typing'); typingBub.innerHTML = '🔒 Limite atteinte.'
         return finDiscussion()
       }
       if (erreurMsg) {
-        typingBub.classList.remove('typing'); typingBub.textContent = erreurMsg
-        if (indispo && etatActuel === 'en_ligne') appliquerEtat('occupe')
+        await attendre(reduit ? 300 : rng(1500, 3000))
+        typingBub.classList.remove('typing'); typingBub.textContent = humaniserErreur(erreurMsg)
+        if (indispo) etatServeur = 'occupe'
         return finDiscussion()
       }
       if (!texteReponse) {
@@ -634,19 +731,19 @@
         return finDiscussion()
       }
 
-      // 5) Durée minimale de "rédaction" proportionnelle à la réponse
-      let redactionMin = borne(texteReponse.length * 7.5, 1600, 7000)
-      redactionMin = alea(redactionMin, redactionMin * 0.15)
-      if (reduit) redactionMin = Math.min(redactionMin, 600)
-      await attendre(redactionMin - (Date.now() - dotsAt))
+      // 6) Durée de "rédaction" proportionnelle à la réponse, avec pauses
+      let frappe = borne(texteReponse.length * 22, 12000, 60000) * d.fr
+      frappe = ech(frappe, 5, 4000)
+      await typer(typingBub, frappe, reduit)
 
-      // 6) Révélation progressive à un rythme naturel
-      await revelerHumain(typingBub, texteReponse, reduit)
+      // 7) Réponse envoyée d'un bloc (comme un vrai humain)
+      await revelerBloc(typingBub, texteReponse, reduit)
       finDiscussion()
     }
 
-    // Présence : état initial + synchronisation périodique avec le serveur
-    appliquerEtat('en_ligne')
+    // Présence : rendu initial (heure locale) + synchro serveur périodique.
+    // L'intervalle capte aussi les changements d'heure (journée→soir→nuit).
+    rendrePresence()
     rafraichirStatut()
     setInterval(rafraichirStatut, 30000)
 
