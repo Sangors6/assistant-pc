@@ -111,38 +111,58 @@
       :host { all: initial; }
 
       /* ====================================================================
-         Lanceur « Beacon » (variante A — DA itération 2, validée fondateur)
-         Pilule pleine bleu de marque saturé/lumineux. Libellé + point d'état
-         vert visibles AU REPOS. Halo bleu diffus large + anneau sonar lent.
-         Gabarit repos : H 60 / L ≈ 188 (pilule). Le morph du panneau part
-         de cette boîte (cf. .pch-wrap + LAN/rectLanceur côté JS).
+         Lanceur « Beacon v3 » (DA itération 3, validée fondateur)
+         Palette PROFONDE : obsidienne bleutée (bleu-nuit / indigo) +
+         veine d'énergie électrique qui dérive. Le voyant naît du
+         CONTRASTE arête lumineuse vs corps sombre (plus d'aplat clair).
+         Libellé + point d'état vert visibles AU REPOS. Halo bleu vif +
+         anneau sonar cyan-bleu. Gabarit repos INCHANGÉ : H 60 / L ≈ 188
+         (LAN={w:188,h:60} côté JS, le morph part de cette boîte).
          ==================================================================== */
       @keyframes pchA-arrive{
-        0%{opacity:0;transform:translateY(16px) scale(.8)}
+        0%{opacity:0;transform:translateY(16px) scale(.82)}
         60%{opacity:1}
         100%{opacity:1;transform:translateY(0) scale(1)}
       }
-      /* Sonar : un anneau qui s'écarte lentement et s'efface. Visible mais
-         espacé (3.4s) — c'est un signal, pas un clignotement. */
+      /* Sonar : anneau électrique qui s'écarte. Cyan-bleu vif = le « signal
+         voyant » sur la base sombre. Espacé (3.4s) — signal, pas blink. */
       @keyframes pchA-sonar{
-        0%{transform:translate(-50%,-50%) scale(.62);opacity:.55}
+        0%{transform:translate(-50%,-50%) scale(.6);opacity:.7}
         70%{opacity:0}
-        100%{transform:translate(-50%,-50%) scale(1.45);opacity:0}
+        100%{transform:translate(-50%,-50%) scale(1.5);opacity:0}
       }
-      /* Dérive lente du dégradé : la pilule « vit » sans clignoter. */
+      /* Dérive lente de l'arête lumineuse interne : énergie qui circule. */
       @keyframes pchA-flow{
         0%{background-position:0% 50%}
         100%{background-position:200% 50%}
       }
-      /* Morph liquide du PANNEAU (conservé : ne sert pas au lanceur).
-         Démarre au rayon de la pilule Beacon (30px) — plus de 50% qui,
-         sur la boîte rectangulaire 188x60, ferait un micro-saut du rayon
-         à t=0 (pilule -> ellipse). Converge ensuite vers le panneau. */
+      /* --- Morph liquide du PANNEAU (DA v3) : tension de surface ---
+         Phases sur .58s (alignées sur le morph géométrique JS) :
+           0%   pilule pleine (30px) — état lanceur EXACT
+           18%  la masse « gonfle » d'un côté
+           42%  étirement diagonal max (la goutte coule vers le panneau)
+           70%  rebond de tension (sur-arrondi opposé, plus doux)
+           100% géométrie panneau (22px) — net, stable */
       @keyframes pch-liquid {
         0%   { border-radius: 30px; }
-        35%  { border-radius: 46% 54% 60% 40% / 55% 45% 58% 42%; }
-        70%  { border-radius: 32% 30% 28% 30% / 30% 28% 32% 30%; }
-        100% { border-radius: 24px; }
+        18%  { border-radius: 48% 30% 30% 52% / 56% 38% 40% 58%; }
+        42%  { border-radius: 58% 42% 38% 56% / 60% 50% 42% 56%; }
+        70%  { border-radius: 30% 26% 30% 26% / 30% 30% 26% 28%; }
+        100% { border-radius: 22px; }
+      }
+      /* Gouttes « goo » : deux bulles filtrées (métaballe) qui se détachent
+         de la masse et se résorbent. Visibles seulement morphing/closing. */
+      @keyframes pch-goo1{
+        0%  {transform:translate(0,0) scale(.5);opacity:0}
+        22% {opacity:1}
+        55% {transform:translate(40px,-46px) scale(1.5);opacity:1}
+        100%{transform:translate(72px,-90px) scale(2.4);opacity:0}
+      }
+      @keyframes pch-goo2{
+        0%  {transform:translate(0,0) scale(.4);opacity:0}
+        30% {opacity:1}
+        60% {transform:translate(-32px,-30px) scale(1.4);opacity:1}
+        100%{transform:translate(-58px,-66px) scale(2.1);opacity:0}
       }
 
       .pch-launch{
@@ -150,111 +170,170 @@
         height:60px; padding:0 24px 0 18px;
         border:none; cursor:pointer; isolation:isolate;
         display:flex; align-items:center; gap:0;
-        color:#fff; font:700 15px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+        color:#eaf1ff; font:700 15px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
         letter-spacing:.005em; white-space:nowrap;
         border-radius:30px;
-        /* Bleu de marque saturé et LUMINEUX, dégradé premium qui dérive. */
-        background:linear-gradient(100deg,#1e54e8 0%,#3a7bff 28%,#5b8cff 50%,#6366f1 74%,#2f6bff 100%);
-        background-size:200% 100%;
+        /* PALETTE PROFONDE — obsidienne bleutée + veine électrique.
+           Couche 1 (animée) : veine d'énergie cyan→bleu qui dérive (220%).
+           Couche 2 (fixe)    : corps obsidienne dense bleu-nuit→indigo. */
+        background:
+          linear-gradient(100deg,
+            rgba(56,150,255,0) 0%, rgba(56,150,255,0) 30%,
+            rgba(74,170,255,.55) 44%, rgba(120,150,255,.62) 52%,
+            rgba(74,140,255,.50) 60%, rgba(56,150,255,0) 74%,
+            rgba(56,150,255,0) 100%),
+          linear-gradient(150deg,#0a132e 0%,#0c1a44 38%,#101f55 60%,#0a1336 100%);
+        background-size:220% 100%,100% 100%;
         box-shadow:
-          0 1px 0 rgba(255,255,255,.30) inset,            /* arête haute brillante */
-          0 0 0 1px rgba(120,165,255,.55) inset,
-          0 14px 34px -10px rgba(40,90,235,.70),          /* glow porté coloré */
-          0 26px 60px -18px rgba(40,90,235,.55),          /* halo large diffus */
-          0 4px 12px -4px rgba(0,0,0,.30);
+          0 1px 0 rgba(150,190,255,.40) inset,            /* arête haute = lumière */
+          0 0 0 1px rgba(96,150,255,.55) inset,            /* liseré électrique net */
+          0 0 22px -2px rgba(60,130,255,.55) inset,        /* lueur interne profonde */
+          0 14px 34px -10px rgba(20,55,170,.78),           /* glow porté dense */
+          0 26px 64px -18px rgba(28,70,210,.55),           /* halo large */
+          0 4px 14px -4px rgba(0,0,0,.50);                 /* assise (lift fond clair) */
         transition:
           transform .32s cubic-bezier(.34,1.5,.5,1),
           box-shadow .32s ease, opacity .26s ease, padding .3s ease;
         animation:
           pchA-arrive .6s cubic-bezier(.34,1.45,.5,1) both,
-          pchA-flow 9s linear infinite;
+          pchA-flow 8s linear infinite;
       }
-      /* Anneau sonar projeté autour de la pilule — la détache franchement. */
+      /* Anneau sonar — cyan-bleu vif : LE signal qui « pulse » sur l'obsidienne. */
       .pch-launch::after{
         content:""; position:absolute; left:50%; top:50%; z-index:-1;
-        width:128%; height:170%; border-radius:999px;
-        border:2px solid rgba(86,140,255,.65);
-        transform:translate(-50%,-50%) scale(.62);
+        width:128%; height:172%; border-radius:999px;
+        border:2px solid rgba(96,170,255,.72);
+        transform:translate(-50%,-50%) scale(.6);
         animation:pchA-sonar 3.4s cubic-bezier(.22,.61,.36,1) infinite;
       }
-      /* Halo statique sous la pilule (garantit le contraste fond clair). */
+      /* Halo statique projeté sous la pilule — bleu électrique dense. */
       .pch-launch::before{
-        content:""; position:absolute; left:50%; bottom:-14px; z-index:-2;
-        width:84%; height:30px; transform:translateX(-50%);
-        background:radial-gradient(50% 100% at 50% 0%,rgba(48,100,240,.55),transparent 72%);
-        filter:blur(11px); opacity:.85; transition:opacity .3s ease;
+        content:""; position:absolute; left:50%; bottom:-15px; z-index:-2;
+        width:86%; height:32px; transform:translateX(-50%);
+        background:radial-gradient(50% 100% at 50% 0%,rgba(46,110,255,.62),transparent 72%);
+        filter:blur(12px); opacity:.92; transition:opacity .3s ease;
       }
       .pch-launch .ic{
         position:relative; z-index:1; display:flex; width:26px; height:26px; flex:none;
-        color:#fff; filter:drop-shadow(0 1px 3px rgba(8,30,90,.55));
+        color:#eaf1ff; filter:drop-shadow(0 1px 4px rgba(0,12,50,.7));
         transition:transform .32s cubic-bezier(.34,1.56,.64,1);
       }
       .pch-launch .ic svg{width:26px;height:26px;display:block}
-      /* Point d'état vert — VISIBLE AU REPOS (signal système assumé). */
+      /* Point d'état vert — VISIBLE AU REPOS (signal système actif). */
       .pch-launch .dot{
         position:relative; z-index:1; flex:none;
         width:8px; height:8px; border-radius:50%; margin-left:11px;
         background:#34e0a0;
-        box-shadow:0 0 0 3px rgba(255,255,255,.16),0 0 12px rgba(52,224,160,1);
+        box-shadow:0 0 0 3px rgba(255,255,255,.14),0 0 12px rgba(52,224,160,1);
       }
-      /* Libellé — VISIBLE AU REPOS (identité affichée par défaut). */
+      /* Libellé — VISIBLE AU REPOS (identité affichée). Texte clair sur sombre. */
       .pch-launch .lbl{
         position:relative; z-index:1; margin-left:11px;
-        text-shadow:0 1px 2px rgba(10,30,90,.40);
+        color:#f0f5ff; text-shadow:0 1px 3px rgba(0,10,40,.6);
       }
       .pch-launch:hover,
       .pch-launch:focus-visible{
         transform:translateY(-3px) scale(1.03);
         box-shadow:
-          0 1px 0 rgba(255,255,255,.36) inset,
-          0 0 0 1px rgba(150,190,255,.7) inset,
-          0 20px 46px -10px rgba(40,90,235,.85),
-          0 34px 80px -20px rgba(40,90,235,.6),
-          0 6px 16px -4px rgba(0,0,0,.32);
+          0 1px 0 rgba(170,205,255,.5) inset,
+          0 0 0 1px rgba(130,180,255,.75) inset,
+          0 0 26px -2px rgba(70,145,255,.7) inset,
+          0 20px 48px -10px rgba(24,65,200,.9),
+          0 36px 86px -20px rgba(30,75,220,.62),
+          0 6px 18px -4px rgba(0,0,0,.52);
       }
       .pch-launch:hover::before,
       .pch-launch:focus-visible::before{opacity:1}
       .pch-launch:hover .ic,
       .pch-launch:focus-visible .ic{transform:scale(1.08) rotate(-2deg)}
-      .pch-launch:focus-visible{outline:3px solid rgba(255,255,255,.85);outline-offset:3px}
-      .pch-launch:active{transform:translateY(-1px) scale(.98)}
+      .pch-launch:focus-visible{outline:3px solid rgba(150,195,255,.95);outline-offset:3px}
+      .pch-launch:active{transform:translateY(-1px) scale(.985)}
 
-      /* — Hook JS INCHANGÉ : disparition quand le panneau s'ouvre — */
-      .pch-launch.gone{transform:scale(.2);opacity:0;pointer-events:none}
+      /* — Hook JS INCHANGÉ : disparition quand le panneau s'ouvre.
+           La pilule s'efface vite : c'est la matière liquide du #wrap
+           qui prend visuellement le relais (recouvrement orchestré). — */
+      .pch-launch.gone{
+        transform:scale(.86);opacity:0;pointer-events:none;
+        transition:transform .2s cubic-bezier(.5,0,.2,1),opacity .16s ease;
+      }
 
       /* — Accessibilité mouvement : au repos AUCUN mouvement perpétuel.
-         Sonar/flow coupés ; halo + anneau statiques garantissent la
-         présence par forme/couleur (pas par animation). — */
+         Sonar/flow coupés ; halo + anneau + palette/contraste statiques
+         garantissent la présence par forme/couleur (pas par animation). — */
       @media (prefers-reduced-motion:reduce){
-        .pch-launch{animation:none;background-position:0% 50%}
-        .pch-launch::after{animation:none;opacity:.4;transform:translate(-50%,-50%) scale(1)}
+        .pch-launch{animation:none;background-position:0% 50%,0% 50%}
+        .pch-launch::after{animation:none;opacity:.45;transform:translate(-50%,-50%) scale(1)}
         .pch-launch,.pch-launch .ic{transition:opacity .15s ease}
         .pch-launch:hover,.pch-launch:focus-visible{transform:none}
+        .pch-launch.gone{transition:opacity .12s ease}
       }
 
-      /* ---- Panneau : morph liquide depuis le lanceur ---- */
+      /* ====================================================================
+         PANNEAU + TRANSFORMATION LIQUIDE bouton→panneau (DA v3)
+         La matière du #wrap part EXACTEMENT du gabarit pilule (188×60,
+         rayon 30) et « coule » vers cible(). .pch-skin porte le clip+radius
+         et enveloppe l'iframe ; .pch-goolayer porte les 2 gouttes filtrées.
+         ==================================================================== */
       .pch-wrap {
         position: fixed; left: 0; top: 0; width: 188px; height: 60px;
-        border-radius: 30px; overflow: hidden; display: none;
-        box-shadow: 0 30px 90px rgba(0,0,0,.55), 0 2px 10px rgba(0,0,0,.4);
-        background: #06090f; opacity: 0;
-        will-change: left, top, width, height, border-radius, opacity;
+        border-radius: 30px; overflow: visible; display: none;
+        background:
+          radial-gradient(120% 140% at 50% 0%,#13234f 0%,#0a1330 55%,#06090f 100%);
+        opacity: 0;
+        box-shadow:
+          0 0 0 1px rgba(96,150,255,.30) inset,
+          0 30px 90px rgba(8,18,55,.65), 0 2px 12px rgba(0,0,0,.5);
+        will-change: left, top, width, height, border-radius, opacity, transform;
       }
-      .pch-wrap iframe { opacity: 0; transition: opacity .3s ease .12s; }
-      .pch-wrap.revealed iframe { opacity: 1; }
+      /* La surface visible/clip est portée par .pch-skin (l'iframe vit
+         dedans). overflow visible sur .pch-wrap pour que les gouttes
+         (.pch-goolayer) débordent du gabarit. */
+      .pch-skin {
+        position: absolute; inset: 0; border-radius: inherit;
+        overflow: hidden; background: inherit;
+      }
+      .pch-wrap .pch-frame {
+        position: absolute; inset: 0; width: 100%; height: 100%;
+        border: none; display: block;
+        opacity: 0; transition: opacity .3s ease .14s;
+      }
+      .pch-wrap.revealed .pch-frame { opacity: 1; }
       .pch-wrap.show { display: block; }
       .pch-wrap.open {
         opacity: 1;
         transition:
-          left .52s cubic-bezier(.6,.04,.2,1),
-          top .52s cubic-bezier(.6,.04,.2,1),
-          width .56s cubic-bezier(.34,1.3,.5,1),
-          height .56s cubic-bezier(.34,1.3,.5,1),
-          opacity .3s ease;
+          left .54s cubic-bezier(.62,.04,.2,1),
+          top .54s cubic-bezier(.62,.04,.2,1),
+          width .58s cubic-bezier(.34,1.32,.5,1),
+          height .58s cubic-bezier(.34,1.32,.5,1),
+          opacity .26s ease;
       }
       /* Morph liquide UNIQUEMENT à l'ouverture, classe transitoire :
-         ainsi rien ne peut le rejouer (ex. fin de drag). */
-      .pch-wrap.morphing { animation: pch-liquid .62s cubic-bezier(.5,0,.2,1) forwards; }
+         ainsi rien ne peut le rejouer (ex. fin de drag). Le radius est
+         animé sur .pch-wrap ET .pch-skin (clip suit la tension de surface). */
+      .pch-wrap.morphing { animation: pch-liquid .58s cubic-bezier(.5,0,.2,1) forwards; }
+      .pch-wrap.morphing .pch-skin { animation: pch-liquid .58s cubic-bezier(.5,0,.2,1) forwards; }
+
+      /* Gouttes goo : passées dans le filtre SVG #pch-goo (fusion
+         métaballe). Couleur = corps. Zéro coût au repos (opacity 0). */
+      .pch-goolayer {
+        position: absolute; inset: -40px; pointer-events: none;
+        filter: url(#pch-goo); opacity: 0; z-index: -1;
+      }
+      .pch-wrap.morphing .pch-goolayer,
+      .pch-wrap.closing  .pch-goolayer { opacity: 1; }
+      .pch-goolayer i {
+        position: absolute; display: block; border-radius: 50%;
+        background: radial-gradient(circle at 38% 32%,#1b2f63,#0a1330 70%);
+      }
+      .pch-goolayer i.b1 { width: 54px; height: 54px; left: 24%; top: 50%; }
+      .pch-goolayer i.b2 { width: 38px; height: 38px; left: 62%; top: 46%; }
+      .pch-wrap.morphing .pch-goolayer i.b1 { animation: pch-goo1 .58s cubic-bezier(.5,0,.2,1) forwards; }
+      .pch-wrap.morphing .pch-goolayer i.b2 { animation: pch-goo2 .58s cubic-bezier(.5,0,.2,1) forwards; }
+      /* Fermeture = effet inverse (la masse se rétracte en gouttes vers la pilule) */
+      .pch-wrap.closing  .pch-goolayer i.b1 { animation: pch-goo1 .42s cubic-bezier(.5,0,.2,1) reverse forwards; }
+      .pch-wrap.closing  .pch-goolayer i.b2 { animation: pch-goo2 .42s cubic-bezier(.5,0,.2,1) reverse forwards; }
+
       /* Atterrissage subtil quand on relâche après un déplacement :
          une micro-respiration élastique, voulue et discrète. */
       @keyframes pch-settle {
@@ -263,20 +342,53 @@
         100% { transform: scale(1); }
       }
       .pch-wrap.settle { animation: pch-settle .36s cubic-bezier(.34,1.56,.64,1); }
-      /* Fermeture : atterrissage PILE sur la pilule Beacon (rayon 30px,
-         boîte 188x60). Plus de 50% (donnerait une ellipse plate sur le
-         rectangle et un saut visuel à la jonction avec le lanceur). */
+      /* Fermeture : la matière REFLUE vers la pilule (rayon 30, boîte
+         188×60). border-radius repasse en pilule (reverse) + gouttes
+         inversées. Géométrie pilotée en JS. */
       .pch-wrap.closing {
-        transition: left .4s ease, top .4s ease, width .4s ease,
-                    height .4s ease, opacity .34s ease, border-radius .4s ease;
-        opacity: 0; border-radius: 30px !important;
+        transition:
+          left .42s cubic-bezier(.6,.04,.2,1),
+          top .42s cubic-bezier(.6,.04,.2,1),
+          width .42s cubic-bezier(.6,.04,.2,1),
+          height .42s cubic-bezier(.6,.04,.2,1),
+          opacity .36s ease .04s;
+        opacity: 0;
+      }
+      .pch-wrap.closing,
+      .pch-wrap.closing .pch-skin {
+        animation: pch-liquid .42s cubic-bezier(.5,0,.2,1) reverse forwards;
       }
       .pch-wrap.dragging { transition: none !important; animation: none !important; }
-      .pch-wrap iframe {
-        width: 100%; height: 100%; border: none; display: block;
+      .pch-wrap.dragging .pch-skin,
+      .pch-wrap.dragging .pch-goolayer i { animation: none !important; }
+
+      /* reduced-motion : AUCUN liquide. Le panneau apparaît/disparaît en
+         fondu+échelle court ; gouttes et keyframes neutralisées. */
+      @media (prefers-reduced-motion:reduce){
+        .pch-wrap.open{
+          transition:opacity .2s ease, transform .2s ease,
+                     left .2s ease, top .2s ease, width .2s ease, height .2s ease;
+        }
+        .pch-wrap.morphing,.pch-wrap.morphing .pch-skin,
+        .pch-wrap.closing,.pch-wrap.closing .pch-skin{animation:none!important}
+        .pch-wrap.closing{transition:opacity .18s ease,left .2s,top .2s,width .2s,height .2s}
+        .pch-goolayer{display:none!important}
       }
     </style>
-    <div class="pch-wrap" id="wrap"></div>
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+      <defs>
+        <filter id="pch-goo">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="7" result="b"/>
+          <feColorMatrix in="b" mode="matrix"
+            values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -9" result="g"/>
+          <feBlend in="SourceGraphic" in2="g"/>
+        </filter>
+      </defs>
+    </svg>
+    <div class="pch-wrap" id="wrap">
+      <div class="pch-goolayer"><i class="b1"></i><i class="b2"></i></div>
+      <div class="pch-skin"></div>
+    </div>
     <button class="pch-launch" id="launch" type="button"
             title="Assistant PC Helper" aria-label="Ouvrir l'assistant PC Helper">
       <span class="ic">
@@ -292,6 +404,10 @@
   `
 
   const wrap = shadow.getElementById('wrap')
+  // .pch-skin enveloppe l'iframe (porte clip + border-radius liquide) ;
+  // .pch-wrap reste la BOÎTE animée (géométrie/morph). L'iframe est
+  // appendée dans .pch-skin, jamais directement dans #wrap.
+  const skin = wrap.querySelector('.pch-skin')
   const launch = shadow.getElementById('launch')
   let monte = false
   let anime = false
@@ -364,6 +480,7 @@
   function monterIframe() {
     if (monte) return
     const f = document.createElement('iframe')
+    f.className = 'pch-frame'
     f.src = chrome.runtime.getURL('panel/panel.html')
     f.allow = 'clipboard-write'
     iframe = f
@@ -390,7 +507,7 @@
         })
       } catch {}
     }, 1500)
-    wrap.appendChild(f)
+    skin.appendChild(f)
     monte = true
   }
 
@@ -443,10 +560,11 @@
         wrap.style.top = fin.top + 'px'
         wrap.style.width = fin.w + 'px'
         wrap.style.height = fin.h + 'px'
-        // Le contenu apparaît une fois la bulle suffisamment ouverte.
+        // Le contenu apparaît une fois la bulle suffisamment ouverte
+        // (~240 ms : la masse liquide a assez « coulé », spec DA v3).
         setTimeout(() => {
           if (wrap.classList.contains('open')) wrap.classList.add('revealed')
-        }, 220)
+        }, 240)
         // Fin du morph : repli garanti même sans transitionend.
         const finirMorph = () => {
           wrap.classList.remove('morphing')
@@ -462,7 +580,9 @@
             once()
           }
         })
-        setTimeout(once, 700) // garde si transitionend n'arrive pas
+        // Garde ~620 ms (spec DA v3 : retrait morphing + reset radius) si
+        // transitionend n'arrive pas. < watchdog 1300 ms : marge intacte.
+        setTimeout(once, 620)
       }
       requestAnimationFrame(demarrerMorph)
       setTimeout(demarrerMorph, 60) // repli si rAF non servi
@@ -504,7 +624,9 @@
           once()
         }
       })
-      setTimeout(once, 480) // garde si transitionend n'arrive pas
+      // Garde ~460 ms (spec DA v3 : fin fermeture) si transitionend
+      // n'arrive pas. < watchdog 900 ms : marge de sécurité intacte.
+      setTimeout(once, 460)
     } catch {
       desarmerWatchdog()
       forcerFerme()
