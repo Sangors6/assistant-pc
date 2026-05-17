@@ -374,9 +374,49 @@
     #mo-cancel:hover { background: rgba(37,99,235,0.1); color: #93c5fd; }
     #mo-confirm { flex: 1; padding: 12px; background: linear-gradient(135deg, #dc2626, #991b1b); border: none; border-radius: 11px; color: #fff; font-size: 13.5px; font-weight: 600; font-family: inherit; cursor: pointer; transition: all 0.15s; box-shadow: 0 4px 20px rgba(220,38,38,0.3); }
     #mo-confirm:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(220,38,38,0.5); }
+    /* Transition de page Dashboard ⇄ Contacter un technicien */
+    #nav-fx { position: fixed; inset: 0; z-index: 100000; display: none; align-items: center; justify-content: center; background: linear-gradient(135deg, #0b1631 0%, #060910 72%); transform: translateX(100%); will-change: transform; }
+    #nav-fx .nfx-logo { display: flex; align-items: center; gap: 11px; font-size: 22px; font-weight: 700; letter-spacing: .4px; color: #cfe0ff; animation: nfxBreath 1.1s ease-in-out infinite alternate; }
+    #nav-fx .nfx-em { font-size: 26px; filter: drop-shadow(0 4px 16px rgba(37,99,235,.6)); }
+    #nav-fx .nfx-logo b { background: linear-gradient(90deg, #cfe0ff, #7aa7ee); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+    @keyframes nfxBreath { from { opacity: .6; transform: scale(.97); } to { opacity: 1; transform: scale(1); } }
+    @media (prefers-reduced-motion: reduce) { #nav-fx { display: none !important; } #nav-fx .nfx-logo { animation: none; } }
   </style>
 </head>
 <body>
+<div id="nav-fx" aria-hidden="true"><div class="nfx-logo"><span class="nfx-em">🛠️</span><b>PC&nbsp;Helper</b></div></div>
+<script>
+/* Transition fluide Dashboard ⇄ Contacter un technicien. Couvre l'écran très
+   tôt (anti-flash) puis se retire au chargement. navTo() exposé pour les
+   liens. N'interfère pas avec #dash-intro (retiré sur navigation interne).
+   Respecte prefers-reduced-motion. */
+(function () {
+  var fx = document.getElementById('nav-fx')
+  var REDUIT = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  window.navTo = function (u, d) {
+    if (REDUIT || !fx) { location.href = u; return }
+    try { sessionStorage.setItem('navfx', d) } catch (e) {}
+    fx.style.display = 'flex'; fx.style.transition = 'none'
+    fx.style.transform = (d === 'back') ? 'translateX(-100%)' : 'translateX(100%)'
+    void fx.offsetWidth
+    fx.style.transition = 'transform .34s cubic-bezier(.7,0,.3,1)'
+    fx.style.transform = 'translateX(0)'
+    setTimeout(function () { location.href = u }, 330)
+  }
+  if (REDUIT || !fx) return
+  var d = null
+  try { d = sessionStorage.getItem('navfx'); sessionStorage.removeItem('navfx') } catch (e) {}
+  if (!d) return
+  fx.style.display = 'flex'; fx.style.transition = 'none'; fx.style.transform = 'translateX(0)'
+  addEventListener('load', function () {
+    requestAnimationFrame(function () { requestAnimationFrame(function () {
+      fx.style.transition = 'transform .46s cubic-bezier(.7,0,.3,1)'
+      fx.style.transform = (d === 'back') ? 'translateX(100%)' : 'translateX(-100%)'
+      setTimeout(function () { fx.style.display = 'none' }, 480)
+    }) })
+  })
+})()
+</script>
 
 <style>
   /* Intro dashboard : fond noir + message de bienvenue, puis révélation
@@ -684,7 +724,7 @@
         <div class="nav-item" onclick="window.location.href='/playbooks.html'" title="Guides de dépannage pas à pas">
           <span class="nav-icon">📚</span> Guides pas à pas
         </div>
-        <div class="nav-item escalate" onclick="window.location.href='/technicien.html'" title="Parler à un technicien support expert">
+        <div class="nav-item escalate" onclick="navTo('/technicien.html','forward')" title="Parler à un technicien support expert">
           <span class="nav-icon">🛠️</span> Contacter un technicien
         </div>
       </div>
