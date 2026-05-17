@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Maquette — PC Helper Atelier</title>
+<!-- MODÈLE DE BASE — copier ce fichier en atelier/<sujet>-v1.html puis
+     concevoir DANS .canvas. Tokens identiques au site (public/*.html) :
+     ce que tu vois ici = ce que tu auras une fois intégré. Fichier
+     autonome : double-clic → s'ouvre dans le navigateur, aucun serveur. -->
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --blue: #2563eb; --blue-light: #3b82f6; --blue-dark: #1d4ed8;
+    --cyan: #22d3ee; --bg: #060910;
+    --bg-panel: rgba(10, 15, 28, 0.92); --bg-card: rgba(13, 19, 35, 0.85);
+    --border: rgba(59, 130, 246, 0.12); --border-hover: rgba(59, 130, 246, 0.4);
+    --text: #e2e8f0; --text-dim: #475569; --text-mid: #94a3b8;
+    --glow: rgba(37, 99, 235, 0.4); --success: #22c55e; --danger: #ef4444;
+  }
+  body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  /* Bandeau « MAQUETTE » — preuve visuelle que ce n'est pas le vrai site. */
+  .atelier-bar { position: sticky; top: 0; z-index: 9999; display: flex; align-items: center; gap: 10px; padding: 9px 16px; font-size: 12px; font-weight: 700; letter-spacing: .5px; color: #0a0f1c; background: linear-gradient(90deg, #fbbf24, #f59e0b); }
+  .atelier-bar .tag { background: rgba(0,0,0,.18); padding: 2px 8px; border-radius: 6px; }
+  .atelier-bar .meta { margin-left: auto; font-weight: 600; opacity: .85; }
+  /* Zone de conception : l'agent place le futur écran ICI. */
+  .canvas { max-width: 1100px; margin: 0 auto; padding: 32px 22px 60px; }
+</style>
+</head>
+<body>
+  <div class="atelier-bar">
+    <span class="tag">MAQUETTE</span>
+    <span>Atelier design — non intégré au site (aperçu uniquement)</span>
+    <span class="meta">sujet · v1</span>
+  </div>
+
+  <div class="canvas">
+    <!-- ▼▼▼ L'AGENT DESIGNER CONÇOIT LE FUTUR ÉCRAN ICI ▼▼▼ -->
+    <!-- (Remplacer ce bloc par la vraie maquette.) -->
+    <p style="color:var(--text-mid);font-size:13.5px;line-height:1.7">
+      Zone de conception. Copier ce fichier en
+      <code style="font-family:'JetBrains Mono',monospace;color:var(--cyan)">atelier/&lt;sujet&gt;-v1.html</code>,
+      mettre à jour le titre + le <em>sujet · vN</em> du bandeau, puis
+      composer la maquette dans cette zone avec les tokens ci-dessus.
+    </p>
+    <!-- ▲▲▲ FIN ZONE DE CONCEPTION ▲▲▲ -->
+  </div>
+</body>
+</html>
