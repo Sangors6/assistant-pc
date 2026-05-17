@@ -829,8 +829,9 @@ app.get('/sessions/recherche', authentifier, async (req, res) => {
 app.delete('/sessions/:sessionId', authentifier, async (req, res) => {
   if (!UUID_REGEX.test(req.params.sessionId)) return res.status(400).json({ erreur: 'Session invalide' })
   try {
-    await run('DELETE FROM conversations WHERE utilisateur_id = $1 AND session_id = $2',
+    const r = await run('DELETE FROM conversations WHERE utilisateur_id = $1 AND session_id = $2',
       [req.utilisateur.id, req.params.sessionId])
+    if (!r || r.rowCount === 0) return res.status(404).json({ erreur: 'Conversation introuvable' })
     res.status(200).json({ message: 'Conversation supprimée' })
   } catch (erreur) {
     console.error('Suppression session :', erreur.message)
@@ -854,6 +855,63 @@ app.post('/feedback', authentifier, async (req, res) => {
     res.json({ ok: true })
   } catch (erreur) {
     console.error('Feedback :', erreur.message)
+    res.status(500).json({ erreur: 'Enregistrement impossible' })
+  }
+})
+
+// --- Suivi de résolution (#008) : mesurer les problèmes VRAIMENT résolus ---
+// Toutes les routes : authentifiées, portée STRICTEMENT par le token
+// (req.utilisateur.id) — jamais d'id client de confiance (anti-IDOR).
+// Délai de relance : 3 jours. In-app uniquement, sans secret, sans paiement.
+app.post('/resolution', authentifier, async (req, res) => {
+  const { sessionId } = req.body
+  if (!UUID_REGEX.test(sessionId || '')) {
+    return res.status(400).json({ erreur: 'Session invalide' })
+  }
+  try {
+    // Pas de doublon de relance en attente pour la même session.
+    const existant = await query(
+      'SELECT id FROM resolutions WHERE utilisateur_id = $1 AND session_id = $2 AND confirme_le IS NULL',
+      [req.utilisateur.id, sessionId])
+    if (existant.length === 0) {
+      await run(
+        "INSERT INTO resolutions (utilisateur_id, session_id, relance_due_le) VALUES ($1, $2, NOW() + INTERVAL '3 days')",
+        [req.utilisateur.id, sessionId])
+    }
+    res.json({ ok: true })
+  } catch (erreur) {
+    console.error('Resolution :', erreur.message)
+    res.status(500).json({ erreur: 'Enregistrement impossible' })
+  }
+})
+
+app.get('/resolution/relance', authentifier, async (req, res) => {
+  try {
+    const lignes = await query(
+      `SELECT id, session_id FROM resolutions
+       WHERE utilisateur_id = $1 AND confirme_le IS NULL AND relance_due_le <= NOW()
+       ORDER BY cree_le ASC LIMIT 1`,
+      [req.utilisateur.id])
+    res.json(lignes[0] || null)
+  } catch (erreur) {
+    console.error('Resolution relance :', erreur.message)
+    res.status(500).json({ erreur: 'Indisponible' })
+  }
+})
+
+app.post('/resolution/confirme', authentifier, async (req, res) => {
+  const { id, tientToujours } = req.body
+  if (typeof tientToujours !== 'boolean' || !Number.isInteger(id)) {
+    return res.status(400).json({ erreur: 'Donnée invalide' })
+  }
+  try {
+    // Portée par le token : on ne peut confirmer QUE ses propres lignes.
+    await run(
+      'UPDATE resolutions SET confirme_le = NOW(), resolu = $1 WHERE id = $2 AND utilisateur_id = $3 AND confirme_le IS NULL',
+      [tientToujours, id, req.utilisateur.id])
+    res.json({ ok: true })
+  } catch (erreur) {
+    console.error('Resolution confirme :', erreur.message)
     res.status(500).json({ erreur: 'Enregistrement impossible' })
   }
 })

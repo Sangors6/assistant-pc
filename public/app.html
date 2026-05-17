@@ -202,6 +202,17 @@
     #proactif-x { flex-shrink: 0; background: none; border: none; color: rgba(231,201,138,0.6); font-size: 13px; cursor: pointer; padding: 2px 4px; }
     #proactif-x:hover { color: #f0d9a8; }
     @media (prefers-reduced-motion: reduce) { #proactif { animation: none; } }
+    /* #008 — bannière de relance "ça tient toujours ?" (discrète, in-app) */
+    #relance { display: none; align-items: center; gap: 10px; margin: 0 0 14px; padding: 11px 14px; border-radius: 12px; background: linear-gradient(180deg, rgba(59,130,246,0.10), rgba(59,130,246,0.05)); border: 1px solid rgba(59,130,246,0.28); font-size: 13px; color: #bcd4ff; animation: proIn .35s cubic-bezier(.16,1,.3,1); }
+    #relance.show { display: flex; }
+    #relance-ic { flex-shrink: 0; }
+    #relance-txt { flex: 1; color: #dbe7ff; }
+    .relance-btn { flex-shrink: 0; background: rgba(37,99,235,0.18); color: #dbe7ff; border: 1px solid rgba(59,130,246,0.35); border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer; transition: transform .15s, background .15s; }
+    .relance-btn:hover { transform: translateY(-1px); background: rgba(37,99,235,0.30); }
+    .relance-btn.alt { background: rgba(148,163,184,0.12); color: rgba(203,213,225,0.85); border-color: rgba(148,163,184,0.3); }
+    #relance-x { flex-shrink: 0; background: none; border: none; color: rgba(188,212,255,0.6); font-size: 13px; cursor: pointer; padding: 2px 4px; }
+    #relance-x:hover { color: #dbe7ff; }
+    @media (prefers-reduced-motion: reduce) { #relance { animation: none; } }
 
     /* Indicateur de saisie (3 points) — un peu d'air autour pour ne pas
        « coller » au texte / aux bords de la bulle. */
@@ -737,6 +748,13 @@
         <button type="button" id="proactif-go">Diagnostiquer</button>
         <button type="button" id="proactif-x" aria-label="Ignorer">✕</button>
       </div>
+      <div id="relance" role="status" aria-live="polite">
+        <span id="relance-ic">🛠️</span>
+        <span id="relance-txt">Ton souci de la dernière fois tient-il toujours&nbsp;?</span>
+        <button type="button" id="relance-oui" class="relance-btn">Oui, réglé 👍</button>
+        <button type="button" id="relance-non" class="relance-btn alt">Non 👎</button>
+        <button type="button" id="relance-x" aria-label="Plus tard">✕</button>
+      </div>
       <div id="welcome-card">
         <div id="welcome-top">
           <div id="welcome-bot-avatar">🖥️</div>
@@ -1079,6 +1097,38 @@ mesurerPing()
 setInterval(mesurerPing, 10000)
 chargerRecents()
 chargerPeripheriques()
+verifierRelance()
+
+/* #008 — Relance discrète : "ton souci de la dernière fois tient-il ?" .
+   In-app uniquement, non bloquant, 1 à la fois, échec silencieux. */
+async function verifierRelance() {
+  try {
+    const r = await fetch('/resolution/relance', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    if (!r.ok) return
+    const item = await r.json()
+    if (!item || !item.id) return
+    const box = document.getElementById('relance')
+    if (!box) return
+    const fermer = () => box.classList.remove('show')
+    const repondre = async (tient) => {
+      box.querySelectorAll('button').forEach((b) => { b.disabled = true })
+      try {
+        await fetch('/resolution/confirme', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ id: item.id, tientToujours: tient })
+        })
+      } catch {}
+      fermer()
+    }
+    document.getElementById('relance-oui').onclick = () => repondre(true)
+    document.getElementById('relance-non').onclick = () => repondre(false)
+    document.getElementById('relance-x').onclick = fermer
+    box.classList.add('show')
+  } catch {}
+}
 
 /* — Indicateur d'état serveur dynamique (vert/orange/rouge) — */
 async function majStatut() {
@@ -1523,6 +1573,25 @@ function afficherTempsReponse(ms) {
         }
         bar.appendChild(mk('👍', true, 'Réponse utile'))
         bar.appendChild(mk('👎', false, 'Réponse à améliorer'))
+        // #008 : "Problème réglé" → on relancera discrètement plus tard pour
+        // confirmer que ça tient (mesure réelle des problèmes résolus).
+        const bResolu = document.createElement('button')
+        bResolu.type = 'button'; bResolu.className = 'fb-btn'
+        bResolu.textContent = '✅ Réglé'
+        bResolu.title = 'Mon problème est réglé'
+        bResolu.setAttribute('aria-label', 'Marquer mon problème comme réglé')
+        bResolu.onclick = async () => {
+          bResolu.disabled = true; bResolu.classList.add('fb-on')
+          bar.classList.add('fb-done')
+          try {
+            await fetch('/resolution', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+              body: JSON.stringify({ sessionId })
+            })
+          } catch {}
+        }
+        bar.appendChild(bResolu)
         wrap.appendChild(bar)
       }
     }

@@ -129,6 +129,29 @@ test('/feedback sans token → 401 (route protégée, aucune écriture)', async 
   assert.equal(r.status, 401)
 })
 
+test('#008 /resolution sans token → 401 (route protégée)', async () => {
+  const r = await fetch(`${BASE}/resolution`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ sessionId: '00000000-0000-4000-8000-000000000000' })
+  })
+  assert.equal(r.status, 401)
+})
+
+test('#008 /resolution/relance sans token → 401', async () => {
+  const r = await fetch(`${BASE}/resolution/relance`)
+  assert.equal(r.status, 401)
+})
+
+test('#008 /resolution/confirme sans token → 401', async () => {
+  const r = await fetch(`${BASE}/resolution/confirme`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ id: 1, tientToujours: true })
+  })
+  assert.equal(r.status, 401)
+})
+
 test('verifier-renvoi sans email → 200 réponse uniforme', async () => {
   const r = await fetch(`${BASE}/auth/verifier-renvoi`, {
     method: 'POST',

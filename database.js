@@ -127,6 +127,23 @@ async function initDb() {
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_pwreset_token ON password_resets(token)`)
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_emailverif_token ON email_verifications(token)`)
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_feedback_user ON feedback(utilisateur_id, cree_le)`)
+  // Suivi de résolution (#008) : l'utilisateur signale un problème réglé ;
+  // on le relance discrètement plus tard pour confirmer que ça tient.
+  // Mesure réelle de la North Star (problèmes confirmés résolus / semaine).
+  // 100 % additif, non destructif, réversible (DROP TABLE) — aucun ALTER
+  // sur une table existante, ON DELETE CASCADE cohérent avec le schéma.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS resolutions (
+      id BIGSERIAL PRIMARY KEY,
+      utilisateur_id BIGINT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+      session_id TEXT NOT NULL,
+      resolu BOOLEAN,
+      relance_due_le TIMESTAMPTZ NOT NULL,
+      confirme_le TIMESTAMPTZ,
+      cree_le TIMESTAMPTZ DEFAULT NOW()
+    )
+  `)
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_resol_relance ON resolutions(utilisateur_id, confirme_le, relance_due_le)`)
 }
 
 // Sonde de vivacité pour /health : vérifie que la base répond réellement.
