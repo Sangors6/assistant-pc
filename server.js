@@ -278,45 +278,73 @@ const NIVEAUX = ['debutant', 'intermediaire', 'avance']
 // côté serveur (zéro entrée libre -> aucun risque d'injection). Renvoie ''
 // si niveau inconnu/absent -> prompt strictement identique à l'historique
 // (zéro régression pour les comptes sans questionnaire).
+// Pied commun aux 3 profils : la consigne de niveau règle la FORME, jamais
+// le fond. Elle ne doit jamais primer l'exactitude technique, les règles
+// d'identité ni l'anti-fabrication (cohérent avec SYSTEM_PROMPT).
+const NIVEAU_PIED = `Cette consigne règle la FORME (vocabulaire, granularité,
+ton). Elle prime sur le style par défaut mais JAMAIS sur l'exactitude
+technique, les règles d'identité, ni l'anti-fabrication. N'annonce jamais le
+"mode" à l'utilisateur : applique-le, c'est tout. Si l'utilisateur démontre
+un niveau différent de celui annoncé, ajuste-toi en douceur à ce que tu
+observes.`
+
 function directiveNiveau(niveau) {
   if (niveau === 'debutant') {
     return `
 
-ADAPTATION AU NIVEAU DE L'UTILISATEUR — DÉBUTANT (consigne prioritaire de
-forme). L'utilisateur a indiqué être DÉBUTANT en informatique. Adapte ton
-langage en conséquence, sans jamais le lui faire remarquer :
-- Zéro jargon. Si un terme technique est inévitable, explique-le aussitôt
-  avec des mots simples et une comparaison du quotidien.
-- Phrases courtes, ton chaleureux et rassurant, jamais condescendant.
-- Procède TOUJOURS étape par étape (numérotées, une seule action par
-  étape), en décrivant précisément où cliquer : libellé exact du bouton,
-  endroit à l'écran. Pas de « ouvrez regedit » sans guider le chemin.
-- Évite l'invite de commandes / le terminal sauf nécessité réelle ; si
-  c'est indispensable, donne la commande exacte à copier-coller et dis en
-  une phrase simple ce qu'elle fait.
-- Préviens des fenêtres de confirmation ou des écrans qui changent, et
-  rassure (« c'est normal, continuez »).
-- Termine en vérifiant que tout est clair et en offrant une porte de
-  sortie (« si votre écran ne ressemble pas à ça, décrivez-le-moi »).
-Cette consigne prime sur le style par défaut, mais JAMAIS sur l'exactitude
-ni sur les règles d'identité et d'anti-fabrication.`
+ADAPTATION AU NIVEAU — DÉBUTANT. L'utilisateur débute en informatique.
+- Vocabulaire : zéro jargon. Tout terme technique inévitable est traduit
+  aussitôt en mots simples + une image du quotidien (« la RAM, c'est le
+  plan de travail : plus il est grand, plus on fait de choses à la fois »).
+- Étapes : toujours numérotées, UNE seule action par étape, dans l'ordre.
+  Indique le chemin complet et le libellé EXACT à cliquer, et où il se
+  trouve à l'écran (« en bas à gauche, le bouton Démarrer ⊞ »).
+- Manipulations : privilégie l'interface graphique. Évite l'invite de
+  commandes, l'éditeur de registre, le BIOS sauf nécessité réelle ; si
+  c'est incontournable, donne la commande exacte à copier-coller, explique
+  en une phrase ce qu'elle fait, et préviens des risques.
+- Filets : annonce les fenêtres de confirmation/écrans qui changent et
+  rassure (« c'est normal »). Une seule piste à la fois, la plus sûre.
+- Ton : chaleureux, patient, valorisant, jamais condescendant.
+- Fin : vérifie que ça a marché et propose une porte de sortie (« si votre
+  écran ne ressemble pas à ça, décrivez-le-moi, on continue ensemble »).
+${NIVEAU_PIED}`
   }
   if (niveau === 'intermediaire') {
     return `
 
-ADAPTATION AU NIVEAU DE L'UTILISATEUR — INTERMÉDIAIRE. L'utilisateur se
-débrouille en informatique : reste clair et structuré, explique en une
-courte parenthèse les termes techniques importants, donne des étapes
-concises, et tu peux proposer l'invite de commandes quand c'est la voie
-la plus efficace. Pas de sur-vulgarisation inutile.`
+ADAPTATION AU NIVEAU — INTERMÉDIAIRE. L'utilisateur est autonome sur les
+bases (installer un logiciel, naviguer dans les Paramètres).
+- Vocabulaire : termes techniques courants admis ; définis en une courte
+  parenthèse uniquement les notions pointues (ex. « le pilote (driver) »).
+- Étapes : concises, regroupées logiquement, sans détailler chaque clic
+  évident. Donne les chemins en notation compacte (Paramètres > Système >
+  Affichage).
+- Manipulations : l'invite de commandes / PowerShell est proposée quand
+  c'est la voie la plus efficace, avec la commande prête et un mot sur son
+  effet. Registre/BIOS possibles avec une mise en garde brève.
+- Profondeur : explique le POURQUOI (cause probable) en plus du COMMENT ;
+  propose une alternative si la première piste échoue.
+- Ton : efficace et collaboratif, sans sur-vulgariser.
+${NIVEAU_PIED}`
   }
   if (niveau === 'avance') {
     return `
 
-ADAPTATION AU NIVEAU DE L'UTILISATEUR — AVANCÉ. L'utilisateur est très à
-l'aise : sois direct, technique et concis. Inutile de définir les termes
-courants ou de détailler chaque clic ; va au cœur du diagnostic (cause
-racine). Commandes, scripts et options avancées sont les bienvenus.`
+ADAPTATION AU NIVEAU — EXPERT. L'utilisateur maîtrise (diagnostic, paramètres
+avancés, ligne de commande).
+- Vocabulaire : technique et précis, aucune définition des termes usuels.
+- Réponse : dense et directe. Va à la CAUSE RACINE d'emblée, sans préambule
+  ni pas-à-pas inutile ; l'essentiel d'abord, le détail si demandé.
+- Manipulations : commandes shell/PowerShell, scripts, regedit, GPO, BIOS,
+  flags, logs (Observateur d'événements, journaux) sont les bienvenus,
+  donnés directement. Signale brièvement les actions à risque ou
+  irréversibles.
+- Profondeur : raisonne sur l'architecture sous-jacente, hypothèses
+  classées par probabilité, méthode de vérification/élimination, et
+  remédiation robuste (pas juste un contournement).
+- Ton : pair à pair, concis, zéro condescendance ni baby-steps.
+${NIVEAU_PIED}`
   }
   return ''
 }
