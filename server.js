@@ -874,8 +874,12 @@ app.post('/resolution', authentifier, async (req, res) => {
       'SELECT id FROM resolutions WHERE utilisateur_id = $1 AND session_id = $2 AND confirme_le IS NULL',
       [req.utilisateur.id, sessionId])
     if (existant.length === 0) {
+      // ON CONFLICT DO NOTHING : court-circuit du SELECT ci-dessus optimiste,
+      // mais la correction de la race TOCTOU repose sur l'index unique partiel
+      // uniq_resol_pending — l'INSERT concurrent perdant est absorbé sans
+      // erreur, la route reste idempotente côté client ({ ok: true }).
       await run(
-        "INSERT INTO resolutions (utilisateur_id, session_id, relance_due_le) VALUES ($1, $2, NOW() + INTERVAL '3 days')",
+        "INSERT INTO resolutions (utilisateur_id, session_id, relance_due_le) VALUES ($1, $2, NOW() + INTERVAL '3 days') ON CONFLICT DO NOTHING",
         [req.utilisateur.id, sessionId])
     }
     res.json({ ok: true })

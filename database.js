@@ -144,6 +144,11 @@ async function initDb() {
     )
   `)
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_resol_relance ON resolutions(utilisateur_id, confirme_le, relance_due_le)`)
+  // Garde-fou ATOMIQUE contre la race TOCTOU sur l'anti-doublon (#008) :
+  // une seule relance en attente (confirme_le IS NULL) par (user, session).
+  // Index unique partiel — la base, pas l'applicatif, garantit l'unicité
+  // même sous requêtes concurrentes du pool. Additif, idempotent, réversible.
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS uniq_resol_pending ON resolutions(utilisateur_id, session_id) WHERE confirme_le IS NULL`)
 }
 
 // Sonde de vivacité pour /health : vérifie que la base répond réellement.
