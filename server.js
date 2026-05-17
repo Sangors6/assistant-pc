@@ -78,9 +78,26 @@ app.set('trust proxy', 1)
 // provoque un 401 « marche en local, échoue en ligne ».
 const claude = new Anthropic({ apiKey: (process.env.ANTHROPIC_API_KEY || '').trim() })
 
-// Normalisation d'email : SQLite est sensible à la casse, donc sans ça
-// "A@x.com" et "a@x.com" créent deux comptes distincts.
-const normaliserEmail = (e) => String(e).trim().toLowerCase()
+// Normalisation d'email :
+//  1) trim + minuscule -> "A@x.com" et "a@x.com" = un seul compte.
+//  2) Anti sous-adressage (RFC 5233) : on retire tout ce qui suit le
+//     PREMIER '+' dans la partie locale. "jean+1@gmail.com",
+//     "jean+spam@gmail.com" -> "jean@gmail.com". Empêche de créer plusieurs
+//     comptes / recevoir plusieurs emails sur la MÊME boîte réelle via des
+//     alias jetables (le "+tag" est livré à la même boîte chez Gmail,
+//     Outlook, iCloud, Proton, etc.). Centralisé ici -> appliqué de façon
+//     cohérente à l'inscription, la connexion, le reset et la vérification.
+const normaliserEmail = (e) => {
+  const s = String(e).trim().toLowerCase()
+  const at = s.lastIndexOf('@')
+  if (at <= 0) return s // pas d'@ exploitable : la regex d'email rejettera
+  let local = s.slice(0, at)
+  const domaine = s.slice(at + 1)
+  const plus = local.indexOf('+')
+  if (plus !== -1) local = local.slice(0, plus)
+  // local vide (ex. "+1@x.com") -> "@x.com" : rejeté par la regex d'email.
+  return local + '@' + domaine
+}
 
 const JWT_SECRET = process.env.JWT_SECRET
 if (!JWT_SECRET || JWT_SECRET.length < 32) {
