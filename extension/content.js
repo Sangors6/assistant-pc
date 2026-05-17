@@ -110,151 +110,132 @@
     <style>
       :host { all: initial; }
 
-      /* ---- Lanceur « Dynamic Capsule » (refonte DA) ---- */
-      /* Apparition unique au montage : la capsule « se pose » (pas de boucle). */
-      @keyframes pch-arrive{
-        0%{opacity:0;transform:translateY(14px) scale(.82)}
+      /* ====================================================================
+         Lanceur « Beacon » (variante A — DA itération 2, validée fondateur)
+         Pilule pleine bleu de marque saturé/lumineux. Libellé + point d'état
+         vert visibles AU REPOS. Halo bleu diffus large + anneau sonar lent.
+         Gabarit repos : H 60 / L ≈ 188 (pilule). Le morph du panneau part
+         de cette boîte (cf. .pch-wrap + LAN/rectLanceur côté JS).
+         ==================================================================== */
+      @keyframes pchA-arrive{
+        0%{opacity:0;transform:translateY(16px) scale(.8)}
         60%{opacity:1}
         100%{opacity:1;transform:translateY(0) scale(1)}
       }
-      /* Pulsation TRÈS lente et discrète du liseré (vie, pas néon). */
-      @keyframes pch-breathe{
-        0%,100%{opacity:.55}
-        50%{opacity:.9}
+      /* Sonar : un anneau qui s'écarte lentement et s'efface. Visible mais
+         espacé (3.4s) — c'est un signal, pas un clignotement. */
+      @keyframes pchA-sonar{
+        0%{transform:translate(-50%,-50%) scale(.62);opacity:.55}
+        70%{opacity:0}
+        100%{transform:translate(-50%,-50%) scale(1.45);opacity:0}
       }
+      /* Dérive lente du dégradé : la pilule « vit » sans clignoter. */
+      @keyframes pchA-flow{
+        0%{background-position:0% 50%}
+        100%{background-position:200% 50%}
+      }
+      /* Morph liquide du PANNEAU (conservé : ne sert pas au lanceur).
+         Démarre au rayon de la pilule Beacon (30px) — plus de 50% qui,
+         sur la boîte rectangulaire 188x60, ferait un micro-saut du rayon
+         à t=0 (pilule -> ellipse). Converge ensuite vers le panneau. */
       @keyframes pch-liquid {
-        0%   { border-radius: 50%; }
+        0%   { border-radius: 30px; }
         35%  { border-radius: 46% 54% 60% 40% / 55% 45% 58% 42%; }
         70%  { border-radius: 32% 30% 28% 30% / 30% 28% 32% 30%; }
         100% { border-radius: 24px; }
       }
 
-      /* — Conteneur : capsule sombre dense, ancrée bas-droite — */
       .pch-launch{
         position:fixed; right:22px; bottom:22px;
-        /* Au repos : capsule compacte (juste l'icône, coins très arrondis). */
-        height:56px; min-width:56px; padding:0 16px;
+        height:60px; padding:0 24px 0 18px;
         border:none; cursor:pointer; isolation:isolate;
         display:flex; align-items:center; gap:0;
-        color:#f3f5f9; font:600 14px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-        letter-spacing:.01em; white-space:nowrap;
-        border-radius:28px;
-        /* Matière : obsidienne profonde, dégradé vertical subtil + grain de
-           lumière froide en haut (verre dépoli, pas plastique). */
-        background:
-          radial-gradient(120% 140% at 50% 0%,rgba(86,124,255,.20),transparent 60%),
-          linear-gradient(180deg,#1c2030 0%,#0e1118 60%,#080a0f 100%);
+        color:#fff; font:700 15px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+        letter-spacing:.005em; white-space:nowrap;
+        border-radius:30px;
+        /* Bleu de marque saturé et LUMINEUX, dégradé premium qui dérive. */
+        background:linear-gradient(100deg,#1e54e8 0%,#3a7bff 28%,#5b8cff 50%,#6366f1 74%,#2f6bff 100%);
+        background-size:200% 100%;
         box-shadow:
-          0 1px 0 rgba(255,255,255,.10) inset,            /* arête haute (verre) */
-          0 0 0 1px rgba(255,255,255,.06) inset,          /* contour interne */
-          0 18px 40px -12px rgba(0,0,0,.65),              /* ombre portée dense */
-          0 6px 16px -8px rgba(0,0,0,.55);
+          0 1px 0 rgba(255,255,255,.30) inset,            /* arête haute brillante */
+          0 0 0 1px rgba(120,165,255,.55) inset,
+          0 14px 34px -10px rgba(40,90,235,.70),          /* glow porté coloré */
+          0 26px 60px -18px rgba(40,90,235,.55),          /* halo large diffus */
+          0 4px 12px -4px rgba(0,0,0,.30);
         transition:
-          width .42s cubic-bezier(.34,1.4,.5,1),
-          padding .42s cubic-bezier(.34,1.4,.5,1),
-          transform .34s cubic-bezier(.34,1.56,.64,1),
-          box-shadow .34s ease, opacity .26s ease,
-          border-radius .3s ease;
-        animation:pch-arrive .62s cubic-bezier(.34,1.4,.5,1) both;
+          transform .32s cubic-bezier(.34,1.5,.5,1),
+          box-shadow .32s ease, opacity .26s ease, padding .3s ease;
+        animation:
+          pchA-arrive .6s cubic-bezier(.34,1.45,.5,1) both,
+          pchA-flow 9s linear infinite;
       }
-      /* Liseré lumineux périmétrique — fin, froid, vivant mais NON criard. */
-      .pch-launch::before{
-        content:""; position:absolute; inset:0; border-radius:inherit; z-index:-1;
-        padding:1px;
-        background:linear-gradient(135deg,
-          rgba(120,150,255,.85),rgba(70,90,160,.15) 38%,
-          rgba(60,75,130,.12) 62%,rgba(150,170,255,.7));
-        -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
-        -webkit-mask-composite:xor; mask-composite:exclude;
-        animation:pch-breathe 5.5s ease-in-out infinite;
-      }
-      /* Halo doux projeté SOUS la capsule : la détache de la page hôte. */
+      /* Anneau sonar projeté autour de la pilule — la détache franchement. */
       .pch-launch::after{
-        content:""; position:absolute; left:50%; bottom:-9px; z-index:-2;
-        width:72%; height:22px; transform:translateX(-50%);
-        background:radial-gradient(50% 100% at 50% 0%,rgba(70,100,220,.40),transparent 75%);
-        filter:blur(7px); opacity:.7; transition:opacity .34s ease;
+        content:""; position:absolute; left:50%; top:50%; z-index:-1;
+        width:128%; height:170%; border-radius:999px;
+        border:2px solid rgba(86,140,255,.65);
+        transform:translate(-50%,-50%) scale(.62);
+        animation:pchA-sonar 3.4s cubic-bezier(.22,.61,.36,1) infinite;
       }
-
-      /* — L'icône (hook .ic conservé, SVG inline) — */
+      /* Halo statique sous la pilule (garantit le contraste fond clair). */
+      .pch-launch::before{
+        content:""; position:absolute; left:50%; bottom:-14px; z-index:-2;
+        width:84%; height:30px; transform:translateX(-50%);
+        background:radial-gradient(50% 100% at 50% 0%,rgba(48,100,240,.55),transparent 72%);
+        filter:blur(11px); opacity:.85; transition:opacity .3s ease;
+      }
       .pch-launch .ic{
-        position:relative; z-index:1; display:flex;
-        width:24px; height:24px; flex:none;
-        color:#fff;
-        filter:drop-shadow(0 1px 2px rgba(0,0,0,.5));
-        transition:transform .34s cubic-bezier(.34,1.56,.64,1);
+        position:relative; z-index:1; display:flex; width:26px; height:26px; flex:none;
+        color:#fff; filter:drop-shadow(0 1px 3px rgba(8,30,90,.55));
+        transition:transform .32s cubic-bezier(.34,1.56,.64,1);
       }
-      .pch-launch .ic svg{width:24px;height:24px;display:block}
-
-      /* — Le libellé : caché au repos, révélé au survol/focus (Dynamic Island). — */
-      .pch-launch .lbl{
-        position:relative; z-index:1;
-        max-width:0; opacity:0; overflow:hidden;
-        margin-left:0;
-        transform:translateX(-4px);
-        transition:max-width .42s cubic-bezier(.34,1.4,.5,1),
-                   opacity .26s ease .06s,
-                   margin-left .42s cubic-bezier(.34,1.4,.5,1),
-                   transform .42s cubic-bezier(.34,1.4,.5,1);
-      }
-      /* Point d'état discret avant le libellé (vie système, pas gadget). */
+      .pch-launch .ic svg{width:26px;height:26px;display:block}
+      /* Point d'état vert — VISIBLE AU REPOS (signal système assumé). */
       .pch-launch .dot{
         position:relative; z-index:1; flex:none;
-        width:6px; height:6px; border-radius:50%;
-        background:#5ee0a8; box-shadow:0 0 8px rgba(94,224,168,.9);
-        max-width:0; opacity:0; margin-left:0;
-        transition:max-width .42s cubic-bezier(.34,1.4,.5,1),
-                   opacity .24s ease, margin-left .42s cubic-bezier(.34,1.4,.5,1);
+        width:8px; height:8px; border-radius:50%; margin-left:11px;
+        background:#34e0a0;
+        box-shadow:0 0 0 3px rgba(255,255,255,.16),0 0 12px rgba(52,224,160,1);
       }
-
-      /* — ÉVEIL : hover / focus-clavier → la capsule s'étire en pilule — */
+      /* Libellé — VISIBLE AU REPOS (identité affichée par défaut). */
+      .pch-launch .lbl{
+        position:relative; z-index:1; margin-left:11px;
+        text-shadow:0 1px 2px rgba(10,30,90,.40);
+      }
       .pch-launch:hover,
       .pch-launch:focus-visible{
-        transform:translateY(-3px);
+        transform:translateY(-3px) scale(1.03);
         box-shadow:
-          0 1px 0 rgba(255,255,255,.14) inset,
-          0 0 0 1px rgba(255,255,255,.08) inset,
-          0 26px 54px -14px rgba(0,0,0,.7),
-          0 10px 24px -10px rgba(40,70,180,.45);
+          0 1px 0 rgba(255,255,255,.36) inset,
+          0 0 0 1px rgba(150,190,255,.7) inset,
+          0 20px 46px -10px rgba(40,90,235,.85),
+          0 34px 80px -20px rgba(40,90,235,.6),
+          0 6px 16px -4px rgba(0,0,0,.32);
       }
-      .pch-launch:hover::after,
-      .pch-launch:focus-visible::after{opacity:1}
-      .pch-launch:hover .lbl,
-      .pch-launch:focus-visible .lbl{
-        max-width:130px; opacity:1; margin-left:10px; transform:translateX(0);
-      }
-      .pch-launch:hover .dot,
-      .pch-launch:focus-visible .dot{
-        max-width:6px; opacity:1; margin-left:10px;
-      }
+      .pch-launch:hover::before,
+      .pch-launch:focus-visible::before{opacity:1}
       .pch-launch:hover .ic,
-      .pch-launch:focus-visible .ic{transform:scale(1.06)}
-
-      /* Focus clavier net (a11y) — anneau froid net, pas de flash coloré. */
-      .pch-launch:focus-visible{
-        outline:2px solid rgba(150,175,255,.9); outline-offset:3px;
-      }
-      .pch-launch:active{transform:translateY(-1px) scale(.97)}
+      .pch-launch:focus-visible .ic{transform:scale(1.08) rotate(-2deg)}
+      .pch-launch:focus-visible{outline:3px solid rgba(255,255,255,.85);outline-offset:3px}
+      .pch-launch:active{transform:translateY(-1px) scale(.98)}
 
       /* — Hook JS INCHANGÉ : disparition quand le panneau s'ouvre — */
-      .pch-launch.gone{transform:scale(.2); opacity:0; pointer-events:none}
+      .pch-launch.gone{transform:scale(.2);opacity:0;pointer-events:none}
 
-      /* — Accessibilité mouvement : au repos AUCUN mouvement perpétuel. — */
+      /* — Accessibilité mouvement : au repos AUCUN mouvement perpétuel.
+         Sonar/flow coupés ; halo + anneau statiques garantissent la
+         présence par forme/couleur (pas par animation). — */
       @media (prefers-reduced-motion:reduce){
-        .pch-launch{animation:none}
-        .pch-launch::before{animation:none; opacity:.7}
-        .pch-launch,
-        .pch-launch .lbl,
-        .pch-launch .dot,
-        .pch-launch .ic{transition:opacity .15s ease}
-        .pch-launch:hover,
-        .pch-launch:focus-visible{transform:none}
+        .pch-launch{animation:none;background-position:0% 50%}
+        .pch-launch::after{animation:none;opacity:.4;transform:translate(-50%,-50%) scale(1)}
+        .pch-launch,.pch-launch .ic{transition:opacity .15s ease}
+        .pch-launch:hover,.pch-launch:focus-visible{transform:none}
       }
 
       /* ---- Panneau : morph liquide depuis le lanceur ---- */
       .pch-wrap {
-        position: fixed; left: 0; top: 0; width: 56px; height: 56px;
-        border-radius: 24px; overflow: hidden; display: none;
+        position: fixed; left: 0; top: 0; width: 188px; height: 60px;
+        border-radius: 30px; overflow: hidden; display: none;
         box-shadow: 0 30px 90px rgba(0,0,0,.55), 0 2px 10px rgba(0,0,0,.4);
         background: #06090f; opacity: 0;
         will-change: left, top, width, height, border-radius, opacity;
@@ -282,10 +263,13 @@
         100% { transform: scale(1); }
       }
       .pch-wrap.settle { animation: pch-settle .36s cubic-bezier(.34,1.56,.64,1); }
+      /* Fermeture : atterrissage PILE sur la pilule Beacon (rayon 30px,
+         boîte 188x60). Plus de 50% (donnerait une ellipse plate sur le
+         rectangle et un saut visuel à la jonction avec le lanceur). */
       .pch-wrap.closing {
         transition: left .4s ease, top .4s ease, width .4s ease,
                     height .4s ease, opacity .34s ease, border-radius .4s ease;
-        opacity: 0; border-radius: 50% !important;
+        opacity: 0; border-radius: 30px !important;
       }
       .pch-wrap.dragging { transition: none !important; animation: none !important; }
       .pch-wrap iframe {
@@ -296,7 +280,7 @@
     <button class="pch-launch" id="launch" type="button"
             title="Assistant PC Helper" aria-label="Ouvrir l'assistant PC Helper">
       <span class="ic">
-        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
           <rect x="3" y="4" width="18" height="13" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.9"/>
           <path d="M8.5 21h7M12 17v4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
           <path d="M7.5 10.5l2.4 2.4 4.6-4.8" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
@@ -323,12 +307,16 @@
   // (right/bottom/taille). On n'utilise pas getBoundingClientRect : quand
   // le lanceur est `.gone` (scale .2), le rect renvoyé est faux et le morph
   // de fermeture visait alors un mauvais point.
-  const LAN = { size: 56, right: 22, bottom: 22 }
+  // Gabarit RECTANGULAIRE de la pilule « Beacon » au repos (DA itér. 2) :
+  // largeur ≈ 188 (libellé « PC Helper » visible), hauteur 60, ancrée
+  // right/bottom 22. Le morph d'ouverture/fermeture part/atterrit PILE
+  // sur cette boîte (cf. ouvrir()/fermer() : départ wrap = rectLanceur()).
+  const LAN = { w: 188, h: 60, right: 22, bottom: 22 }
   function rectLanceur() {
     return {
-      left: window.innerWidth - LAN.right - LAN.size,
-      top: window.innerHeight - LAN.bottom - LAN.size,
-      w: LAN.size, h: LAN.size
+      left: window.innerWidth - LAN.right - LAN.w,
+      top: window.innerHeight - LAN.bottom - LAN.h,
+      w: LAN.w, h: LAN.h
     }
   }
 
@@ -431,7 +419,9 @@
       wrap.style.top = dep.top + 'px'
       wrap.style.width = dep.w + 'px'
       wrap.style.height = dep.h + 'px'
-      wrap.style.borderRadius = '50%'
+      // Départ PILE sur la pilule Beacon (rayon 30px = .pch-launch),
+      // pas un cercle : la boîte n'est plus carrée (188x60).
+      wrap.style.borderRadius = '30px'
       // Le lanceur « fond » dans la bulle.
       launch.classList.add('gone')
 
