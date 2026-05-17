@@ -905,7 +905,7 @@ app.get('/historique/:sessionId', authentifier, async (req, res) => {
   if (!UUID_REGEX.test(req.params.sessionId)) return res.status(400).json({ erreur: 'Session invalide' })
   try {
     const messages = await query(
-      'SELECT role, contenu FROM conversations WHERE utilisateur_id = $1 AND session_id = $2 ORDER BY cree_le ASC',
+      'SELECT role, contenu, cree_le FROM conversations WHERE utilisateur_id = $1 AND session_id = $2 ORDER BY cree_le ASC',
       [req.utilisateur.id, req.params.sessionId]
     )
     res.json(messages)
@@ -1352,6 +1352,37 @@ app.get('/technicien/statut', authentifier, (req, res) => {
   res.json(etatTech())
 })
 
+// GET /technicien/sessions — liste des conversations du technicien de cet
+// utilisateur (canal='technicien' UNIQUEMENT : jamais mélangé au /chat).
+// Titre = premier message utilisateur ; aperçu = dernière réponse ; date.
+app.get('/technicien/sessions', authentifier, async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store')
+  try {
+    const sessions = await query(`
+      SELECT c.session_id,
+        (SELECT c2.contenu FROM conversations c2
+         WHERE c2.session_id = c.session_id AND c2.utilisateur_id = $1
+           AND c2.canal = 'technicien' AND c2.role = 'user'
+         ORDER BY c2.cree_le ASC LIMIT 1) AS titre,
+        (SELECT c3.contenu FROM conversations c3
+         WHERE c3.session_id = c.session_id AND c3.utilisateur_id = $1
+           AND c3.canal = 'technicien'
+         ORDER BY c3.cree_le DESC LIMIT 1) AS apercu,
+        COUNT(*) AS nb_messages,
+        MAX(c.cree_le) AS derniere_activite
+      FROM conversations c
+      WHERE c.utilisateur_id = $1 AND c.canal = 'technicien'
+      GROUP BY c.session_id
+      ORDER BY derniere_activite DESC
+      LIMIT 50
+    `, [req.utilisateur.id])
+    res.json(sessions)
+  } catch (erreur) {
+    console.error('Liste sessions technicien :', erreur.message)
+    res.status(500).json({ erreur: 'Impossible de charger l’historique' })
+  }
+})
+
 // ---------------------------------------------------------------------------
 // POST /technicien — Technicien support expert (second assistant, distinct
 // de /chat). CHOIX D'ARCHITECTURE : route dédiée réutilisant À L'IDENTIQUE
@@ -1456,7 +1487,7 @@ app.post('/technicien', limiteurChat, authentifier, limiteurChatCompte, async (r
 
   const texteAffiche = message || '[Image envoyée]'
   historique.push({ role: 'user', content: contenuMessage })
-  await run('INSERT INTO conversations (utilisateur_id, session_id, role, contenu) VALUES ($1, $2, $3, $4)',
+  await run("INSERT INTO conversations (utilisateur_id, session_id, role, contenu, canal) VALUES ($1, $2, $3, $4, 'technicien')",
     [utilisateur.id, id, 'user', texteAffiche])
 
   res.setHeader('Content-Type', 'text/event-stream')
@@ -1515,7 +1546,7 @@ app.post('/technicien', limiteurChat, authentifier, limiteurChatCompte, async (r
 
     if (clientParti) return
 
-    await run('INSERT INTO conversations (utilisateur_id, session_id, role, contenu) VALUES ($1, $2, $3, $4)',
+    await run("INSERT INTO conversations (utilisateur_id, session_id, role, contenu, canal) VALUES ($1, $2, $3, $4, 'technicien')",
       [utilisateur.id, id, 'assistant', texteReponse])
     await run('UPDATE utilisateurs SET messages_utilises = messages_utilises + 1 WHERE id = $1', [utilisateur.id])
 

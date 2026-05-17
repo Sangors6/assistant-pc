@@ -114,6 +114,13 @@ async function initDb() {
   // Sert exactement les requêtes chaudes : historique et chargement du
   // contexte (WHERE utilisateur_id, session_id ORDER BY cree_le). Idempotent.
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_conv_chrono ON conversations(utilisateur_id, session_id, cree_le)`)
+  // Canal d'origine d'une conversation : 'chat' (assistant principal, défaut
+  // historique) ou 'technicien' (onglet « Contacter un technicien »). Permet
+  // de lister proprement l'historique du technicien sans le mélanger au /chat.
+  // Additif, idempotent, non destructif : les lignes existantes restent
+  // 'chat' (le défaut), /chat n'a aucune ligne à changer.
+  await pool.query(`ALTER TABLE conversations ADD COLUMN IF NOT EXISTS canal TEXT NOT NULL DEFAULT 'chat'`)
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_conv_canal ON conversations(utilisateur_id, canal, session_id, cree_le)`)
   // Feedback léger (pouce ↑/↓) sur les réponses — boucle d'apprentissage C5.
   await pool.query(`
     CREATE TABLE IF NOT EXISTS feedback (

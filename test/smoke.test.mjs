@@ -245,6 +245,11 @@ test('GET /technicien/statut token bidon → 401 (jamais 500)', async () => {
   assert.equal(r.status, 401)
 })
 
+test('GET /technicien/sessions sans token → 401 (historique protégé)', async () => {
+  const r = await fetch(`${BASE}/technicien/sessions`)
+  assert.equal(r.status, 401)
+})
+
 test('non-régression : POST /chat sans token → 401 (garde inchangée)', async () => {
   const r = await fetch(`${BASE}/chat`, {
     method: 'POST',

@@ -147,7 +147,46 @@
     #input-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 9px; padding: 0 4px; font-size: 10.5px; color: var(--text-dim); }
     #char-count { font-variant-numeric: tabular-nums; }
 
+    /* --- Historique : bouton topbar + panneau « Mes conversations » --- */
+    .tb-hist { display: flex; align-items: center; gap: 7px; padding: 8px 13px; border-radius: 10px; font-size: 12.5px; font-weight: 600; color: var(--text-mid); cursor: pointer; border: 1px solid var(--border); background: rgba(6,10,20,0.6); transition: color .18s ease, border-color .18s ease, background .18s ease, transform .18s ease; }
+    .tb-hist:hover { color: #bcd4f5; border-color: var(--border-hover); background: rgba(37,99,235,0.08); transform: translateY(-1px); }
+    .tb-hist svg { width: 15px; height: 15px; flex-shrink: 0; }
+    #hist-overlay { position: fixed; inset: 0; z-index: 50; background: rgba(2,5,12,0.62); backdrop-filter: blur(3px); opacity: 0; pointer-events: none; transition: opacity .28s ease; }
+    #hist-overlay.open { opacity: 1; pointer-events: auto; }
+    #hist-panel { position: fixed; top: 0; right: 0; bottom: 0; z-index: 51; width: min(430px, 93vw); display: flex; flex-direction: column; background: linear-gradient(180deg, rgba(10,15,28,0.98), rgba(6,9,18,0.99)); border-left: 1px solid var(--border); box-shadow: -24px 0 60px rgba(0,0,0,0.5); transform: translateX(104%); transition: transform .34s cubic-bezier(.22,1,.36,1); }
+    #hist-panel.open { transform: translateX(0); }
+    .hist-head { display: flex; align-items: flex-start; gap: 12px; padding: 20px 20px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .hist-head h2 { font-size: 16.5px; font-weight: 700; color: #fff; letter-spacing: -0.3px; }
+    .hist-head p { font-size: 11.5px; color: var(--text-dim); margin-top: 4px; }
+    .hist-x { margin-left: auto; width: 34px; height: 34px; border-radius: 9px; border: 1px solid var(--border); background: rgba(6,10,20,0.6); color: var(--text-mid); cursor: pointer; font-size: 14px; flex-shrink: 0; transition: color .18s ease, border-color .18s ease; }
+    .hist-x:hover { color: var(--danger); border-color: rgba(239,68,68,0.4); }
+    .hist-newbtn { margin: 16px 20px 8px; padding: 13px; border-radius: 12px; border: none; cursor: pointer; font-size: 13.5px; font-weight: 600; color: #fff; background: linear-gradient(135deg, var(--blue), var(--blue-dark)); box-shadow: 0 8px 22px rgba(37,99,235,0.3); display: flex; align-items: center; justify-content: center; gap: 8px; transition: transform .18s ease, box-shadow .18s ease; }
+    .hist-newbtn:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(37,99,235,0.46); }
+    .hist-list { flex: 1; overflow-y: auto; padding: 10px 14px 24px; display: flex; flex-direction: column; gap: 9px; }
+    .hist-card { position: relative; padding: 14px 15px; border-radius: 14px; background: rgba(8,13,26,0.7); border: 1px solid var(--border); cursor: pointer; transition: border-color .18s ease, background .18s ease, transform .18s ease; animation: rise .4s cubic-bezier(.22,1,.36,1) both; }
+    .hist-card:hover { border-color: var(--border-hover); background: rgba(37,99,235,0.08); transform: translateY(-1px); }
+    .hist-card.active { border-color: var(--blue-light); background: rgba(37,99,235,0.13); }
+    .hist-card .hc-top { display: flex; align-items: flex-start; gap: 11px; padding-right: 26px; }
+    .hist-card .hc-ic { width: 32px; height: 32px; border-radius: 9px; background: linear-gradient(135deg, var(--blue-light), var(--blue-dark)); display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; box-shadow: 0 4px 12px rgba(37,99,235,0.3); }
+    .hist-card .hc-titre { font-size: 13px; font-weight: 600; color: #e8eef9; line-height: 1.42; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .hist-card .hc-apercu { font-size: 11.5px; color: var(--text-mid); line-height: 1.5; margin-top: 9px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .hist-card .hc-meta { display: flex; align-items: center; gap: 7px; margin-top: 10px; font-size: 10.5px; color: var(--text-dim); }
+    .hist-card .hc-pill { background: rgba(148,163,184,0.1); border: 1px solid var(--border); padding: 2px 7px; border-radius: 6px; }
+    .hist-del { position: absolute; top: 11px; right: 11px; width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--border); background: rgba(6,10,20,0.85); color: var(--text-mid); cursor: pointer; font-size: 12px; opacity: 0; transition: opacity .18s ease, color .18s ease, border-color .18s ease; }
+    .hist-card:hover .hist-del, .hist-del:focus-visible { opacity: 1; }
+    .hist-del:hover { color: var(--danger); border-color: rgba(239,68,68,0.45); }
+    .hist-empty, .hist-loading { text-align: center; color: var(--text-mid); padding: 54px 26px; font-size: 13px; line-height: 1.7; }
+    .hist-empty .he-ic { font-size: 40px; display: block; margin-bottom: 14px; opacity: .85; }
+    .hist-empty b { color: #cbd4f5; display: block; margin-bottom: 6px; font-size: 14.5px; }
+    .hist-confirm { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.32); border-radius: 12px; padding: 13px 14px; margin-top: 10px; }
+    .hist-confirm p { font-size: 12px; color: #fca5a5; margin-bottom: 11px; line-height: 1.5; }
+    .hist-confirm .hcf-row { display: flex; gap: 8px; }
+    .hist-confirm button { flex: 1; padding: 9px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: rgba(6,10,20,0.6); color: var(--text-mid); }
+    .hist-confirm .hcf-oui { background: var(--danger); color: #fff; border: none; }
+
     @media (max-width: 720px) {
+      .tb-hist span { display: none; }
+      .tb-hist { padding: 8px 10px; }
       #topbar { padding: 12px 14px; gap: 10px; }
       #tb-sub { display: none; }
       .tb-chip span:not(.dot) { display: none; }
@@ -160,7 +199,8 @@
       * { scroll-behavior: auto !important; }
       .typing-anim span { animation: none; opacity: .6; }
       .tb-chip.etat-en_ligne .dot::after { animation: none; opacity: 0; }
-      #welcome, .sug, .sys-note { animation: none !important; opacity: 1; transform: none; }
+      #welcome, .sug, .sys-note, .hist-card { animation: none !important; opacity: 1; transform: none; }
+      #hist-panel { transition: none; }
     }
   </style>
 </head>
@@ -178,6 +218,10 @@
       </div>
       <div id="tb-actions">
         <div class="tb-chip etat-en_ligne"><span class="dot"></span><span>En ligne</span></div>
+        <button class="tb-hist" id="hist-btn" title="Voir mes conversations précédentes" aria-haspopup="dialog">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
+          <span>Mes conversations</span>
+        </button>
         <button class="tb-new" id="new-btn" title="Nouvelle conversation (Ctrl/Cmd + K)">＋ Nouveau</button>
       </div>
     </div>
@@ -233,6 +277,19 @@
       </div>
     </div>
   </div>
+
+  <div id="hist-overlay" aria-hidden="true"></div>
+  <aside id="hist-panel" role="dialog" aria-modal="true" aria-label="Mes conversations avec le technicien" aria-hidden="true">
+    <div class="hist-head">
+      <div>
+        <h2>Mes conversations</h2>
+        <p>Vos échanges avec le technicien, gardés en mémoire</p>
+      </div>
+      <button class="hist-x" id="hist-close" title="Fermer" aria-label="Fermer">✕</button>
+    </div>
+    <button class="hist-newbtn" id="hist-new">＋ Démarrer une nouvelle conversation</button>
+    <div class="hist-list" id="hist-list"></div>
+  </aside>
 
   <div id="sr-live" aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);"></div>
 
@@ -409,9 +466,30 @@
       if (pageVisible()) document.title = TITRE_BASE
     })
 
-    /* --- Historique : la conversation technicien est persistée côté serveur
-       (table conversations, clé par sessionIdTech). On la recharge à
-       l'ouverture pour ne RIEN perdre si le client a quitté la page. */
+    /* --- Historique : les conversations du technicien sont persistées côté
+       serveur (table conversations, canal='technicien'). On les rend toutes
+       accessibles via un panneau clair, pensé pour des débutants. */
+
+    // Dates lisibles par un débutant (pas de jargon, pas d'ISO brut).
+    function heureDe (iso) {
+      try { return new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) }
+      catch { return now() }
+    }
+    function dateRelative (iso) {
+      const d = new Date(iso); const t = d.getTime()
+      if (isNaN(t)) return ''
+      const j = new Date(); const hier = new Date(); hier.setDate(j.getDate() - 1)
+      const memeJour = (a, b) => a.toDateString() === b.toDateString()
+      const h = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+      if (memeJour(d, j)) return "Aujourd'hui à " + h
+      if (memeJour(d, hier)) return 'Hier à ' + h
+      const jours = Math.floor((j - d) / 86400000)
+      if (jours < 7) return 'Il y a ' + jours + ' jour' + (jours > 1 ? 's' : '')
+      return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
+    }
+
+    // Recharge l'auto-restauration de la DERNIÈRE conversation à l'ouverture
+    // (ne rien perdre si on a quitté la page). Ne vide rien : page neuve.
     async function chargerHistoriqueTech () {
       if (!sessionId) return
       try {
@@ -421,11 +499,122 @@
         const msgs = await r.json()
         if (!Array.isArray(msgs) || !msgs.length) return
         welcome.style.display = 'none'; sugGrid.style.display = 'none'
-        msgs.forEach((m) => ajouterMsg(m.contenu, m.role))
+        msgs.forEach((m) => ajouterMsg(m.contenu, m.role, m.cree_le))
         chatArea.scrollTop = chatArea.scrollHeight
         srLive.textContent = 'Conversation précédente restaurée.'
       } catch {}
     }
+
+    const histOverlay = document.getElementById('hist-overlay')
+    const histPanel = document.getElementById('hist-panel')
+    const histList = document.getElementById('hist-list')
+
+    function ouvrirPanneau () {
+      histOverlay.classList.add('open'); histPanel.classList.add('open')
+      histPanel.setAttribute('aria-hidden', 'false'); histOverlay.setAttribute('aria-hidden', 'false')
+      document.getElementById('hist-close').focus()
+      chargerListeHist()
+    }
+    function fermerPanneau () {
+      histOverlay.classList.remove('open'); histPanel.classList.remove('open')
+      histPanel.setAttribute('aria-hidden', 'true'); histOverlay.setAttribute('aria-hidden', 'true')
+    }
+
+    async function chargerListeHist () {
+      histList.innerHTML = '<div class="hist-loading">Chargement de vos conversations…</div>'
+      try {
+        const r = await fetch('/technicien/sessions', { headers: { 'Authorization': 'Bearer ' + token } })
+        if (r.status === 401) { localStorage.removeItem('token'); window.location.href = '/login.html'; return }
+        if (!r.ok) { histList.innerHTML = '<div class="hist-empty"><span class="he-ic">⚠️</span><b>Impossible de charger l’historique</b>Réessayez dans un instant.</div>'; return }
+        const sessions = await r.json()
+        if (!Array.isArray(sessions) || !sessions.length) {
+          histList.innerHTML = '<div class="hist-empty"><span class="he-ic">💬</span><b>Aucune conversation pour le moment</b>Posez votre première question au technicien : elle sera gardée ici automatiquement.</div>'
+          return
+        }
+        histList.innerHTML = ''
+        sessions.forEach((s) => histList.appendChild(carteHist(s)))
+      } catch {
+        histList.innerHTML = '<div class="hist-empty"><span class="he-ic">⚠️</span><b>Connexion interrompue</b>Vérifiez votre connexion et réessayez.</div>'
+      }
+    }
+
+    function carteHist (s) {
+      const card = document.createElement('div')
+      card.className = 'hist-card' + (s.session_id === sessionId ? ' active' : '')
+      const titre = (s.titre || 'Conversation').toString().replace(/\s+/g, ' ').trim().slice(0, 90) || 'Conversation'
+      const apercu = (s.apercu || '').toString().replace(/[#*`>_~]/g, '').replace(/\s+/g, ' ').trim().slice(0, 130)
+      const top = document.createElement('div'); top.className = 'hc-top'
+      const ic = document.createElement('div'); ic.className = 'hc-ic'; ic.textContent = '🛠️'
+      const txt = document.createElement('div')
+      const tt = document.createElement('div'); tt.className = 'hc-titre'; tt.textContent = titre
+      txt.appendChild(tt)
+      if (apercu) { const ap = document.createElement('div'); ap.className = 'hc-apercu'; ap.textContent = apercu; txt.appendChild(ap) }
+      const meta = document.createElement('div'); meta.className = 'hc-meta'
+      const nb = Number(s.nb_messages) || 0
+      meta.innerHTML = '<span>' + dateRelative(s.derniere_activite) + '</span><span class="hc-pill">' + nb + ' message' + (nb > 1 ? 's' : '') + '</span>'
+      txt.appendChild(meta)
+      top.appendChild(ic); top.appendChild(txt); card.appendChild(top)
+
+      const del = document.createElement('button')
+      del.className = 'hist-del'; del.title = 'Supprimer cette conversation'; del.setAttribute('aria-label', 'Supprimer cette conversation'); del.textContent = '🗑'
+      del.onclick = (e) => { e.stopPropagation(); demanderSuppression(card, s.session_id, titre) }
+      card.appendChild(del)
+
+      card.onclick = () => ouvrirConversation(s.session_id)
+      return card
+    }
+
+    async function ouvrirConversation (id) {
+      try {
+        const r = await fetch('/historique/' + id, { headers: { 'Authorization': 'Bearer ' + token } })
+        if (r.status === 401) { localStorage.removeItem('token'); window.location.href = '/login.html'; return }
+        if (!r.ok) return
+        const msgs = await r.json()
+        sessionId = id; localStorage.setItem('sessionIdTech', id)
+        document.querySelectorAll('.msg-row, .sys-note').forEach((m) => m.remove())
+        welcome.style.display = 'none'; sugGrid.style.display = 'none'
+        ;(Array.isArray(msgs) ? msgs : []).forEach((m) => ajouterMsg(m.contenu, m.role, m.cree_le))
+        chatArea.scrollTop = chatArea.scrollHeight
+        fermerPanneau()
+        srLive.textContent = 'Conversation ouverte.'
+        inputEl.focus()
+      } catch {}
+    }
+
+    function demanderSuppression (card, id, titre) {
+      if (card.querySelector('.hist-confirm')) return
+      card.onclick = null
+      const box = document.createElement('div'); box.className = 'hist-confirm'
+      const p = document.createElement('p')
+      p.textContent = 'Supprimer définitivement « ' + (titre.slice(0, 50)) + (titre.length > 50 ? '…' : '') + ' » ? Cette conversation ne pourra pas être récupérée.'
+      const row = document.createElement('div'); row.className = 'hcf-row'
+      const non = document.createElement('button'); non.textContent = 'Annuler'
+      const oui = document.createElement('button'); oui.className = 'hcf-oui'; oui.textContent = 'Supprimer'
+      non.onclick = (e) => { e.stopPropagation(); chargerListeHist() }
+      oui.onclick = (e) => { e.stopPropagation(); supprimerConversation(id) }
+      row.appendChild(non); row.appendChild(oui)
+      box.appendChild(p); box.appendChild(row); card.appendChild(box)
+    }
+
+    async function supprimerConversation (id) {
+      try {
+        const r = await fetch('/sessions/' + id, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } })
+        if (r.status === 401) { localStorage.removeItem('token'); window.location.href = '/login.html'; return }
+        if (id === sessionId) {  // on supprime la conversation ouverte → on repart à neuf
+          sessionId = null; localStorage.removeItem('sessionIdTech')
+          document.querySelectorAll('.msg-row, .sys-note').forEach((m) => m.remove())
+          document.title = TITRE_BASE
+          welcome.style.display = ''; sugGrid.style.display = ''
+        }
+      } catch {}
+      chargerListeHist()
+    }
+
+    document.getElementById('hist-btn').addEventListener('click', ouvrirPanneau)
+    document.getElementById('hist-close').addEventListener('click', fermerPanneau)
+    histOverlay.addEventListener('click', fermerPanneau)
+    document.getElementById('hist-new').addEventListener('click', () => { fermerPanneau(); nouveauChat() })
+    addEventListener('keydown', (e) => { if (e.key === 'Escape' && histPanel.classList.contains('open')) fermerPanneau() })
 
     marked.setOptions({ breaks: true, gfm: true })
 
@@ -564,7 +753,7 @@
       bub.appendChild(box)
     }
 
-    function ajouterMsg(texte, role) {
+    function ajouterMsg(texte, role, horodatage) {
       welcome.style.display = 'none'; sugGrid.style.display = 'none'
       const row = document.createElement('div'); row.className = 'msg-row ' + role
       const av = document.createElement('div'); av.className = 'msg-av ' + role
@@ -574,7 +763,7 @@
       const nameSpan = document.createElement('span'); nameSpan.className = 'msg-name'
       nameSpan.textContent = role === 'assistant' ? 'Technicien PC Helper' : pseudo
       const timeSpan = document.createElement('span'); timeSpan.className = 'msg-time'
-      timeSpan.textContent = now()
+      timeSpan.textContent = horodatage ? heureDe(horodatage) : now()
       meta.appendChild(nameSpan); meta.appendChild(timeSpan)
       if (role === 'user') meta.style.flexDirection = 'row-reverse'
       const bub = document.createElement('div'); bub.className = 'bubble ' + role
@@ -651,6 +840,7 @@
       sendBtn.disabled = etatActuel === 'hors_ligne' || (inputEl.value.trim().length === 0 && !imageJointe)
       inputEl.focus()
       rafraichirStatut()
+      if (histPanel.classList.contains('open')) chargerListeHist()
     }
 
     async function envoyer () {
