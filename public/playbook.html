@@ -38,6 +38,11 @@
     .back-btn:hover { color: #bcd4f5; border-color: var(--border-hover); transform: translateX(-2px); background: rgba(37,99,235,0.08); }
     .back-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
     #tb-id { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    /* Système d'icônes maison : occupe la place de l'ancien emoji,
+       taille = 1em (suit le font-size du conteneur → zéro saut de layout). */
+    .ico { width: 1em; height: 1em; display: inline-block; vertical-align: -0.125em; flex-shrink: 0; fill: none; stroke: currentColor; }
+    #tb-icon .ico { width: 56%; height: 56%; color: #fff; }
+    .pb-head .ic .ico { width: 50%; height: 50%; color: var(--cyan, #22d3ee); }
     #tb-icon { width: 40px; height: 40px; background: linear-gradient(135deg, var(--blue-light), var(--blue-dark)); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 19px; box-shadow: 0 6px 18px rgba(37,99,235,0.4), inset 0 1px 0 rgba(255,255,255,0.18); flex-shrink: 0; }
     #tb-name { font-size: 15.5px; font-weight: 700; color: #fff; letter-spacing: -0.4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     #tb-sub { font-size: 10px; color: var(--text-dim); font-weight: 600; letter-spacing: 1.1px; text-transform: uppercase; margin-top: 2px; }
@@ -134,12 +139,19 @@
   </style>
 </head>
 <body>
+  <!-- Système d'icônes maison « Chevron-Care » (DA validée). Sprite SVG
+       inline, zéro asset/CDN externe, currentColor. -->
+  <svg width="0" height="0" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true" focusable="false"><defs>
+  <symbol id="i-doc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h10l4 4v12H5z"/><path d="M9 11h6M9 15h6M9 7h3"/></symbol>
+  <symbol id="i-wrench" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5a3.5 3.5 0 0 1-4.6 4.6l-5 5a1.8 1.8 0 1 0 2.5 2.5l5-5a3.5 3.5 0 0 0 4.6-4.6l-2.2 2.2-2.1-.5-.5-2.1 2.3-1.6Z"/></symbol>
+  </defs></svg>
+
   <canvas id="bg-canvas"></canvas>
   <div id="app">
     <div id="topbar">
       <a class="back-btn" href="/playbooks.html" title="Tous les guides"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Tous les guides</a>
       <div id="tb-id">
-        <div id="tb-icon">📋</div>
+        <div id="tb-icon"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg></div>
         <div>
           <div id="tb-name">Guide de depannage</div>
           <div id="tb-sub">Diagnostic interactif</div>
@@ -163,7 +175,7 @@
 
         <header class="pb-head">
           <div class="row">
-            <div class="ic" id="pb-ic">🛠️</div>
+            <div class="ic" id="pb-ic"><svg class="ico" aria-hidden="true"><use href="#i-wrench"/></svg></div>
             <div>
               <h1 id="pb-titre">Guide de depannage</h1>
             </div>
@@ -258,7 +270,16 @@
         // (il a deja servi aux crawlers dans le HTML initial).
         var sf = $('seo-fallback'); if (sf) sf.innerHTML = '';
         document.title = (PB.metaTitle || PB.titre || 'Guide') + ' — PC Helper';
-        $('pb-ic').textContent = PB.icone || '🛠️';
+        // Icône maison (« Chevron-Care ») conservée : on n'injecte plus
+        // l'emoji du JSON serveur — rendu déterministe, zéro emoji.
+        (function () {
+          var host = $('pb-ic'); if (!host) return;
+          var sv = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+          sv.setAttribute('class', 'ico'); sv.setAttribute('aria-hidden', 'true'); sv.setAttribute('focusable', 'false');
+          var u = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+          u.setAttribute('href', '#i-wrench'); sv.appendChild(u);
+          host.replaceChildren(sv);
+        })();
         $('pb-titre').textContent = PB.titre || slug;
         $('pb-tagline').textContent = PB.tagline || '';
         $('bc-cur').textContent = PB.titre || slug;

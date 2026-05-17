@@ -27,6 +27,12 @@
     }
 
     body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    /* Système d'icônes maison : l'icône occupe la place de l'ancien emoji.
+       Taille = 1em (suit le font-size du conteneur existant → zéro saut de
+       layout), couleur = currentColor. .ico-av/.ico-brand pour les tuiles. */
+    .ico { width: 1em; height: 1em; display: inline-block; vertical-align: -0.125em; flex-shrink: 0; fill: none; stroke: currentColor; }
+    .ico-brand { width: 56%; height: 56%; }
+    .ico-fill { fill: currentColor; stroke: none; }
     #bg-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
     #app { display: flex; flex: 1; overflow: hidden; position: relative; z-index: 1; }
 
@@ -347,7 +353,9 @@
 
     /* Panel conversations */
     #panel-conv { display: none; flex-direction: column; gap: 8px; }
-    .conv-search { width: 100%; padding: 11px 14px; border-radius: 12px; background: var(--bg-card); border: 1px solid var(--border); color: var(--text); font-size: 13px; font-family: inherit; outline: none; transition: border-color 0.2s ease, box-shadow 0.2s ease; margin-bottom: 4px; }
+    .conv-search-wrap { position: relative; margin-bottom: 4px; }
+    .conv-search-ico { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; color: #475569; pointer-events: none; }
+    .conv-search { width: 100%; padding: 11px 14px 11px 36px; border-radius: 12px; background: var(--bg-card); border: 1px solid var(--border); color: var(--text); font-size: 13px; font-family: inherit; outline: none; transition: border-color 0.2s ease, box-shadow 0.2s ease; }
     .conv-search::placeholder { color: #3a4a66; }
     .conv-search:focus { border-color: var(--border-hover); box-shadow: 0 0 0 3px rgba(37,99,235,0.14); }
     .btn-exp { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; background: rgba(37,99,235,0.06); border: 1px solid rgba(59,130,246,0.14); color: #5a7aa8; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
@@ -457,7 +465,7 @@
     #nav-fx .nfx-core { position: relative; display: flex; flex-direction: column; align-items: center; gap: 17px; opacity: 0; transform: translateY(7px); animation: nfxIn .5s cubic-bezier(.22,1,.36,1) .04s forwards; }
     #nav-fx .nfx-badge { position: relative; width: 76px; height: 76px; border-radius: 20px; display: flex; align-items: center; justify-content: center; background: linear-gradient(160deg, rgba(28,38,62,.92), rgba(11,16,28,.92)); border: 1px solid rgba(96,140,220,.20); box-shadow: 0 16px 44px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.05); }
     #nav-fx .nfx-badge::before { content: ''; position: absolute; inset: -1px; border-radius: 20px; background: radial-gradient(circle at 50% 28%, rgba(59,130,246,.26), transparent 68%); }
-    #nav-fx .nfx-badge svg { position: relative; width: 36px; height: 36px; fill: #9db8e6; }
+    #nav-fx .nfx-badge svg { position: relative; width: 38px; height: 38px; }
     #nav-fx .nfx-ring { position: absolute; inset: -8px; border-radius: 26px; border: 1px solid rgba(96,140,220,.16); }
     #nav-fx .nfx-title { font-size: 20px; font-weight: 600; letter-spacing: .2px; color: #9fb2cf; }
     #nav-fx .nfx-title b { color: #eaf0fb; font-weight: 700; }
@@ -476,7 +484,7 @@
   <div class="nfx-glow"></div>
   <span class="nfx-edge l"></span><span class="nfx-edge r"></span>
   <div class="nfx-core">
-    <div class="nfx-badge"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8A2.5 2.5 0 0 1 17.5 16H13v2h3a1 1 0 1 1 0 2H8a1 1 0 1 1 0-2h3v-2H6.5A2.5 2.5 0 0 1 4 13.5v-8Z"/></svg><span class="nfx-ring"></span></div>
+    <div class="nfx-badge"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 3.2 26.4 7.4v8.1c0 6.7-4.3 11.2-10.4 13.3C9.9 26.7 5.6 22.2 5.6 15.5V7.4L16 3.2Z" stroke="#9db8e6" stroke-width="2.1" stroke-linejoin="round"/><path d="M12.7 11.4 17.6 16l-4.9 4.6" stroke="#9db8e6" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20.4" cy="16" r="1.7" fill="#9db8e6"/></svg><span class="nfx-ring"></span></div>
     <div class="nfx-title">PC&nbsp;<b>Helper</b></div>
     <div class="nfx-sub">Technicien support expert</div>
     <div class="nfx-dots"><i></i><i></i><i></i></div>
@@ -562,7 +570,7 @@
     background: linear-gradient(135deg, #3389ff, #0c4bce);
     box-shadow: 0 0 32px rgba(45,130,255,.5), inset 0 1px 0 rgba(255,255,255,.2);
   }
-  #dash-intro .di-logo svg { width: 32px; height: 32px; fill: #fff; }
+  #dash-intro .di-logo svg { width: 34px; height: 34px; }
   /* Halo qui respire — calme (séparé de l'entrée, sans saccade). */
   #dash-intro .di-logo::after {
     content: ''; position: absolute; inset: -10px; border-radius: 26px;
@@ -652,7 +660,7 @@
   <audio id="snd-activation" src="/activation.mp3" preload="auto"></audio>
   <div class="di-inner">
     <div class="di-logo">
-      <svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8A2.5 2.5 0 0 1 17.5 16H13v2h3a1 1 0 1 1 0 2H8a1 1 0 1 1 0-2h3v-2H6.5A2.5 2.5 0 0 1 4 13.5v-8Z"/></svg>
+      <svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 3.2 26.4 7.4v8.1c0 6.7-4.3 11.2-10.4 13.3C9.9 26.7 5.6 22.2 5.6 15.5V7.4L16 3.2Z" stroke="#fff" stroke-width="2.1" stroke-linejoin="round"/><path d="M12.7 11.4 17.6 16l-4.9 4.6" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20.4" cy="16" r="1.7" fill="#fff"/></svg>
     </div>
     <div class="di-title">Bienvenue sur <b>PC&nbsp;Helper</b></div>
     <div class="di-sub">Votre assistant technique IA — initialisation…</div>
@@ -799,12 +807,69 @@
 
 <canvas id="bg-canvas"></canvas>
 
+<!-- Système d'icônes maison « Chevron-Care » (DA validée). Sprite SVG inline,
+     zéro asset/CDN externe. currentColor → hérite de la couleur du conteneur.
+     #i-brand = monogramme de marque (chevron-bouclier). -->
+<svg width="0" height="0" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true" focusable="false"><defs>
+<symbol id="i-brand" viewBox="0 0 32 32"><path d="M16 3.2 26.4 7.4v8.1c0 6.7-4.3 11.2-10.4 13.3C9.9 26.7 5.6 22.2 5.6 15.5V7.4L16 3.2Z" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/><path d="M12.7 11.4 17.6 16l-4.9 4.6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20.4" cy="16" r="1.7" fill="currentColor"/></symbol>
+<symbol id="i-pc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="18" rx="2"/><path d="M9 7h6M9 11h6M9.5 17h.01"/></symbol>
+<symbol id="i-cpu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="10" height="10" rx="1.5"/><path d="M10 10.5h4v3h-4z"/><path d="M9 3v2M15 3v2M9 19v2M15 19v2M3 9h2M3 15h2M19 9h2M19 15h2"/></symbol>
+<symbol id="i-ram" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h18v7H3z"/><path d="M3 15v3M21 15v3M7 8V5M12 8V5M17 8V5"/><path d="M7.5 11.5h2M14.5 11.5h2"/></symbol>
+<symbol id="i-gpu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="7" width="19" height="10" rx="2"/><circle cx="8" cy="12" r="2"/><circle cx="15.5" cy="12" r="2"/><path d="M2.5 17v3"/></symbol>
+<symbol id="i-disk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".6" fill="currentColor"/></symbol>
+<symbol id="i-os" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M12 9v11"/></symbol>
+<symbol id="i-display" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="13" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M6.5 8.5h4v4"/></symbol>
+<symbol id="i-plug" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v6M15 3v6"/><rect x="7" y="9" width="10" height="6" rx="2"/><path d="M12 15v4a2 2 0 0 0 2 2h2"/></symbol>
+<symbol id="i-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-5 4 10 2-5h6"/></symbol>
+<symbol id="i-wifi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9a13 13 0 0 1 16 0"/><path d="M7 12.5a8.5 8.5 0 0 1 10 0"/><path d="M10 16a4 4 0 0 1 4 0"/><circle cx="12" cy="19" r=".8" fill="currentColor"/></symbol>
+<symbol id="i-gauge" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 18a9 9 0 1 1 14 0"/><path d="M12 13l4-3"/><circle cx="12" cy="13" r="1.1" fill="currentColor"/></symbol>
+<symbol id="i-bsod" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="13" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M9 8.5l6 4M15 8.5l-6 4"/></symbol>
+<symbol id="i-temp" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13V5a2 2 0 0 1 4 0v8a4 4 0 1 1-4 0Z"/><circle cx="12" cy="16.5" r="1.4" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-1.5 5"/><path d="M20 5v6h-6"/></symbol>
+<symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3Z"/><path d="M9.5 12l1.8 1.8 3.5-3.6"/></symbol>
+<symbol id="i-bolt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z"/></symbol>
+<symbol id="i-wrench" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5a3.5 3.5 0 0 1-4.6 4.6l-5 5a1.8 1.8 0 1 0 2.5 2.5l5-5a3.5 3.5 0 0 0 4.6-4.6l-2.2 2.2-2.1-.5-.5-2.1 2.3-1.6Z"/></symbol>
+<symbol id="i-doc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h10l4 4v12H5z"/><path d="M9 11h6M9 15h6M9 7h3"/></symbol>
+<symbol id="i-chat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4Z"/><path d="M8 9h8M8 12.5h5"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h6l2 2h10v11H3z"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></symbol>
+<symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+<symbol id="i-warn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 9.5v5M12 17.5h.01"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15" r="1.2" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 3h6"/></symbol>
+<symbol id="i-bulb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.3 1 2.5h6c0-1.2.3-1.8 1-2.5A6 6 0 0 0 12 3Z"/></symbol>
+<symbol id="i-bars" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4M4 20h16"/><path d="M8 16v-4M12 16V8M16 16v-7"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5h.01"/></symbol>
+<symbol id="i-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+<symbol id="i-headset" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 14v-2a7 7 0 0 1 14 0v2"/><rect x="3" y="13" width="4" height="6" rx="1.5"/><rect x="17" y="13" width="4" height="6" rx="1.5"/><path d="M19 19v1a3 3 0 0 1-3 3h-3"/></symbol>
+<symbol id="i-cam" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></symbol>
+<symbol id="i-clip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11.5 11 20.4a5 5 0 0 1-7-7l8.5-8.6a3.3 3.3 0 0 1 4.7 4.7L8.6 18a1.6 1.6 0 0 1-2.3-2.3l8-8"/></symbol>
+<symbol id="i-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12 20 4l-6 16-3.5-6.5L4 12Z"/></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="i-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/></symbol>
+<symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+<symbol id="i-logout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 7V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-2"/><path d="M10 12h11M18 9l3 3-3 3"/></symbol>
+<symbol id="i-net" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.7 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.7-3.8-9S9.5 5.6 12 3Z"/></symbol>
+<symbol id="i-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.5l1.4 2.6 2.9-.5 1 2.8 2.7 1.2-.9 2.8.9 2.8-2.7 1.2-1 2.8-2.9-.5L12 21.5l-1.4-2.6-2.9.5-1-2.8L4 15.4l.9-2.8L4 9.8l2.7-1.2 1-2.8 2.9.5L12 2.5Z"/></symbol>
+<symbol id="i-puzzle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4a2 2 0 0 1 4 0c0 1 .5 1.5 1.5 1.5H19v3.5c0 1 .5 1.5 1.5 1.5a2 2 0 0 1 0 4c-1 0-1.5.5-1.5 1.5V20h-3.5c-1 0-1.5.5-1.5 1.5a2 2 0 0 1-4 0c0-1-.5-1.5-1.5-1.5H5v-3.5C5 15.5 4.5 15 3.5 15a2 2 0 0 1 0-4C4.5 11 5 10.5 5 9.5V6h3.5C9.5 6 10 5.5 10 4.5Z"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13.5A8 8 0 1 1 10.5 4 6.5 6.5 0 0 0 20 13.5Z"/></symbol>
+<symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6Z"/><path d="M10 19a2 2 0 0 0 4 0"/></symbol>
+<symbol id="i-thumb-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v10H4V10z"/><path d="M7 10l4-7a2 2 0 0 1 2 2v4h5.5a2 2 0 0 1 2 2.4l-1.4 7A2 2 0 0 1 17 20H7"/></symbol>
+<symbol id="i-thumb-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 14V4h3v10z"/><path d="M17 14l-4 7a2 2 0 0 1-2-2v-4H5.5a2 2 0 0 1-2-2.4l1.4-7A2 2 0 0 1 7 4h10"/></symbol>
+<symbol id="i-spark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18"/></symbol>
+<symbol id="i-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 5.5 18.5 10 8 20.5H3.5V16L14 5.5Z"/><path d="M12.5 7 17 11.5"/></symbol>
+</defs></svg>
+
 <div id="app">
 
   <!-- SIDEBAR -->
   <div id="sidebar">
     <div id="logo-box">
-      <div id="logo-icon">🖥️</div>
+      <div id="logo-icon"><svg class="ico ico-brand" aria-hidden="true"><use href="#i-brand"/></svg></div>
       <div>
         <div id="logo-name">PC Helper</div>
         <div id="logo-sub">Assistant technique IA</div>
@@ -815,16 +880,16 @@
 
       <div class="nav-group">
         <div class="nav-item primary active" onclick="nouveauChat(); setNav(this)">
-          <span class="nav-icon">＋</span> Nouveau chat
+          <span class="nav-icon"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg></span> Nouveau chat
         </div>
         <div class="nav-item" onclick="ouvrirConv(); setNav(this)">
-          <span class="nav-icon">🗂️</span> Mes conversations
+          <span class="nav-icon"><svg class="ico" aria-hidden="true"><use href="#i-chat"/></svg></span> Mes conversations
         </div>
         <div class="nav-item" onclick="window.location.href='/playbooks.html'" title="Guides de dépannage pas à pas">
-          <span class="nav-icon">📚</span> Guides pas à pas
+          <span class="nav-icon"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg></span> Guides pas à pas
         </div>
         <div class="nav-item escalate" onclick="navTo('/technicien.html','forward')" title="Parler à un technicien support expert">
-          <span class="nav-icon">🛠️</span> Contacter un technicien
+          <span class="nav-icon"><svg class="ico" aria-hidden="true"><use href="#i-wrench"/></svg></span> Contacter un technicien
         </div>
       </div>
 
@@ -835,7 +900,7 @@
 
       <div class="side-card" title="Score de santé estimé du PC (CPU, RAM)">
         <div class="sc-head">
-          <span class="sc-ic">🩺</span> Santé du PC
+          <span class="sc-ic"><svg class="ico" aria-hidden="true"><use href="#i-pulse"/></svg></span> Santé du PC
           <span class="badge-ok" id="health-badge">Analyse…</span>
         </div>
         <div class="health-head">
@@ -851,35 +916,35 @@
            fondateur, suppression latence). -->
       <div class="side-card" id="pc-card">
         <div class="sc-head">
-          <span class="sc-ic">🖥️</span> Mon PC
+          <span class="sc-ic"><svg class="ico" aria-hidden="true"><use href="#i-pc"/></svg></span> Mon PC
           <button type="button" class="pc-edit" id="pc-edit-btn"
                   onclick="ouvrirOnboardPC('edit')"
-                  title="Saisir manuellement les composants de mon PC">✎ Saisir mon PC</button>
+                  title="Saisir manuellement les composants de mon PC"><svg class="ico" aria-hidden="true"><use href="#i-edit"/></svg> Saisir mon PC</button>
         </div>
 
         <div class="pc-grid">
           <div class="pc-row">
-            <span class="pc-l"><span class="pc-ic">⚡</span><span class="pc-label">CPU</span></span>
+            <span class="pc-l"><span class="pc-ic"><svg class="ico" aria-hidden="true"><use href="#i-cpu"/></svg></span><span class="pc-label">CPU</span></span>
             <span class="pc-val" id="s-cpu">—</span>
           </div>
           <div class="pc-row">
-            <span class="pc-l"><span class="pc-ic">🧠</span><span class="pc-label">RAM</span></span>
+            <span class="pc-l"><span class="pc-ic"><svg class="ico" aria-hidden="true"><use href="#i-ram"/></svg></span><span class="pc-label">RAM</span></span>
             <span class="pc-val" id="s-ram">—</span>
           </div>
           <div class="pc-row">
-            <span class="pc-l"><span class="pc-ic">🎮</span><span class="pc-label">GPU</span></span>
+            <span class="pc-l"><span class="pc-ic"><svg class="ico" aria-hidden="true"><use href="#i-gpu"/></svg></span><span class="pc-label">GPU</span></span>
             <span class="pc-val" id="s-gpu">—</span>
           </div>
           <div class="pc-row">
-            <span class="pc-l"><span class="pc-ic">💾</span><span class="pc-label">Stockage</span></span>
+            <span class="pc-l"><span class="pc-ic"><svg class="ico" aria-hidden="true"><use href="#i-disk"/></svg></span><span class="pc-label">Stockage</span></span>
             <span class="pc-val unset" id="s-stockage" data-empty="Non renseigné">Non renseigné</span>
           </div>
           <div class="pc-row">
-            <span class="pc-l"><span class="pc-ic">🪟</span><span class="pc-label">OS</span></span>
+            <span class="pc-l"><span class="pc-ic"><svg class="ico" aria-hidden="true"><use href="#i-os"/></svg></span><span class="pc-label">OS</span></span>
             <span class="pc-val unset" id="s-os" data-empty="Non renseigné">Non renseigné</span>
           </div>
           <div class="pc-row">
-            <span class="pc-l"><span class="pc-ic">🖼️</span><span class="pc-label">Écran</span></span>
+            <span class="pc-l"><span class="pc-ic"><svg class="ico" aria-hidden="true"><use href="#i-display"/></svg></span><span class="pc-label">Écran</span></span>
             <span class="pc-val" id="s-ecran">—</span>
           </div>
         </div>
@@ -890,7 +955,7 @@
             adaptées à votre machine.
           </div>
           <button type="button" class="pc-cta" onclick="ouvrirOnboardPC('empty')">
-            🖥️ Renseigner mon PC
+            <svg class="ico" aria-hidden="true"><use href="#i-pc"/></svg> Renseigner mon PC
           </button>
         </div>
 
@@ -898,7 +963,7 @@
       </div>
 
       <div class="side-card periph-section">
-        <div class="sc-head"><span class="sc-ic">🔌</span> Périphériques</div>
+        <div class="sc-head"><span class="sc-ic"><svg class="ico" aria-hidden="true"><use href="#i-plug"/></svg></span> Périphériques</div>
         <div id="sidebar-periph-list" class="periph-list">
           <div class="periph-loading">Détection en cours…</div>
         </div>
@@ -913,7 +978,7 @@
         <div id="user-pseudo"></div>
         <div id="user-plan">Gratuit</div>
       </div>
-      <div id="deconnexion" onclick="event.stopPropagation(); deconnecter()" title="Déconnexion">⏏</div>
+      <div id="deconnexion" onclick="event.stopPropagation(); deconnecter()" title="Déconnexion" aria-label="Déconnexion"><svg class="ico" aria-hidden="true"><use href="#i-logout"/></svg></div>
     </div>
   </div>
 
@@ -921,7 +986,7 @@
   <div id="main">
     <div id="header">
       <div id="header-left">
-        <div id="session-icon">💬</div>
+        <div id="session-icon"><svg class="ico" aria-hidden="true"><use href="#i-chat"/></svg></div>
         <div>
           <div id="session-title">Nouveau chat</div>
           <div id="session-subtitle">PC Helper · Expert support système</div>
@@ -938,21 +1003,21 @@
 
     <div id="chat-area">
       <div id="proactif" role="status" aria-live="polite">
-        <span id="proactif-ic">⚠️</span>
+        <span id="proactif-ic"><svg class="ico" aria-hidden="true"><use href="#i-warn"/></svg></span>
         <span id="proactif-txt"></span>
         <button type="button" id="proactif-go">Diagnostiquer</button>
-        <button type="button" id="proactif-x" aria-label="Ignorer">✕</button>
+        <button type="button" id="proactif-x" aria-label="Ignorer"><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg></button>
       </div>
       <div id="relance" role="status" aria-live="polite">
-        <span id="relance-ic">🛠️</span>
+        <span id="relance-ic"><svg class="ico" aria-hidden="true"><use href="#i-wrench"/></svg></span>
         <span id="relance-txt">Ton souci de la dernière fois tient-il toujours&nbsp;?</span>
-        <button type="button" id="relance-oui" class="relance-btn">Oui, réglé 👍</button>
-        <button type="button" id="relance-non" class="relance-btn alt">Non 👎</button>
-        <button type="button" id="relance-x" aria-label="Plus tard">✕</button>
+        <button type="button" id="relance-oui" class="relance-btn">Oui, réglé <svg class="ico" aria-hidden="true"><use href="#i-thumb-up"/></svg></button>
+        <button type="button" id="relance-non" class="relance-btn alt">Non <svg class="ico" aria-hidden="true"><use href="#i-thumb-down"/></svg></button>
+        <button type="button" id="relance-x" aria-label="Plus tard"><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg></button>
       </div>
       <div id="welcome-card">
         <div id="welcome-top">
-          <div id="welcome-bot-avatar">🖥️</div>
+          <div id="welcome-bot-avatar"><svg class="ico ico-brand" aria-hidden="true"><use href="#i-brand"/></svg></div>
           <div id="welcome-bot-info">
             <div id="welcome-bot-name">PC Helper</div>
             <div id="welcome-bot-role">Expert support système</div>
@@ -966,12 +1031,12 @@
       </div>
 
       <div id="suggestions-grid">
-        <div class="sug-card" onclick="suggerer(this)"><div class="sug-icon">⚡</div><div class="sug-text">Mon PC rame</div></div>
-        <div class="sug-card" onclick="suggerer(this)"><div class="sug-icon">📶</div><div class="sug-text">Wi-Fi instable</div></div>
-        <div class="sug-card" onclick="suggerer(this)"><div class="sug-icon">🎮</div><div class="sug-text">FPS trop bas</div></div>
-        <div class="sug-card" onclick="suggerer(this)"><div class="sug-icon">💙</div><div class="sug-text">Écran bleu</div></div>
-        <div class="sug-card" onclick="suggerer(this)"><div class="sug-icon">🌡️</div><div class="sug-text">PC qui surchauffe</div></div>
-        <div class="sug-card" onclick="suggerer(this)"><div class="sug-icon">🔄</div><div class="sug-text">Drivers à jour ?</div></div>
+        <div class="sug-card" onclick="suggerer(this)"><div class="sug-icon"><svg class="ico" aria-hidden="true"><use href="#i-gauge"/></svg></div><div class="sug-text">Mon PC rame</div></div>
+        <div class="sug-card" onclick="suggerer(this)"><div class="sug-icon"><svg class="ico" aria-hidden="true"><use href="#i-wifi"/></svg></div><div class="sug-text">Wi-Fi instable</div></div>
+        <div class="sug-card" onclick="suggerer(this)"><div class="sug-icon"><svg class="ico" aria-hidden="true"><use href="#i-gpu"/></svg></div><div class="sug-text">FPS trop bas</div></div>
+        <div class="sug-card" onclick="suggerer(this)"><div class="sug-icon"><svg class="ico" aria-hidden="true"><use href="#i-bsod"/></svg></div><div class="sug-text">Écran bleu</div></div>
+        <div class="sug-card" onclick="suggerer(this)"><div class="sug-icon"><svg class="ico" aria-hidden="true"><use href="#i-temp"/></svg></div><div class="sug-text">PC qui surchauffe</div></div>
+        <div class="sug-card" onclick="suggerer(this)"><div class="sug-icon"><svg class="ico" aria-hidden="true"><use href="#i-refresh"/></svg></div><div class="sug-text">Drivers à jour ?</div></div>
       </div>
 
       <div id="panel-conv"></div>
@@ -981,10 +1046,10 @@
       <div id="input-shell">
         <div id="tip-saisie" role="status">
           <div class="tip-row">
-            <span class="tip-ic">💬</span>
-            <span class="tip-tx">C'est <b>ici</b> que tout se passe : décris ton problème PC en langage naturel — l'IA diagnostique et répond en direct. Tu peux aussi joindre une capture (📎) ou dicter (🎤).</span>
+            <span class="tip-ic"><svg class="ico" aria-hidden="true"><use href="#i-chat"/></svg></span>
+            <span class="tip-tx">C'est <b>ici</b> que tout se passe : décris ton problème PC en langage naturel — l'IA diagnostique et répond en direct. Tu peux aussi joindre une capture (<svg class="ico" aria-hidden="true"><use href="#i-clip"/></svg>) ou dicter (<svg class="ico" aria-hidden="true"><use href="#i-mic"/></svg>).</span>
           </div>
-          <button type="button" class="tip-ok" id="tip-ok">J'ai compris ✓</button>
+          <button type="button" class="tip-ok" id="tip-ok">J'ai compris <svg class="ico" aria-hidden="true"><use href="#i-check"/></svg></button>
         </div>
         <div id="preview-zone">
           <img id="preview-img" src="" alt="preview">
@@ -992,14 +1057,14 @@
             <div id="preview-name"></div>
             <div id="preview-size"></div>
           </div>
-          <button id="preview-remove" onclick="retirerImage()">✕</button>
+          <button id="preview-remove" onclick="retirerImage()" aria-label="Retirer l'image"><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg></button>
         </div>
         <div id="input-top">
           <textarea id="input" placeholder="Pose ta question ici — ex. « Mon PC rame, que faire ? »" rows="1"></textarea>
           <input type="file" id="file-input" accept="image/*,.pdf,.txt,.log" style="display:none">
-          <button class="tool-btn" title="Pièce jointe" onclick="document.getElementById('file-input').click()">📎</button>
-          <button class="tool-btn" id="voice-btn" type="button" title="Dictée vocale (beta)" onclick="toggleVocal()">🎤</button>
-          <button id="send-btn" onclick="envoyer()">➤</button>
+          <button class="tool-btn" title="Pièce jointe" aria-label="Pièce jointe" onclick="document.getElementById('file-input').click()"><svg class="ico" aria-hidden="true"><use href="#i-clip"/></svg></button>
+          <button class="tool-btn" id="voice-btn" type="button" title="Dictée vocale (beta)" aria-label="Dictée vocale (beta)" onclick="toggleVocal()"><svg class="ico" aria-hidden="true"><use href="#i-mic"/></svg></button>
+          <button id="send-btn" onclick="envoyer()" aria-label="Envoyer"><svg class="ico" aria-hidden="true"><use href="#i-send"/></svg></button>
         </div>
         <div id="input-bottom">
           <span id="input-hint-left">Ctrl+K nouveau chat · Ctrl+/ focus · Glisse une image ici</span>
@@ -1019,11 +1084,11 @@
         <div id="profil-email"></div>
         <div id="profil-plan-badge">Gratuit</div>
       </div>
-      <button id="profil-close" onclick="fermerProfil()">✕</button>
+      <button id="profil-close" onclick="fermerProfil()" aria-label="Fermer"><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg></button>
     </div>
 
     <div class="profil-section">
-      <div class="profil-section-title">📊 Statistiques</div>
+      <div class="profil-section-title"><svg class="ico" aria-hidden="true"><use href="#i-bars"/></svg> Statistiques</div>
       <div class="stats-grid">
         <div class="stat-card blue">
           <div class="stat-val" id="stat-conv">—</div>
@@ -1041,7 +1106,7 @@
     </div>
 
     <div class="profil-section">
-      <div class="profil-section-title">ℹ️ Informations du compte</div>
+      <div class="profil-section-title"><svg class="ico" aria-hidden="true"><use href="#i-info"/></svg> Informations du compte</div>
       <div class="info-row">
         <span class="info-label">Email</span>
         <span class="info-val" id="info-email">—</span>
@@ -1069,7 +1134,7 @@
     </div>
 
     <div class="profil-section">
-      <div class="profil-section-title">🔒 Changer le mot de passe</div>
+      <div class="profil-section-title"><svg class="ico" aria-hidden="true"><use href="#i-lock"/></svg> Changer le mot de passe</div>
       <div class="form-field">
         <label class="form-label">Mot de passe actuel</label>
         <input type="password" class="form-input" id="mdp-ancien" placeholder="••••••••">
@@ -1087,7 +1152,7 @@
     </div>
 
     <div class="profil-section">
-      <div class="profil-section-title">⚠️ Zone de danger</div>
+      <div class="profil-section-title"><svg class="ico" aria-hidden="true"><use href="#i-warn"/></svg> Zone de danger</div>
       <button class="danger-btn" onclick="deconnecter()">Se déconnecter de tous les appareils</button>
     </div>
   </div>
@@ -1102,9 +1167,9 @@
   <div id="pc-onboard">
     <form id="pc-onboard-form" novalidate>
       <div class="po-head">
-        <span class="po-eyebrow">✦ Personnalisons votre aide</span>
+        <span class="po-eyebrow"><svg class="ico" aria-hidden="true"><use href="#i-spark"/></svg> Personnalisons votre aide</span>
         <button type="button" class="po-close" data-action="skip"
-                aria-label="Fermer" onclick="fermerOnboardPC()">✕</button>
+                aria-label="Fermer" onclick="fermerOnboardPC()"><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg></button>
         <h2 class="po-title" id="po-title-h">Parlez-nous de votre PC</h2>
         <p class="po-sub">Quelques infos sur votre ordinateur nous permettent
           de vous donner des solutions <b>vraiment adaptées</b> à votre machine.
@@ -1115,7 +1180,7 @@
         <div class="po-field">
           <label for="po-cpu">Processeur (CPU)
             <span class="po-hint">le « cerveau » du PC — ex. Intel Core i5, Ryzen 5</span>
-            <span class="po-autofill" id="po-cpu-auto" hidden>✓ détecté</span>
+            <span class="po-autofill" id="po-cpu-auto" hidden><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg> détecté</span>
           </label>
           <input class="po-input" id="po-cpu" name="cpu" type="text"
                  autocomplete="off" placeholder="Ex. Intel Core i5-10400" maxlength="80">
@@ -1124,7 +1189,7 @@
         <div class="po-row2">
           <div class="po-field">
             <label for="po-ram">Mémoire (RAM)
-              <span class="po-autofill" id="po-ram-auto" hidden>✓ détecté</span>
+              <span class="po-autofill" id="po-ram-auto" hidden><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg> détecté</span>
             </label>
             <select class="po-select" id="po-ram" name="ram">
               <option value="">— Choisir —</option>
@@ -1153,7 +1218,7 @@
         <div class="po-field">
           <label for="po-gpu">Carte graphique (GPU)
             <span class="po-hint">facultatif — ex. NVIDIA GTX 1660, ou « intégrée »</span>
-            <span class="po-autofill" id="po-gpu-auto" hidden>✓ détecté</span>
+            <span class="po-autofill" id="po-gpu-auto" hidden><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg> détecté</span>
           </label>
           <input class="po-input" id="po-gpu" name="gpu" type="text"
                  autocomplete="off" placeholder="Ex. NVIDIA GeForce GTX 1660" maxlength="80">
@@ -1188,7 +1253,7 @@
         <div class="po-field">
           <label for="po-ecran">Écran
             <span class="po-hint">taille ou résolution — facultatif</span>
-            <span class="po-autofill" id="po-ecran-auto" hidden>✓ détecté</span>
+            <span class="po-autofill" id="po-ecran-auto" hidden><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg> détecté</span>
           </label>
           <input class="po-input" id="po-ecran" name="ecran" type="text"
                  autocomplete="off" placeholder="Ex. 24 pouces · 1920×1080" maxlength="48">
@@ -1211,7 +1276,7 @@
 <!-- MODALE suppression -->
 <div id="modale-overlay">
   <div id="modale">
-    <div id="mo-icon">🗑️</div>
+    <div id="mo-icon"><svg class="ico" aria-hidden="true"><use href="#i-trash"/></svg></div>
     <div id="mo-title">Pas de retour en arrière</div>
     <div id="mo-sub">Es-tu sûr de vouloir supprimer cette conversation ? Elle sera définitivement supprimée.</div>
     <div id="mo-btns">
@@ -1222,6 +1287,24 @@
 </div>
 
 <script>
+  /* Système d'icônes — fabrique un <svg><use> depuis le sprite inline.
+     Constante statique, zéro donnée utilisateur (pas d'innerHTML d'entrée
+     externe → aucun risque XSS). Remplace les anciens textContent='emoji'
+     par un nœud SVG cloné/recréé : pas de réinjection de string à chaque
+     render (point chaud msg-av : appelé à chaque message). */
+  const SVGNS = 'http://www.w3.org/2000/svg'
+  function pchIco (name, cls) {
+    const svg = document.createElementNS(SVGNS, 'svg')
+    svg.setAttribute('class', 'ico' + (cls ? ' ' + cls : ''))
+    svg.setAttribute('aria-hidden', 'true')
+    svg.setAttribute('focusable', 'false')
+    const use = document.createElementNS(SVGNS, 'use')
+    use.setAttribute('href', '#i-' + name)
+    svg.appendChild(use)
+    return svg
+  }
+  function setIco (el, name, cls) { if (el) el.replaceChildren(pchIco(name, cls)) }
+
   /* Auth */
   let token = localStorage.getItem('token')
   if (!token) window.location.href = '/login.html'
@@ -1509,7 +1592,7 @@ function afficherTempsReponse(ms) {
   if (!el) return
   if (ms == null) { el.classList.remove('show'); return }
   const s = ms / 1000
-  el.textContent = '⚡ ' + (s < 10 ? s.toFixed(1) : Math.round(s)) + ' s'
+  el.replaceChildren(pchIco('bolt'), document.createTextNode(' ' + (s < 10 ? s.toFixed(1) : Math.round(s)) + ' s'))
   el.classList.add('show')
 }
 
@@ -1738,13 +1821,13 @@ function afficherTempsReponse(ms) {
       if (contenu.trim().length >= 2) {
         const box = document.createElement('div'); box.className = 'pc-actions'
         const warn = document.createElement('div'); warn.className = 'pc-warn'
-        const wi = document.createElement('span'); wi.textContent = '⚠️'
+        const wi = document.createElement('span'); wi.appendChild(pchIco('warn'))
         const wt = document.createElement('span')
         wt.textContent = 'Vérifie chaque commande avant de l’exécuter. Ne lance un script que si tu comprends ce qu’il fait.'
         warn.appendChild(wi); warn.appendChild(wt)
         const btn = document.createElement('button')
         btn.type = 'button'; btn.className = 'pc-dl-btn'
-        btn.textContent = '⬇️ Télécharger le script (.' + ext + ')'
+        btn.append(pchIco('download'), document.createTextNode(' Télécharger le script (.' + ext + ')'))
         btn.onclick = () => {
           let entete = 'Genere par PC Helper - verifie avant execution\n'
           if (lang && lang[0] === 'powershell') entete = '# Genere par PC Helper - verifie avant execution\n'
@@ -1767,7 +1850,8 @@ function afficherTempsReponse(ms) {
   function ajouterMsg(texte, role) {
     welcomeCard.style.display = 'none'; sugGrid.style.display = 'none'; panelConv.style.display = 'none'
     const row = document.createElement('div'); row.className = `msg-row ${role}`
-    const av = document.createElement('div'); av.className = `msg-av ${role}`; av.textContent = role === 'assistant' ? '🖥️' : initiale
+    const av = document.createElement('div'); av.className = `msg-av ${role}`
+    if (role === 'assistant') { av.appendChild(pchIco('brand', 'ico-brand')) } else { av.textContent = initiale }
     const wrap = document.createElement('div'); wrap.className = 'msg-wrap'
     const meta = document.createElement('div'); meta.className = 'msg-meta'
     const nameSpan = document.createElement('span'); nameSpan.className = 'msg-name'
@@ -1783,8 +1867,8 @@ function afficherTempsReponse(ms) {
       bub.innerHTML = DOMPurify.sanitize(marked.parse(texte)); bub.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b)); enrichirActions(bub, texte)
     } else { bub.textContent = texte }
     if (role === 'assistant' && texte !== '__typing__') {
-      const copyBtn = document.createElement('button'); copyBtn.className = 'copy-btn'; copyBtn.title = 'Copier'; copyBtn.textContent = '📋'
-      copyBtn.onclick = () => { navigator.clipboard.writeText(texte); copyBtn.textContent = '✅'; copyBtn.classList.add('copied'); setTimeout(() => { copyBtn.textContent = '📋'; copyBtn.classList.remove('copied') }, 2000) }
+      const copyBtn = document.createElement('button'); copyBtn.className = 'copy-btn'; copyBtn.title = 'Copier'; copyBtn.setAttribute('aria-label', 'Copier'); setIco(copyBtn, 'copy')
+      copyBtn.onclick = () => { navigator.clipboard.writeText(texte); setIco(copyBtn, 'check'); copyBtn.classList.add('copied'); setTimeout(() => { setIco(copyBtn, 'copy'); copyBtn.classList.remove('copied') }, 2000) }
       wrap.appendChild(copyBtn)
     }
     wrap.appendChild(meta); wrap.appendChild(bub); row.appendChild(av); row.appendChild(wrap)
@@ -1868,14 +1952,14 @@ function afficherTempsReponse(ms) {
       msgCount++
       document.getElementById('msg-counter').textContent = msgCount + ' msg'
 
-      // Feedback léger (👍/👎) — boucle d'apprentissage, non bloquant.
+      // Feedback léger (pouce haut / pouce bas) — boucle d'apprentissage, non bloquant.
       const wrap = typingBub.parentElement
       if (wrap && !wrap.querySelector('.fb-bar')) {
         const bar = document.createElement('div')
         bar.className = 'fb-bar'
-        const mk = (txt, pos, libelle) => {
+        const mk = (icoName, pos, libelle) => {
           const b = document.createElement('button')
-          b.type = 'button'; b.className = 'fb-btn'; b.textContent = txt
+          b.type = 'button'; b.className = 'fb-btn'; b.appendChild(pchIco(icoName))
           b.title = libelle; b.setAttribute('aria-label', libelle)
           b.onclick = async () => {
             bar.querySelectorAll('.fb-btn').forEach((x) => { x.disabled = true })
@@ -1891,13 +1975,13 @@ function afficherTempsReponse(ms) {
           }
           return b
         }
-        bar.appendChild(mk('👍', true, 'Réponse utile'))
-        bar.appendChild(mk('👎', false, 'Réponse à améliorer'))
+        bar.appendChild(mk('thumb-up', true, 'Réponse utile'))
+        bar.appendChild(mk('thumb-down', false, 'Réponse à améliorer'))
         // #008 : "Problème réglé" → on relancera discrètement plus tard pour
         // confirmer que ça tient (mesure réelle des problèmes résolus).
         const bResolu = document.createElement('button')
         bResolu.type = 'button'; bResolu.className = 'fb-btn'
-        bResolu.textContent = '✅ Réglé'
+        bResolu.append(pchIco('check'), document.createTextNode(' Réglé'))
         bResolu.title = 'Mon problème est réglé'
         bResolu.setAttribute('aria-label', 'Marquer mon problème comme réglé')
         bResolu.onclick = async () => {
@@ -1947,7 +2031,7 @@ function afficherTempsReponse(ms) {
       if (res.status === 401) { localStorage.removeItem('token'); window.location.href = '/login.html'; return }
       if (res.status === 403) {
         const data = await res.json()
-        if (data.erreur === 'limite_atteinte') { typingBub.classList.remove('typing'); typingBub.innerHTML = '🔒 Limite atteinte.'; return }
+        if (data.erreur === 'limite_atteinte') { typingBub.classList.remove('typing'); typingBub.replaceChildren(pchIco('lock'), document.createTextNode(' Limite atteinte.')); return }
       }
       if (!res.ok) {
         const data = await res.json()
@@ -2037,14 +2121,18 @@ function afficherTempsReponse(ms) {
     panelConv.style.display = 'flex'
     document.getElementById('session-title').textContent = 'Conversations'
     panelConv.innerHTML = ''
+    const searchWrap = document.createElement('div')
+    searchWrap.className = 'conv-search-wrap'
+    const searchIco = pchIco('search', 'conv-search-ico')
     const search = document.createElement('input')
     search.className = 'conv-search'
     search.type = 'search'
-    search.placeholder = '🔍  Rechercher dans mes conversations…'
+    search.placeholder = 'Rechercher dans mes conversations…'
+    searchWrap.appendChild(searchIco); searchWrap.appendChild(search)
     const liste = document.createElement('div')
     liste.id = 'conv-list'
     liste.style.display = 'flex'; liste.style.flexDirection = 'column'; liste.style.gap = '8px'
-    panelConv.appendChild(search); panelConv.appendChild(liste)
+    panelConv.appendChild(searchWrap); panelConv.appendChild(liste)
     search.addEventListener('input', () => {
       clearTimeout(rechercheTimer)
       const q = search.value.trim()
@@ -2080,10 +2168,11 @@ function afficherTempsReponse(ms) {
         convDate.textContent = new Date(s.derniere_activite).toLocaleDateString('fr-FR', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})
         body.appendChild(convTitle); body.appendChild(convDate)
         body.onclick = () => chargerConv(s.session_id)
-        const exp = document.createElement('button'); exp.className = 'btn-exp'; exp.textContent = '⬇'
-        exp.title = 'Exporter en .txt'
+        const exp = document.createElement('button'); exp.className = 'btn-exp'; exp.appendChild(pchIco('download'))
+        exp.title = 'Exporter en .txt'; exp.setAttribute('aria-label', 'Exporter en .txt')
         exp.onclick = e => { e.stopPropagation(); exporterConv(s.session_id) }
-        const del = document.createElement('button'); del.className = 'btn-del'; del.textContent = '🗑️'
+        const del = document.createElement('button'); del.className = 'btn-del'; del.appendChild(pchIco('trash'))
+        del.title = 'Supprimer'; del.setAttribute('aria-label', 'Supprimer la conversation')
         del.onclick = e => { e.stopPropagation(); ouvrirModale(() => supprimerConv(s.session_id, div)) }
         div.appendChild(dot); div.appendChild(body); div.appendChild(exp); div.appendChild(del)
         liste.appendChild(div)
@@ -2150,7 +2239,7 @@ function afficherTempsReponse(ms) {
       recentsEl.innerHTML = ''
       sessions.slice(0, 3).forEach(s => {
         const item = document.createElement('div'); item.className = 'recent-item'
-        const icon = document.createElement('span'); icon.className = 'recent-icon'; icon.textContent = '💬'
+        const icon = document.createElement('span'); icon.className = 'recent-icon'; icon.appendChild(pchIco('chat'))
         const title = document.createElement('span'); title.className = 'recent-title'
         title.textContent = (s.premier_message || 'Sans titre').substring(0, 28)
         item.onclick = () => { chargerConv(s.session_id); setNav(document.querySelectorAll('.nav-item')[0]) }
@@ -2164,9 +2253,9 @@ function afficherTempsReponse(ms) {
   // USB complet n'est pas accessible depuis une page web — c'est une limite
   // de sécurité du navigateur, pas un bug.
   const PERIPH_MAP = {
-    audioinput: { nom: 'Microphone', icone: '🎤' },
-    audiooutput: { nom: 'Sortie audio', icone: '🎧' },
-    videoinput: { nom: 'Caméra', icone: '📷' }
+    audioinput: { nom: 'Microphone', icone: 'mic' },
+    audiooutput: { nom: 'Sortie audio', icone: 'headset' },
+    videoinput: { nom: 'Caméra', icone: 'cam' }
   }
 
   async function listerPeripheriques() {
@@ -2190,7 +2279,7 @@ function afficherTempsReponse(ms) {
       listEl.innerHTML = ''
       items.slice(0, 5).forEach(p => {
         const item = document.createElement('div'); item.className = 'periph-item'
-        const icon = document.createElement('span'); icon.className = 'periph-icon'; icon.textContent = p.icone
+        const icon = document.createElement('span'); icon.className = 'periph-icon'; icon.appendChild(pchIco(p.icone))
         const name = document.createElement('span'); name.className = 'periph-name'; name.textContent = p.nom
         const dot = document.createElement('span'); dot.className = 'periph-dot'
         item.appendChild(icon); item.appendChild(name); item.appendChild(dot)
@@ -2307,7 +2396,7 @@ Analyse cette configuration : est-elle équilibrée ? Quels sont les points faib
       })
       const data = await res.json()
       if (!res.ok) { msg.textContent = data.erreur; return }
-      msg.textContent = '✓ Mot de passe modifié avec succès'; msg.className = 'form-msg ok'
+      msg.replaceChildren(pchIco('check'), document.createTextNode(' Mot de passe modifié avec succès')); msg.className = 'form-msg ok'
       document.getElementById('mdp-ancien').value = ''
       document.getElementById('mdp-nouveau').value = ''
       document.getElementById('mdp-confirm').value = ''

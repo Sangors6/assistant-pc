@@ -176,7 +176,12 @@
       background: linear-gradient(135deg, #3389ff, #0c4bce);
       box-shadow: 0 0 24px rgba(45,130,255,.55);
     }
-    .brand .logo svg { width: 17px; height: 17px; fill: white; }
+    .brand .logo svg { width: 18px; height: 18px; }
+    /* Système d'icônes maison : occupe la place de l'ancien glyphe. */
+    .ico { display: inline-block; fill: none; stroke: currentColor; }
+    .brand .logo .ico { width: 18px; height: 18px; color: #fff; }
+    .tip-head .spark .ico { width: 10px; height: 10px; color: #fff; }
+    .foot span .ico { width: 13px; height: 13px; }
 
     .phrase {
       min-height: 40px;
@@ -293,6 +298,14 @@
   </style>
 </head>
 <body>
+  <!-- Système d'icônes maison « Chevron-Care » (DA validée). Sprite SVG
+       inline, zéro asset/CDN externe, currentColor. -->
+  <svg width="0" height="0" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true" focusable="false"><defs>
+  <symbol id="i-brand" viewBox="0 0 32 32"><path d="M16 3.2 26.4 7.4v8.1c0 6.7-4.3 11.2-10.4 13.3C9.9 26.7 5.6 22.2 5.6 15.5V7.4L16 3.2Z" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/><path d="M12.7 11.4 17.6 16l-4.9 4.6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20.4" cy="16" r="1.7" fill="currentColor"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15" r="1.2" fill="currentColor" stroke="none"/></symbol>
+  </defs></svg>
+
   <audio id="snd-ring" src="/ring.mp3" preload="auto"></audio>
 
   <div class="bg-grid"></div>
@@ -302,7 +315,7 @@
   <div class="stage">
     <div class="brand">
       <div class="logo">
-        <svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8A2.5 2.5 0 0 1 17.5 16H13v2h3a1 1 0 1 1 0 2H8a1 1 0 1 1 0-2h3v-2H6.5A2.5 2.5 0 0 1 4 13.5v-8Z"/></svg>
+        <svg class="ico" aria-hidden="true"><use href="#i-brand"/></svg>
       </div>
       <span>PC Helper</span>
     </div>
@@ -314,7 +327,7 @@
     </div>
 
     <div class="tip-card">
-      <div class="tip-head"><span class="spark">⚡</span> Le saviez-vous ?</div>
+      <div class="tip-head"><span class="spark"><svg class="ico" aria-hidden="true"><use href="#i-bolt"/></svg></span> Le saviez-vous ?</div>
       <div class="phrase" id="phrase"></div>
     </div>
 
@@ -327,7 +340,7 @@
   </div>
 
   <div class="foot">
-    <span>🔒 Connexion chiffrée</span>
+    <span><svg class="ico" aria-hidden="true"><use href="#i-lock"/></svg> Connexion chiffrée</span>
     <span class="sep"></span>
     <span>PC Helper</span>
     <span class="sep"></span>

@@ -37,6 +37,10 @@
     .back-btn:hover { color: #bcd4f5; border-color: var(--border-hover); transform: translateX(-2px); background: rgba(37,99,235,0.08); }
     .back-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
     #tb-id { display: flex; align-items: center; gap: 12px; }
+    /* Système d'icônes maison : occupe la place de l'ancien emoji,
+       taille = 1em (suit le font-size du conteneur → zéro saut de layout). */
+    .ico { width: 1em; height: 1em; display: inline-block; vertical-align: -0.125em; flex-shrink: 0; fill: none; stroke: currentColor; }
+    #tb-icon .ico, .hc-ic .ico, .msg-av.assistant .ico { width: 56%; height: 56%; color: #fff; }
     #tb-icon { width: 40px; height: 40px; background: linear-gradient(135deg, var(--blue-light), var(--blue-dark)); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 19px; box-shadow: 0 6px 18px rgba(37,99,235,0.4), inset 0 1px 0 rgba(255,255,255,0.18); flex-shrink: 0; }
     #tb-name { font-size: 15.5px; font-weight: 700; color: #fff; letter-spacing: -0.4px; }
     #tb-sub { font-size: 10px; color: var(--text-dim); font-weight: 600; letter-spacing: 1.1px; text-transform: uppercase; margin-top: 2px; }
@@ -213,7 +217,7 @@
     #nav-fx .nfx-core { position: relative; display: flex; flex-direction: column; align-items: center; gap: 17px; opacity: 0; transform: translateY(7px); animation: nfxIn .5s cubic-bezier(.22,1,.36,1) .04s forwards; }
     #nav-fx .nfx-badge { position: relative; width: 76px; height: 76px; border-radius: 20px; display: flex; align-items: center; justify-content: center; background: linear-gradient(160deg, rgba(28,38,62,.92), rgba(11,16,28,.92)); border: 1px solid rgba(96,140,220,.20); box-shadow: 0 16px 44px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.05); }
     #nav-fx .nfx-badge::before { content: ''; position: absolute; inset: -1px; border-radius: 20px; background: radial-gradient(circle at 50% 28%, rgba(59,130,246,.26), transparent 68%); }
-    #nav-fx .nfx-badge svg { position: relative; width: 36px; height: 36px; fill: #9db8e6; }
+    #nav-fx .nfx-badge svg { position: relative; width: 38px; height: 38px; }
     #nav-fx .nfx-ring { position: absolute; inset: -8px; border-radius: 26px; border: 1px solid rgba(96,140,220,.16); }
     #nav-fx .nfx-title { font-size: 20px; font-weight: 600; letter-spacing: .2px; color: #9fb2cf; }
     #nav-fx .nfx-title b { color: #eaf0fb; font-weight: 700; }
@@ -264,11 +268,36 @@
   </style>
 </head>
 <body>
+  <!-- Système d'icônes maison « Chevron-Care » (DA validée). Sprite SVG
+       inline, zéro asset/CDN externe, currentColor. -->
+  <svg width="0" height="0" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true" focusable="false"><defs>
+  <symbol id="i-brand" viewBox="0 0 32 32"><path d="M16 3.2 26.4 7.4v8.1c0 6.7-4.3 11.2-10.4 13.3C9.9 26.7 5.6 22.2 5.6 15.5V7.4L16 3.2Z" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/><path d="M12.7 11.4 17.6 16l-4.9 4.6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20.4" cy="16" r="1.7" fill="currentColor"/></symbol>
+  <symbol id="i-wrench" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5a3.5 3.5 0 0 1-4.6 4.6l-5 5a1.8 1.8 0 1 0 2.5 2.5l5-5a3.5 3.5 0 0 0 4.6-4.6l-2.2 2.2-2.1-.5-.5-2.1 2.3-1.6Z"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 3h6"/></symbol>
+  <symbol id="i-puzzle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4a2 2 0 0 1 4 0c0 1 .5 1.5 1.5 1.5H19v3.5c0 1 .5 1.5 1.5 1.5a2 2 0 0 1 0 4c-1 0-1.5.5-1.5 1.5V20h-3.5c-1 0-1.5.5-1.5 1.5a2 2 0 0 1-4 0c0-1-.5-1.5-1.5-1.5H5v-3.5C5 15.5 4.5 15 3.5 15a2 2 0 0 1 0-4C4.5 11 5 10.5 5 9.5V6h3.5C9.5 6 10 5.5 10 4.5Z"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.5l1.4 2.6 2.9-.5 1 2.8 2.7 1.2-.9 2.8.9 2.8-2.7 1.2-1 2.8-2.9-.5L12 21.5l-1.4-2.6-2.9.5-1-2.8L4 15.4l.9-2.8L4 9.8l2.7-1.2 1-2.8 2.9.5L12 2.5Z"/></symbol>
+  <symbol id="i-net" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.7 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.7-3.8-9S9.5 5.6 12 3Z"/></symbol>
+  <symbol id="i-disk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".6" fill="currentColor"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13.5A8 8 0 1 1 10.5 4 6.5 6.5 0 0 0 20 13.5Z"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-clip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11.5 11 20.4a5 5 0 0 1-7-7l8.5-8.6a3.3 3.3 0 0 1 4.7 4.7L8.6 18a1.6 1.6 0 0 1-2.3-2.3l8-8"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12 20 4l-6 16-3.5-6.5L4 12Z"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6Z"/><path d="M10 19a2 2 0 0 0 4 0"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 9.5v5M12 17.5h.01"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4Z"/><path d="M8 9h8M8 12.5h5"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15" r="1.2" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></symbol>
+  </defs></svg>
+
   <div id="nav-fx" aria-hidden="true">
     <div class="nfx-glow"></div>
     <span class="nfx-edge l"></span><span class="nfx-edge r"></span>
     <div class="nfx-core">
-      <div class="nfx-badge"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8A2.5 2.5 0 0 1 17.5 16H13v2h3a1 1 0 1 1 0 2H8a1 1 0 1 1 0-2h3v-2H6.5A2.5 2.5 0 0 1 4 13.5v-8Z"/></svg><span class="nfx-ring"></span></div>
+      <div class="nfx-badge"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 3.2 26.4 7.4v8.1c0 6.7-4.3 11.2-10.4 13.3C9.9 26.7 5.6 22.2 5.6 15.5V7.4L16 3.2Z" stroke="#9db8e6" stroke-width="2.1" stroke-linejoin="round"/><path d="M12.7 11.4 17.6 16l-4.9 4.6" stroke="#9db8e6" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20.4" cy="16" r="1.7" fill="#9db8e6"/></svg><span class="nfx-ring"></span></div>
       <div class="nfx-title">PC&nbsp;<b>Helper</b></div>
       <div class="nfx-sub">Technicien support expert</div>
       <div class="nfx-dots"><i></i><i></i><i></i></div>
@@ -473,7 +502,7 @@
     <div id="topbar">
       <a class="back-btn" href="/app.html" title="Retour au tableau de bord" onclick="event.preventDefault();navTo('/app.html','back')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Tableau de bord</a>
       <div id="tb-id">
-        <div id="tb-icon">🛠️</div>
+        <div id="tb-icon"><svg class="ico" aria-hidden="true"><use href="#i-wrench"/></svg></div>
         <div>
           <div id="tb-name">Contacter un technicien</div>
           <div id="tb-sub">Technicien support expert — niveau ingénieur senior</div>
@@ -485,7 +514,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
           <span>Mes conversations</span>
         </button>
-        <button class="tb-new" id="new-btn" title="Nouvelle conversation (Ctrl/Cmd + K)">＋ Nouveau</button>
+        <button class="tb-new" id="new-btn" title="Nouvelle conversation (Ctrl/Cmd + K)"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg> Nouveau</button>
       </div>
     </div>
 
@@ -505,13 +534,13 @@
               <span class="wtag">Multi-OS bas niveau</span>
             </div>
             <div class="wmeta"><span class="wdot" id="wmeta-dot"></span><span id="wmeta-txt">En ligne — répond généralement en moins d'une minute</span></div>
-            <div class="weta" id="wmeta-eta">⏱️ <span id="wmeta-eta-txt">Temps de réponse estimé : ~1 min</span></div>
+            <div class="weta" id="wmeta-eta"><svg class="ico" aria-hidden="true"><use href="#i-clock"/></svg> <span id="wmeta-eta-txt">Temps de réponse estimé : ~1 min</span></div>
           </div>
           <div class="sug-grid" id="sug-grid">
-            <div class="sug" onclick="suggerer(this)"><span class="sug-ic">🧩</span><span class="sug-text">Mon PC freeze aléatoirement, voici l'Observateur d'événements — analyse les logs</span></div>
-            <div class="sug" onclick="suggerer(this)"><span class="sug-ic">⚙️</span><span class="sug-text">Écris-moi un script PowerShell robuste pour diagnostiquer un démarrage lent</span></div>
-            <div class="sug" onclick="suggerer(this)"><span class="sug-ic">🌐</span><span class="sug-text">Latence et pertes de paquets en jeu — comment isoler la cause réseau ?</span></div>
-            <div class="sug" onclick="suggerer(this)"><span class="sug-ic">💾</span><span class="sug-text">Mon SSD NVMe ralentit avec le temps : diagnostic SMART et causes probables</span></div>
+            <div class="sug" onclick="suggerer(this)"><span class="sug-ic"><svg class="ico" aria-hidden="true"><use href="#i-puzzle"/></svg></span><span class="sug-text">Mon PC freeze aléatoirement, voici l'Observateur d'événements — analyse les logs</span></div>
+            <div class="sug" onclick="suggerer(this)"><span class="sug-ic"><svg class="ico" aria-hidden="true"><use href="#i-gear"/></svg></span><span class="sug-text">Écris-moi un script PowerShell robuste pour diagnostiquer un démarrage lent</span></div>
+            <div class="sug" onclick="suggerer(this)"><span class="sug-ic"><svg class="ico" aria-hidden="true"><use href="#i-net"/></svg></span><span class="sug-text">Latence et pertes de paquets en jeu — comment isoler la cause réseau ?</span></div>
+            <div class="sug" onclick="suggerer(this)"><span class="sug-ic"><svg class="ico" aria-hidden="true"><use href="#i-disk"/></svg></span><span class="sug-text">Mon SSD NVMe ralentit avec le temps : diagnostic SMART et causes probables</span></div>
           </div>
           <div id="chat-skeleton" aria-hidden="true">
             <div class="skl-row"><div class="skl-av skl-shim"></div><div class="skl-lines"><div class="skl-b skl-shim" style="width:200px"></div><div class="skl-b skl-shim" style="width:320px"></div><div class="skl-b skl-shim" style="width:270px"></div></div></div>
@@ -525,19 +554,19 @@
       <div id="input-zone">
         <div id="input-inner">
           <div id="offline-banner">
-            <span class="ob-ic">🌙</span>
+            <span class="ob-ic"><svg class="ico" aria-hidden="true"><use href="#i-moon"/></svg></span>
             <span><b>Le technicien est momentanément hors ligne.</b> Il revient dès que possible — réessayez dans quelques minutes. Vous pouvez aussi utiliser l'assistant principal en attendant.</span>
           </div>
           <div id="img-preview">
             <img id="ip-thumb" alt="">
             <span style="font-size:12px;color:var(--text-mid)">Image jointe</span>
-            <span class="ip-x" onclick="retirerImage()" title="Retirer">✕</span>
+            <span class="ip-x" onclick="retirerImage()" title="Retirer" role="button" aria-label="Retirer l'image"><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg></span>
           </div>
           <div id="input-box">
-            <button class="io-btn" id="img-btn" title="Joindre une capture d'écran" onclick="document.getElementById('file-input').click()">📎</button>
+            <button class="io-btn" id="img-btn" title="Joindre une capture d'écran" aria-label="Joindre une capture d'écran" onclick="document.getElementById('file-input').click()"><svg class="ico" aria-hidden="true"><use href="#i-clip"/></svg></button>
             <input type="file" id="file-input" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none">
             <textarea id="msg-input" rows="1" placeholder="Décrivez votre problème technique en détail…" aria-label="Votre message au technicien"></textarea>
-            <button id="send-btn" title="Envoyer" disabled>➤</button>
+            <button id="send-btn" title="Envoyer" aria-label="Envoyer" disabled><svg class="ico" aria-hidden="true"><use href="#i-send"/></svg></button>
           </div>
           <div id="input-foot">
             <span>Entrée pour envoyer · Maj+Entrée pour un saut de ligne</span>
@@ -555,14 +584,14 @@
         <h2>Mes conversations</h2>
         <p>Vos échanges avec le technicien, gardés en mémoire</p>
       </div>
-      <button class="hist-x" id="hist-close" title="Fermer" aria-label="Fermer">✕</button>
+      <button class="hist-x" id="hist-close" title="Fermer" aria-label="Fermer"><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg></button>
     </div>
-    <button class="hist-newbtn" id="hist-new">＋ Démarrer une nouvelle conversation</button>
+    <button class="hist-newbtn" id="hist-new"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg> Démarrer une nouvelle conversation</button>
     <div class="hist-list" id="hist-list"></div>
   </aside>
 
   <div id="notif-bubble" role="dialog" aria-live="polite" aria-hidden="true">
-    <span class="nb-ic">🔔</span>
+    <span class="nb-ic"><svg class="ico" aria-hidden="true"><use href="#i-bell"/></svg></span>
     <div class="nb-body">
       <div class="nb-txt">Eh, n'oublie pas d'activer les notifications si tu veux savoir quand le technicien t'aura répondu&nbsp;!</div>
       <div class="nb-actions">
@@ -570,12 +599,29 @@
         <button class="nb-non" id="nb-plus-tard">Plus tard</button>
       </div>
     </div>
-    <button class="nb-x" id="nb-close" aria-label="Fermer">✕</button>
+    <button class="nb-x" id="nb-close" aria-label="Fermer"><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg></button>
   </div>
 
   <div id="sr-live" aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);"></div>
 
   <script>
+    /* Système d'icônes — fabrique un <svg><use> depuis le sprite inline.
+       Constante statique, zéro donnée utilisateur → aucun risque XSS.
+       Remplace les anciens textContent='emoji' par un nœud SVG (point
+       chaud msg-av : recréé à chaque message, pas de string réinjectée). */
+    const SVGNS = 'http://www.w3.org/2000/svg'
+    function pchIco (name, cls) {
+      const svg = document.createElementNS(SVGNS, 'svg')
+      svg.setAttribute('class', 'ico' + (cls ? ' ' + cls : ''))
+      svg.setAttribute('aria-hidden', 'true')
+      svg.setAttribute('focusable', 'false')
+      const use = document.createElementNS(SVGNS, 'use')
+      use.setAttribute('href', '#i-' + name)
+      svg.appendChild(use)
+      return svg
+    }
+    function setIco (el, name, cls) { if (el) el.replaceChildren(pchIco(name, cls)) }
+
     /* Auth — page authentifiée côté client, comme app.html */
     let token = localStorage.getItem('token')
     if (!token) window.location.href = '/login.html'
@@ -684,9 +730,9 @@
     // Fourchettes de délais (ms) [min,max] — un humain lit, réfléchit, écrit.
     const DELAIS = {
       disponible: { vu: [12000, 33000],  pre: [3000, 7000],  fr: 1.0,  note: null },
-      occupe:     { vu: [42000, 100000], pre: [5000, 11000], fr: 1.25, note: { cls: 'occupe', txt: '🛠️ Le technicien est actuellement avec un autre client. Votre message est dans la file — il y répond dès qu’il se libère.' } },
-      soiree:     { vu: [40000, 120000], pre: [4000, 9000],  fr: 1.15, note: { cls: '',       txt: '🌙 Il se fait tard côté technicien. Il a bien reçu votre message et vous répond, un peu plus lentement que d’habitude.' } },
-      nuit:       { vu: [120000, 300000],pre: [5000, 10000], fr: 1.2,  note: { cls: 'nuit',   txt: '🌙 Le technicien est hors ligne (il est tard). Votre message est bien noté — il vous répondra dès son retour. Vous pouvez fermer cette page et revenir plus tard, ou patienter ici.' } }
+      occupe:     { vu: [42000, 100000], pre: [5000, 11000], fr: 1.25, note: { cls: 'occupe', ico: 'wrench', txt: 'Le technicien est actuellement avec un autre client. Votre message est dans la file — il y répond dès qu’il se libère.' } },
+      soiree:     { vu: [40000, 120000], pre: [4000, 9000],  fr: 1.15, note: { cls: '',       ico: 'moon',   txt: 'Il se fait tard côté technicien. Il a bien reçu votre message et vous répond, un peu plus lentement que d’habitude.' } },
+      nuit:       { vu: [120000, 300000],pre: [5000, 10000], fr: 1.2,  note: { cls: 'nuit',   ico: 'moon',   txt: 'Le technicien est hors ligne (il est tard). Votre message est bien noté — il vous répondra dès son retour. Vous pouvez fermer cette page et revenir plus tard, ou patienter ici.' } }
     }
 
     /* --- Temps de réponse estimé (pour débutant, sans fausse précision) -----
@@ -733,8 +779,9 @@
       }
       return 'fini'
     }
-    function noteSysteme (txt, cls) {
+    function noteSysteme (txt, cls, icoName) {
       const n = document.createElement('div'); n.className = 'sys-note' + (cls ? ' ' + cls : '')
+      if (icoName) n.appendChild(pchIco(icoName))
       const s = document.createElement('span'); s.textContent = txt
       n.appendChild(s); chatArea.appendChild(n); chatArea.scrollTop = chatArea.scrollHeight
       return n
@@ -803,7 +850,7 @@
     async function notifierReponse (texte) {
       if (pageVisible()) return                 // déjà sous les yeux du client
       jouerSon()
-      document.title = '💬 Le technicien a répondu — PC Helper'
+      document.title = '● Le technicien a répondu — PC Helper'
       const corps = (texte || '').replace(/[#*`>_~\-]/g, '').replace(/\s+/g, ' ').trim().slice(0, 120)
       try {
         if ('Notification' in window && Notification.permission === 'granted') {
@@ -889,16 +936,16 @@
       try {
         const r = await fetch('/technicien/sessions', { headers: { 'Authorization': 'Bearer ' + token } })
         if (r.status === 401) { localStorage.removeItem('token'); window.location.href = '/login.html'; return }
-        if (!r.ok) { histList.innerHTML = '<div class="hist-empty"><span class="he-ic">⚠️</span><b>Impossible de charger l’historique</b>Réessayez dans un instant.</div>'; return }
+        if (!r.ok) { histList.innerHTML = '<div class="hist-empty"><span class="he-ic"><svg class="ico" aria-hidden="true"><use href="#i-warn"/></svg></span><b>Impossible de charger l’historique</b>Réessayez dans un instant.</div>'; return }
         const sessions = await r.json()
         if (!Array.isArray(sessions) || !sessions.length) {
-          histList.innerHTML = '<div class="hist-empty"><span class="he-ic">💬</span><b>Aucune conversation pour le moment</b>Posez votre première question au technicien : elle sera gardée ici automatiquement.</div>'
+          histList.innerHTML = '<div class="hist-empty"><span class="he-ic"><svg class="ico" aria-hidden="true"><use href="#i-chat"/></svg></span><b>Aucune conversation pour le moment</b>Posez votre première question au technicien : elle sera gardée ici automatiquement.</div>'
           return
         }
         histList.innerHTML = ''
         sessions.forEach((s) => histList.appendChild(carteHist(s)))
       } catch {
-        histList.innerHTML = '<div class="hist-empty"><span class="he-ic">⚠️</span><b>Connexion interrompue</b>Vérifiez votre connexion et réessayez.</div>'
+        histList.innerHTML = '<div class="hist-empty"><span class="he-ic"><svg class="ico" aria-hidden="true"><use href="#i-warn"/></svg></span><b>Connexion interrompue</b>Vérifiez votre connexion et réessayez.</div>'
       }
     }
 
@@ -908,7 +955,7 @@
       const titre = (s.titre || 'Conversation').toString().replace(/\s+/g, ' ').trim().slice(0, 90) || 'Conversation'
       const apercu = (s.apercu || '').toString().replace(/[#*`>_~]/g, '').replace(/\s+/g, ' ').trim().slice(0, 130)
       const top = document.createElement('div'); top.className = 'hc-top'
-      const ic = document.createElement('div'); ic.className = 'hc-ic'; ic.textContent = '🛠️'
+      const ic = document.createElement('div'); ic.className = 'hc-ic'; ic.appendChild(pchIco('wrench'))
       const txt = document.createElement('div')
       const tt = document.createElement('div'); tt.className = 'hc-titre'; tt.textContent = titre
       txt.appendChild(tt)
@@ -920,7 +967,7 @@
       top.appendChild(ic); top.appendChild(txt); card.appendChild(top)
 
       const del = document.createElement('button')
-      del.className = 'hist-del'; del.title = 'Supprimer cette conversation'; del.setAttribute('aria-label', 'Supprimer cette conversation'); del.textContent = '🗑'
+      del.className = 'hist-del'; del.title = 'Supprimer cette conversation'; del.setAttribute('aria-label', 'Supprimer cette conversation'); del.appendChild(pchIco('trash'))
       del.onclick = (e) => { e.stopPropagation(); demanderSuppression(card, s.session_id, titre) }
       card.appendChild(del)
 
@@ -1093,13 +1140,13 @@
       if (contenu.trim().length < 2) return
       const box = document.createElement('div'); box.className = 'pc-actions'
       const warn = document.createElement('div'); warn.className = 'pc-warn'
-      const wi = document.createElement('span'); wi.textContent = '⚠️'
+      const wi = document.createElement('span'); wi.appendChild(pchIco('warn'))
       const wt = document.createElement('span')
       wt.textContent = 'Vérifie chaque commande avant de l’exécuter. Ne lance un script que si tu comprends ce qu’il fait.'
       warn.appendChild(wi); warn.appendChild(wt)
       const btn = document.createElement('button')
       btn.type = 'button'; btn.className = 'pc-dl-btn'
-      btn.textContent = '⬇️ Télécharger le script (.' + ext + ')'
+      btn.append(pchIco('download'), document.createTextNode(' Télécharger le script (.' + ext + ')'))
       btn.onclick = () => {
         let entete = 'Genere par PC Helper - verifie avant execution\n'
         if (lang && lang[0] === 'powershell') entete = '# Genere par PC Helper - verifie avant execution\n'
@@ -1121,7 +1168,7 @@
       welcome.style.display = 'none'; sugGrid.style.display = 'none'
       const row = document.createElement('div'); row.className = 'msg-row ' + role
       const av = document.createElement('div'); av.className = 'msg-av ' + role
-      av.textContent = role === 'assistant' ? '🛠️' : initiale
+      if (role === 'assistant') { av.appendChild(pchIco('wrench')) } else { av.textContent = initiale }
       const wrap = document.createElement('div'); wrap.className = 'msg-wrap'
       const meta = document.createElement('div'); meta.className = 'msg-meta'
       const nameSpan = document.createElement('span'); nameSpan.className = 'msg-name'
@@ -1139,8 +1186,8 @@
         enrichirActions(bub)
       } else { bub.textContent = texte }
       if (role === 'assistant' && texte !== '__typing__') {
-        const copyBtn = document.createElement('button'); copyBtn.className = 'copy-btn'; copyBtn.title = 'Copier'; copyBtn.textContent = '📋'
-        copyBtn.onclick = () => { navigator.clipboard.writeText(texte); copyBtn.textContent = '✅'; copyBtn.classList.add('copied'); setTimeout(() => { copyBtn.textContent = '📋'; copyBtn.classList.remove('copied') }, 2000) }
+        const copyBtn = document.createElement('button'); copyBtn.className = 'copy-btn'; copyBtn.title = 'Copier'; copyBtn.setAttribute('aria-label', 'Copier'); setIco(copyBtn, 'copy')
+        copyBtn.onclick = () => { navigator.clipboard.writeText(texte); setIco(copyBtn, 'check'); copyBtn.classList.add('copied'); setTimeout(() => { setIco(copyBtn, 'copy'); copyBtn.classList.remove('copied') }, 2000) }
         wrap.appendChild(copyBtn)
       }
       wrap.appendChild(meta); wrap.appendChild(bub); row.appendChild(av); row.appendChild(wrap)
@@ -1165,8 +1212,8 @@
           enrichirActions(bub)
           const w = bub.parentElement
           if (w && !w.querySelector('.copy-btn')) {
-            const c = document.createElement('button'); c.className = 'copy-btn'; c.title = 'Copier'; c.textContent = '📋'
-            c.onclick = () => { navigator.clipboard.writeText(texte); c.textContent = '✅'; c.classList.add('copied'); setTimeout(() => { c.textContent = '📋'; c.classList.remove('copied') }, 2000) }
+            const c = document.createElement('button'); c.className = 'copy-btn'; c.title = 'Copier'; c.setAttribute('aria-label', 'Copier'); setIco(c, 'copy')
+            c.onclick = () => { navigator.clipboard.writeText(texte); setIco(c, 'check'); c.classList.add('copied'); setTimeout(() => { setIco(c, 'copy'); c.classList.remove('copied') }, 2000) }
             w.appendChild(c)
           }
           chatArea.scrollTop = chatArea.scrollHeight
@@ -1305,10 +1352,10 @@
       // ETA du message : fourchette lisible calculée depuis le scénario tiré
       // (réutilise DELAIS via etaScenario — aucune logique dupliquée).
       const eta = etaScenario(scn)
-      if (eta) noteSysteme('⏱️ Temps de réponse estimé : ' + eta, scn === 'occupe' ? 'occupe' : (scn === 'nuit' ? 'nuit' : ''))
+      if (eta) noteSysteme('Temps de réponse estimé : ' + eta, scn === 'occupe' ? 'occupe' : (scn === 'nuit' ? 'nuit' : ''), 'clock')
 
       // Note de contexte (occupé / soir / nuit) : explique l'attente
-      let note = d.note ? noteSysteme(d.note.txt, d.note.cls) : null
+      let note = d.note ? noteSysteme(d.note.txt, d.note.cls, d.note.ico) : null
 
       // 2) Délai avant le "Vu" — dépend de la présence, interruptible
       await patienter(ech(rng(d.vu[0], d.vu[1]), 6, 4000), stopErr)
@@ -1341,7 +1388,7 @@
       if (note) { note.remove(); note = null }
 
       if (limite) {
-        typingBub.classList.remove('typing'); typingBub.innerHTML = '🔒 Limite atteinte.'
+        typingBub.classList.remove('typing'); typingBub.replaceChildren(pchIco('lock'), document.createTextNode(' Limite atteinte.'))
         return finDiscussion()
       }
       if (erreurMsg) {
