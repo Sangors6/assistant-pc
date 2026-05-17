@@ -436,6 +436,373 @@
           "texte": "L impression ne repart pas malgre la reinstallation : il peut s agir d un service d impression Windows bloque, d un conflit de pilote ou d une panne materielle de l imprimante. L assistant PC Helper peut vous donner les commandes exactes a executer."
         }
       }
+    },
+    {
+      "slug": "pc-ne-sallume-pas",
+      "titre": "Le PC ne s allume pas du tout",
+      "tagline": "Aucun signe de vie : pas de voyant, pas de ventilateur, rien",
+      "icone": "⚡",
+      "metaTitle": "PC qui ne s allume plus : le guide de depannage pas a pas",
+      "metaDescription": "Votre ordinateur ne demarre plus du tout, aucun voyant ni bruit ? Suivez ce diagnostic guide : alimentation, prise, decharge electrique, batterie, solutions.",
+      "duree": "4 a 7 minutes",
+      "motsCles": "pc ne s allume pas, ordinateur ne demarre plus, aucun voyant, pas de ventilateur, pc mort, ne reagit pas au bouton, probleme alimentation, decharge electrique",
+      "depart": "q_signe_vie",
+      "noeuds": {
+        "q_signe_vie": {
+          "type": "question",
+          "question": "Quand vous appuyez sur le bouton de mise en marche, voyez-vous le moindre signe de vie : un voyant qui s allume, un bruit de ventilateur, un bip ?",
+          "oui": "q_ecran",
+          "non": "a_alim"
+        },
+        "a_alim": {
+          "type": "action",
+          "titre": "Verifier l alimentation electrique",
+          "texte": "Verifiez que le cable d alimentation est bien enfonce des deux cotes. Testez la prise murale avec un autre appareil (lampe, chargeur de telephone). Si vous utilisez une multiprise, branchez le PC directement au mur et verifiez son interrupteur. Sur une tour, controlez le petit interrupteur a l arriere du bloc d alimentation (position I). Sur un portable, branchez le chargeur et regardez si un voyant de charge s allume.",
+          "suivant": "q_apres_alim"
+        },
+        "q_apres_alim": {
+          "type": "question",
+          "question": "Le PC reagit-il maintenant (voyant, ventilateur, bruit) ?",
+          "oui": "q_ecran",
+          "non": "a_decharge"
+        },
+        "a_decharge": {
+          "type": "action",
+          "titre": "Faire une decharge electrique",
+          "texte": "Debranchez le cable d alimentation et tous les peripheriques (USB, ecran, imprimante). Sur un portable avec batterie amovible, retirez la batterie. Maintenez le bouton de mise en marche enfonce pendant 30 secondes (PC eteint et debranche) pour vider l electricite residuelle. Rebranchez ensuite uniquement l alimentation et l ecran, puis rallumez.",
+          "suivant": "q_apres_decharge"
+        },
+        "q_apres_decharge": {
+          "type": "question",
+          "question": "Le PC demarre-t-il apres la decharge electrique ?",
+          "oui": "q_ecran",
+          "non": "assistant"
+        },
+        "q_ecran": {
+          "type": "question",
+          "question": "Le PC s allume bien (ventilateurs, voyants) mais l ecran, lui, reste noir sans aucune image ?",
+          "oui": "a_renvoi_ecran",
+          "non": "ok"
+        },
+        "a_renvoi_ecran": {
+          "type": "assistant",
+          "texte": "Bonne nouvelle : votre PC s alimente correctement, le probleme se limite a l affichage. Suivez le guide « Ecran noir au demarrage » pour la suite, ou laissez l assistant PC Helper vous guider precisement selon votre materiel (cable video, source, carte graphique)."
+        },
+        "ok": {
+          "type": "resolu",
+          "texte": "Probleme resolu : le PC se rallume normalement. Si la panne revient, branchez-le toujours directement au mur et surveillez le cable d alimentation : c est la cause la plus frequente."
+        },
+        "assistant": {
+          "type": "assistant",
+          "texte": "Le PC ne donne toujours aucun signe de vie : il s agit probablement d une panne materielle (bloc d alimentation, carte mere, bouton power) qui necessite un diagnostic pousse. L assistant PC Helper peut vous aider a confirmer l origine avant toute reparation."
+        }
+      }
+    },
+    {
+      "slug": "navigateur-pubs-intempestives",
+      "titre": "Pubs et pop-ups dans le navigateur",
+      "tagline": "Publicites intempestives, page d accueil modifiee, navigation polluee",
+      "icone": "🛑",
+      "metaTitle": "Pop-ups et pubs dans le navigateur : nettoyage pas a pas",
+      "metaDescription": "Pubs intempestives, page d accueil changee, fausses alertes ? Suivez ce guide etape par etape : extensions, moteur de recherche, scan, nettoyage du navigateur.",
+      "duree": "5 a 8 minutes",
+      "motsCles": "pubs intempestives, pop-up navigateur, fausse alerte virus, page d accueil modifiee, barre d outils indesirable, navigateur detourne, adware, extensions louches",
+      "depart": "q_partout",
+      "noeuds": {
+        "q_partout": {
+          "type": "question",
+          "question": "Les publicites ou pop-ups apparaissent-elles uniquement sur certains sites (et pas quand vous ouvrez une page connue comme une recherche simple) ?",
+          "oui": "a_bloqueur",
+          "non": "a_extensions"
+        },
+        "a_bloqueur": {
+          "type": "action",
+          "titre": "Installer un bloqueur de publicites",
+          "texte": "Dans votre navigateur, ouvrez le menu (les trois points en haut a droite) > « Extensions » ou « Modules complementaires ». Installez un bloqueur reconnu (uBlock Origin par exemple) depuis la boutique officielle du navigateur. Redemarrez le navigateur et retournez sur le site concerne.",
+          "suivant": "q_apres_bloqueur"
+        },
+        "q_apres_bloqueur": {
+          "type": "question",
+          "question": "Les publicites sont-elles nettement reduites sur ces sites ?",
+          "oui": "ok",
+          "non": "a_extensions"
+        },
+        "a_extensions": {
+          "type": "action",
+          "titre": "Supprimer les extensions suspectes",
+          "texte": "Menu du navigateur > « Extensions ». Passez en revue la liste : desactivez puis supprimez tout ce que vous ne reconnaissez pas ou n avez pas installe volontairement (barres d outils, « PDF gratuit », « coupons », « video downloader »). Ne gardez que l essentiel. Fermez puis rouvrez completement le navigateur.",
+          "suivant": "q_apres_extensions"
+        },
+        "q_apres_extensions": {
+          "type": "question",
+          "question": "Les pop-ups et redirections ont-ils cesse ?",
+          "oui": "ok",
+          "non": "a_accueil"
+        },
+        "a_accueil": {
+          "type": "action",
+          "titre": "Remettre la page d accueil et le moteur de recherche",
+          "texte": "Menu > « Parametres ». Dans « Au demarrage » et « Moteur de recherche », remettez une valeur saine (page vierge ou Google) et supprimez tout moteur inconnu dans « Gerer les moteurs de recherche ». Verifiez aussi que la page de « Nouvel onglet » n a pas ete detournee.",
+          "suivant": "q_apres_accueil"
+        },
+        "q_apres_accueil": {
+          "type": "question",
+          "question": "Le navigateur ouvre-t-il a nouveau la bonne page sans redirection ?",
+          "oui": "ok",
+          "non": "a_scan"
+        },
+        "a_scan": {
+          "type": "action",
+          "titre": "Lancer une analyse antivirus",
+          "texte": "Touche Windows, tapez « Securite Windows », ouvrez-la, puis « Protection contre les virus et menaces » > « Options d analyse » > « Analyse complete » > « Analyser maintenant ». Laissez l analyse aller jusqu au bout et supprimez les menaces detectees. Redemarrez le PC ensuite.",
+          "suivant": "q_apres_scan"
+        },
+        "q_apres_scan": {
+          "type": "question",
+          "question": "La navigation est-elle redevenue propre apres l analyse et le redemarrage ?",
+          "oui": "ok",
+          "non": "assistant"
+        },
+        "ok": {
+          "type": "resolu",
+          "texte": "Probleme resolu : votre navigateur est de nouveau sain. Pour eviter la rechute : ne cliquez jamais sur « Telecharger » des sites inconnus, et installez vos logiciels uniquement depuis les sites officiels."
+        },
+        "assistant": {
+          "type": "assistant",
+          "texte": "Les publicites persistent malgre le nettoyage : un logiciel indesirable (adware) est peut-etre installe au niveau de Windows lui-meme. L assistant PC Helper peut vous guider pour l identifier et le retirer proprement, sans casser votre systeme."
+        }
+      }
+    },
+    {
+      "slug": "windows-update-bloque",
+      "titre": "Windows Update bloque",
+      "tagline": "Une mise a jour reste coincee, echoue ou tourne en boucle",
+      "icone": "🔄",
+      "metaTitle": "Windows Update bloque : le guide pas a pas pour le debloquer",
+      "metaDescription": "Mise a jour Windows figee, en echec ou en boucle ? Suivez ce diagnostic guide : patience, redemarrage, depanneur officiel, espace disque, solutions.",
+      "duree": "5 a 10 minutes",
+      "motsCles": "windows update bloque, mise a jour coincee, mise a jour echoue, update en boucle, telechargement bloque a 0, erreur mise a jour windows, pc bloque sur mise a jour",
+      "depart": "q_pourcent",
+      "noeuds": {
+        "q_pourcent": {
+          "type": "question",
+          "question": "L ecran affiche-t-il un pourcentage de mise a jour (« Travail en cours... X % ») qui semble fige depuis longtemps ?",
+          "oui": "a_patienter",
+          "non": "q_demarre"
+        },
+        "a_patienter": {
+          "type": "action",
+          "titre": "Laisser du temps avant d agir",
+          "texte": "Une mise a jour peut sembler bloquee alors qu elle travaille encore, surtout sur un disque dur classique. Laissez le PC branche et allume sans y toucher pendant au moins 2 heures. Si le pourcentage ne bouge VRAIMENT plus apres ce delai (et que la petite LED du disque ne clignote plus du tout), passez a l etape suivante.",
+          "suivant": "q_apres_patienter"
+        },
+        "q_apres_patienter": {
+          "type": "question",
+          "question": "La mise a jour s est-elle terminee et le PC a-t-il demarre normalement ?",
+          "oui": "ok",
+          "non": "a_redemarrer_force"
+        },
+        "a_redemarrer_force": {
+          "type": "action",
+          "titre": "Forcer le redemarrage",
+          "texte": "Maintenez le bouton de mise en marche enfonce 10 secondes pour eteindre le PC, attendez 20 secondes, puis rallumez. Windows tente generalement de reprendre ou d annuler proprement la mise a jour au demarrage suivant. Laissez-le faire sans l interrompre.",
+          "suivant": "q_apres_redemarrer_force"
+        },
+        "q_apres_redemarrer_force": {
+          "type": "question",
+          "question": "Windows demarre-t-il a nouveau jusqu au bureau ?",
+          "oui": "a_depanneur",
+          "non": "assistant"
+        },
+        "q_demarre": {
+          "type": "question",
+          "question": "Arrivez-vous a demarrer Windows normalement jusqu au bureau (la mise a jour echoue mais le PC reste utilisable) ?",
+          "oui": "a_depanneur",
+          "non": "a_redemarrer_force"
+        },
+        "a_depanneur": {
+          "type": "action",
+          "titre": "Lancer le depanneur Windows Update",
+          "texte": "Parametres > « Systeme » > « Resolution des problemes » > « Autres utilitaires de resolution des problemes ». A la ligne « Windows Update », cliquez sur « Executer ». Laissez l outil detecter et reparer, puis redemarrez le PC quand il le propose.",
+          "suivant": "q_apres_depanneur"
+        },
+        "q_apres_depanneur": {
+          "type": "question",
+          "question": "La mise a jour s installe-t-elle correctement apres le depanneur ?",
+          "oui": "ok",
+          "non": "a_espace"
+        },
+        "a_espace": {
+          "type": "action",
+          "titre": "Liberer de l espace disque",
+          "texte": "Une mise a jour a besoin de plusieurs gigaoctets libres. Touche Windows, tapez « Nettoyage de disque », lancez-le sur le disque C:, cochez « Fichiers temporaires », « Corbeille » et « Fichiers d optimisation de diffusion », validez. Verifiez qu il reste au moins 20 Go libres sur C:, puis relancez la mise a jour via Parametres > Windows Update.",
+          "suivant": "q_apres_espace"
+        },
+        "q_apres_espace": {
+          "type": "question",
+          "question": "La mise a jour aboutit-elle maintenant ?",
+          "oui": "ok",
+          "non": "assistant"
+        },
+        "ok": {
+          "type": "resolu",
+          "texte": "Probleme resolu : Windows est de nouveau a jour. Conseil : lancez les mises a jour le soir en laissant le PC branche, et gardez toujours de l espace libre sur le disque C:."
+        },
+        "assistant": {
+          "type": "assistant",
+          "texte": "La mise a jour reste bloquee ou en echec : il faut sans doute reinitialiser les composants de Windows Update ou traiter un code d erreur precis. L assistant PC Helper peut vous donner la marche a suivre exacte selon le message affiche."
+        }
+      }
+    },
+    {
+      "slug": "webcam-micro-visio",
+      "titre": "Webcam ou micro en visio",
+      "tagline": "Camera ou micro qui ne marche pas en appel video (Zoom, Teams, Meet)",
+      "icone": "🎥",
+      "metaTitle": "Webcam ou micro qui ne marche pas en visio : guide pas a pas",
+      "metaDescription": "Camera noire ou micro muet en visio Zoom, Teams ou Meet ? Suivez ce diagnostic guide : autorisations, bon peripherique, application concurrente, pilote.",
+      "duree": "4 a 6 minutes",
+      "motsCles": "webcam ne marche pas, camera noire en visio, micro muet, on ne m entend pas, zoom teams meet, autorisation camera microphone, peripherique audio visio",
+      "depart": "q_quoi",
+      "noeuds": {
+        "q_quoi": {
+          "type": "question",
+          "question": "Le probleme touche-t-il uniquement une application precise (Zoom, Teams, Meet...) alors que le reste fonctionne ?",
+          "oui": "a_choix_app",
+          "non": "a_autorisations"
+        },
+        "a_autorisations": {
+          "type": "action",
+          "titre": "Autoriser la camera et le micro dans Windows",
+          "texte": "Parametres > « Confidentialite et securite ». Ouvrez « Camera » : verifiez que « Acces a la camera » est active ET que l acces est autorise pour les applications de bureau. Faites de meme dans « Microphone ». Sur certains portables, verifiez aussi un cache physique sur la webcam et la touche clavier qui coupe le micro.",
+          "suivant": "q_apres_autorisations"
+        },
+        "q_apres_autorisations": {
+          "type": "question",
+          "question": "La camera et le micro fonctionnent-ils maintenant (testez avec l application « Camera » de Windows) ?",
+          "oui": "a_choix_app",
+          "non": "a_concurrente"
+        },
+        "a_choix_app": {
+          "type": "action",
+          "titre": "Choisir le bon peripherique dans l application",
+          "texte": "Dans l application de visio, ouvrez ses Parametres > « Audio » et « Video ». Selectionnez explicitement la bonne camera et le bon micro dans les listes deroulantes (pas un peripherique « virtuel » ou un casque debranche). Utilisez l apercu camera et le testeur de micro integres pour verifier en direct.",
+          "suivant": "q_apres_choix_app"
+        },
+        "q_apres_choix_app": {
+          "type": "question",
+          "question": "L apercu montre-t-il votre image et la barre du micro reagit-elle quand vous parlez ?",
+          "oui": "ok",
+          "non": "a_concurrente"
+        },
+        "a_concurrente": {
+          "type": "action",
+          "titre": "Liberer la camera d une autre application",
+          "texte": "Une camera ne peut servir qu a une application a la fois. Fermez completement les autres logiciels susceptibles de l utiliser (autre visio, OBS, application Camera, navigateur avec un onglet visio ouvert). Au besoin, redemarrez le PC pour tout liberer, puis rouvrez uniquement l application de visio.",
+          "suivant": "q_apres_concurrente"
+        },
+        "q_apres_concurrente": {
+          "type": "question",
+          "question": "La camera et le micro repondent-ils apres avoir ferme les autres applications ?",
+          "oui": "ok",
+          "non": "a_pilote_cam"
+        },
+        "a_pilote_cam": {
+          "type": "action",
+          "titre": "Reinitialiser le pilote de la camera",
+          "texte": "Touche Windows, tapez « Gestionnaire de peripheriques ». Deroulez « Cameras » (ou « Peripheriques d images »), clic droit sur votre webcam > « Desinstaller le peripherique ». Redemarrez le PC : Windows reinstalle le pilote automatiquement, puis retestez en visio.",
+          "suivant": "q_apres_pilote_cam"
+        },
+        "q_apres_pilote_cam": {
+          "type": "question",
+          "question": "La visio fonctionne-t-elle apres le redemarrage ?",
+          "oui": "ok",
+          "non": "assistant"
+        },
+        "ok": {
+          "type": "resolu",
+          "texte": "Probleme resolu : on vous voit et on vous entend. Avant chaque reunion importante, faites un test rapide dans les parametres de l application : cela evite la majorite des mauvaises surprises."
+        },
+        "assistant": {
+          "type": "assistant",
+          "texte": "La camera ou le micro reste muet malgre tout : conflit de pilote, peripherique defaillant ou reglage avance du systeme. L assistant PC Helper peut diagnostiquer votre configuration precise et vous donner la solution adaptee a votre materiel."
+        }
+      }
+    },
+    {
+      "slug": "bluetooth-ne-connecte-pas",
+      "titre": "Bluetooth qui ne se connecte pas",
+      "tagline": "Casque, souris ou enceinte Bluetooth introuvable ou qui se deconnecte",
+      "icone": "🎧",
+      "metaTitle": "Bluetooth qui ne se connecte pas : le guide de depannage pas a pas",
+      "metaDescription": "Appareil Bluetooth introuvable, non appaire ou qui se deconnecte ? Suivez ce diagnostic guide : activation, mode appairage, oubli/re-appairage, pilote.",
+      "duree": "4 a 6 minutes",
+      "motsCles": "bluetooth ne se connecte pas, appareil bluetooth introuvable, casque bluetooth ne s appaire pas, souris bluetooth deconnecte, pas de bluetooth windows, pilote bluetooth",
+      "depart": "q_bt_actif",
+      "noeuds": {
+        "q_bt_actif": {
+          "type": "question",
+          "question": "Le Bluetooth est-il active sur le PC : voyez-vous l interrupteur « Bluetooth » sur « Active » dans Parametres > Bluetooth et appareils ?",
+          "oui": "a_mode_appairage",
+          "non": "a_activer_bt"
+        },
+        "a_activer_bt": {
+          "type": "action",
+          "titre": "Activer le Bluetooth",
+          "texte": "Parametres > « Bluetooth et appareils » : basculez l interrupteur « Bluetooth » sur Active. Si l interrupteur est absent, ouvrez « Mode avion » et verifiez qu il est eteint. Sur un portable, cherchez aussi une touche Fn + touche Bluetooth/avion du clavier.",
+          "suivant": "q_apres_activer_bt"
+        },
+        "q_apres_activer_bt": {
+          "type": "question",
+          "question": "L interrupteur Bluetooth est-il maintenant disponible et active ?",
+          "oui": "a_mode_appairage",
+          "non": "a_pilote_bt"
+        },
+        "a_mode_appairage": {
+          "type": "action",
+          "titre": "Mettre l appareil en mode appairage",
+          "texte": "Allumez l appareil (casque, souris, enceinte) et chargez-le si besoin. Activez son mode appairage : sur la plupart, on maintient le bouton d alimentation ou un bouton dedie 5 a 10 secondes jusqu a ce que le voyant clignote rapidement (souvent bleu). Sur le PC : Parametres > Bluetooth et appareils > « Ajouter un appareil » > « Bluetooth », puis selectionnez-le dans la liste.",
+          "suivant": "q_apres_appairage"
+        },
+        "q_apres_appairage": {
+          "type": "question",
+          "question": "L appareil apparait-il et se connecte-t-il (statut « Connecte ») ?",
+          "oui": "ok",
+          "non": "a_oublier_bt"
+        },
+        "a_oublier_bt": {
+          "type": "action",
+          "titre": "Oublier puis re-appairer l appareil",
+          "texte": "Si l appareil est deja dans la liste mais ne fonctionne pas : cliquez sur les trois points a cote de son nom > « Supprimer l appareil ». Coupez puis rallumez l appareil pour le remettre en mode appairage, et refaites « Ajouter un appareil ». Eloignez les autres appareils Bluetooth qui pourraient le capter en premier.",
+          "suivant": "q_apres_oublier_bt"
+        },
+        "q_apres_oublier_bt": {
+          "type": "question",
+          "question": "L appareil se connecte-t-il correctement apres ce nouvel appairage ?",
+          "oui": "ok",
+          "non": "a_pilote_bt"
+        },
+        "a_pilote_bt": {
+          "type": "action",
+          "titre": "Reinitialiser le pilote Bluetooth",
+          "texte": "Touche Windows, tapez « Gestionnaire de peripheriques ». Deroulez « Bluetooth », clic droit sur l adaptateur principal (souvent « Intel Wireless Bluetooth » ou similaire) > « Desinstaller le peripherique ». Redemarrez le PC : Windows reinstalle le pilote au demarrage, puis refaites l appairage.",
+          "suivant": "q_apres_pilote_bt"
+        },
+        "q_apres_pilote_bt": {
+          "type": "question",
+          "question": "Le Bluetooth fonctionne-t-il apres le redemarrage ?",
+          "oui": "ok",
+          "non": "assistant"
+        },
+        "ok": {
+          "type": "resolu",
+          "texte": "Probleme resolu : votre appareil Bluetooth est connecte. Pour des connexions stables : gardez l appareil charge et a moins de 5 metres du PC, sans gros obstacle entre les deux."
+        },
+        "assistant": {
+          "type": "assistant",
+          "texte": "Le Bluetooth ne repond toujours pas : il peut s agir d un conflit de pilote, d un module Bluetooth desactive au niveau materiel ou d une incompatibilite de l appareil. L assistant PC Helper peut analyser votre cas precis et vous guider pas a pas."
+        }
+      }
     }
   ]
 }

@@ -268,12 +268,12 @@ test('#009 /playbooks.html servi (200, public)', async () => {
   assert.match(t, /Guides de depannage/i)
 })
 
-test('#009 /playbooks/playbooks.json servi + JSON valide + 5 playbooks', async () => {
+test('#009 /playbooks/playbooks.json servi + JSON valide + 10 playbooks', async () => {
   const r = await fetch(`${BASE}/playbooks/playbooks.json`)
   assert.equal(r.status, 200)
   const j = await r.json()
   assert.ok(Array.isArray(j.playbooks))
-  assert.equal(j.playbooks.length, 5)
+  assert.equal(j.playbooks.length, 10)
   for (const p of j.playbooks) {
     assert.match(p.slug, /^[a-z0-9-]+$/)
     assert.ok(p.noeuds && p.depart && p.noeuds[p.depart], `playbook ${p.slug} cohérent`)
