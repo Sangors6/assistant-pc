@@ -28,7 +28,13 @@ const WELCOME_HTML = $('welcome').outerHTML
 let token = null
 let sessionId = null
 
-const versParent = (msg) => parent.postMessage(msg, '*')
+// Mode d'exécution : iframe incrustée dans une page (content.js gère le
+// morph/drag via postMessage) OU fenêtre autonome dédiée (repli quand la
+// page hôte n'est pas scriptable / CSP bloque l'iframe). En fenêtre, il n'y
+// a pas de parent iframe : on neutralise proprement drag/redimensionnement
+// et la fermeture devient window.close().
+const EN_FENETRE = (window.top === window)
+const versParent = (msg) => { if (!EN_FENETRE) parent.postMessage(msg, '*') }
 
 /* ---------- Feuilles (réglages / historique), exclusives ---------- */
 function fermerFeuilles(saufEl) {
@@ -41,7 +47,10 @@ function basculerFeuille(el, onOpen) {
   if (ouvre && onOpen) onOpen()
 }
 
-$('btn-close').addEventListener('click', () => versParent({ __pchelper: 'closePanel' }))
+$('btn-close').addEventListener('click', () => {
+  if (EN_FENETRE) { try { window.close() } catch {} return }
+  versParent({ __pchelper: 'closePanel' })
+})
 $('btn-set').addEventListener('click', () => basculerFeuille(settingsEl))
 histBtn.addEventListener('click', () => basculerFeuille(historyEl, chargerHistorique))
 newBtn.addEventListener('click', nouveauChat)
@@ -60,8 +69,19 @@ store.get('pchGeo').then((g) => {
   seg.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x.dataset.size === preset))
 })
 
+// En fenêtre autonome, la taille/position du panneau sont gérées par la
+// fenêtre du navigateur elle-même : ces réglages (qui pilotent l'iframe
+// hôte) n'ont pas de sens ici -> on masque proprement le bloc + la poignée.
+if (EN_FENETRE) {
+  document.querySelectorAll('.set-block').forEach((b) => { b.style.display = 'none' })
+  const hint = document.querySelector('.set-hint')
+  if (hint) hint.textContent = 'Panneau ouvert en fenêtre dédiée (page non compatible avec l’incrustation).'
+  const grab = $('grab'); if (grab) grab.style.display = 'none'
+}
+
 /* ---------- Déplacement (drag fiable : coordonnées ÉCRAN) ---------- */
 function brancherDrag(el) {
+  if (EN_FENETRE) return // en fenêtre autonome : la fenêtre se déplace seule
   el.addEventListener('pointerdown', (e) => {
     if (e.target.closest('button')) return
     e.preventDefault()
@@ -105,7 +125,8 @@ function montrerChat() {
 function chargerMateriel() {
   const hw = $('hw')
   chrome.runtime.sendMessage({ type: 'PCHELPER_HW' }, (rep) => {
-    if (!rep || !rep.ok || !rep.data) { hw.style.display = 'none'; return }
+    // Canal volatil (SW MV3) : on lit lastError pour éviter l'échec muet.
+    if (chrome.runtime.lastError || !rep || !rep.ok || !rep.data) { hw.style.display = 'none'; return }
     const d = rep.data
     const chips = []
     if (d.cpu) {
@@ -370,7 +391,7 @@ msgsEl.addEventListener('click', (e) => {
 
 function analyserMateriel() {
   chrome.runtime.sendMessage({ type: 'PCHELPER_HW' }, (rep) => {
-    const d = rep && rep.ok ? rep.data : null
+    const d = (!chrome.runtime.lastError && rep && rep.ok) ? rep.data : null
     let cfg
     if (d && d.cpu) {
       cfg = `- Processeur : ${d.cpu.modele || 'CPU'} — ${d.cpu.coeurs} cœurs (charge ${d.cpu.charge}%)

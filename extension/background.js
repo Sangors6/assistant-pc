@@ -67,6 +67,74 @@ async function collecterMateriel() {
   return { cpu, memoire, ecran, source: 'extension' }
 }
 
+/* ----------------------------------------------------------------------
+ * Repli « panneau en fenêtre dédiée ».
+ *  Ouvre une ressource PROPRE de l'extension (panel/panel.html) : aucune
+ *  permission supplémentaire requise, et NON soumis à la CSP d'une page
+ *  hôte. Utilisé quand l'onglet n'est pas scriptable (chrome://, newtab,
+ *  Web Store, PDF, page d'erreur, content script orphelin après reload)
+ *  OU quand l'iframe incrustée a été bloquée (CSP frame-src de la page).
+ *  Anti-doublon : on mémorise l'id de fenêtre et on la refocalise.
+ * -------------------------------------------------------------------- */
+let panneauWindowId = null
+
+async function ouvrirPanneauFenetre() {
+  const url = chrome.runtime.getURL('panel/panel.html')
+
+  // Réutiliser la fenêtre déjà ouverte plutôt que d'en empiler une autre.
+  if (panneauWindowId != null) {
+    try {
+      const w = await chrome.windows.get(panneauWindowId)
+      if (w) { await chrome.windows.update(panneauWindowId, { focused: true }); return }
+    } catch {
+      panneauWindowId = null // fenêtre fermée entre-temps
+    }
+  }
+  // Filet anti-doublon supplémentaire : retrouver une fenêtre panneau
+  // existante même si l'id a été perdu (SW redémarré).
+  try {
+    const toutes = await chrome.windows.getAll({ populate: true })
+    for (const w of toutes) {
+      const t = w.tabs && w.tabs[0]
+      if (t && t.url && t.url.startsWith(url)) {
+        panneauWindowId = w.id
+        await chrome.windows.update(w.id, { focused: true })
+        return
+      }
+    }
+  } catch {}
+
+  try {
+    const win = await chrome.windows.create({
+      url, type: 'popup', width: 440, height: 700
+    })
+    panneauWindowId = win && win.id != null ? win.id : null
+  } catch {
+    // chrome.windows indisponible : repli ultime via un onglet.
+    try { await chrome.tabs.create({ url }) } catch {}
+  }
+}
+
+chrome.windows.onRemoved.addListener((id) => {
+  if (id === panneauWindowId) panneauWindowId = null
+})
+
+// Feedback explicite quand AUCUN contexte n'est possible : jamais un échec
+// 100 % muet. Badge éphémère sur l'icône de la barre.
+function feedbackEchec() {
+  try {
+    chrome.action.setBadgeBackgroundColor({ color: '#b45309' })
+    chrome.action.setBadgeText({ text: '!' })
+    chrome.action.setTitle({ title: 'PC Helper — impossible d’ouvrir ici' })
+    setTimeout(() => {
+      try {
+        chrome.action.setBadgeText({ text: '' })
+        chrome.action.setTitle({ title: 'Ouvrir PC Helper' })
+      } catch {}
+    }, 4000)
+  } catch {}
+}
+
 // Messages venant de content.js / panel.js.
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg && msg.type === 'PCHELPER_HW') {
@@ -75,15 +143,23 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       .catch((e) => sendResponse({ ok: false, erreur: String(e && e.message || e) }))
     return true // réponse asynchrone
   }
+  // content.js demande le repli fenêtre (iframe bloquée par CSP hôte…).
+  if (msg && msg.type === 'PCHELPER_OPEN_WINDOW') {
+    ouvrirPanneauFenetre()
+    return false
+  }
 })
 
 // Clic sur l'icône de la barre d'outils : on demande au content script
-// d'afficher/masquer le panneau dans l'onglet actif.
-chrome.action.onClicked.addListener(async (tab) => {
-  if (!tab.id) return
-  try {
-    await chrome.tabs.sendMessage(tab.id, { type: 'PCHELPER_TOGGLE' })
-  } catch {
-    // Pas de content script (page interne chrome://, store…) : on ignore.
-  }
+// d'afficher/masquer le panneau dans l'onglet actif. Si l'onglet n'est pas
+// scriptable (lastError), repli GARANTI sur le panneau en fenêtre dédiée.
+chrome.action.onClicked.addListener((tab) => {
+  if (!tab || !tab.id) { ouvrirPanneauFenetre(); return }
+  chrome.tabs.sendMessage(tab.id, { type: 'PCHELPER_TOGGLE' }, () => {
+    // Lecture explicite de lastError : sans content script joignable, le
+    // message échoue silencieusement -> on bascule sur la fenêtre dédiée.
+    if (chrome.runtime.lastError) {
+      ouvrirPanneauFenetre().catch(() => feedbackEchec())
+    }
+  })
 })

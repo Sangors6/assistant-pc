@@ -30,6 +30,21 @@ Extension Manifest V3 qui combine deux fonctions dans **une seule extension** :
 - En visitant `assistant-pc.onrender.com`, le panneau « État du PC » affiche
   automatiquement les vraies mesures matérielles.
 
+### Repli « fenêtre dédiée » (ouverture toujours fiable)
+
+Sur les pages où l'extension ne peut pas s'incruster (pages internes
+`chrome://`, nouvel onglet, Chrome Web Store, visionneuse PDF, page d'erreur,
+ou page dont la politique de sécurité — CSP `frame-src` — bloque l'iframe
+`chrome-extension://`), le **clic sur l'icône de la barre** ouvre le panneau
+dans une **fenêtre dédiée** (popup). Le chat, la connexion et l'historique y
+sont 100 % fonctionnels ; la fermeture (`✕`) ferme la fenêtre, et les réglages
+de taille/position du panneau (propres au mode incrusté) y sont masqués car la
+fenêtre du navigateur les gère elle-même. Une seule fenêtre est réutilisée
+(pas de doublon). Si vraiment aucun contexte n'est exploitable, un badge `!`
+éphémère apparaît sur l'icône (jamais d'échec silencieux). Ce repli n'utilise
+**aucune permission supplémentaire** (ouverture d'une ressource propre de
+l'extension).
+
 ## Architecture
 
 | Fichier | Rôle |
