@@ -44,39 +44,6 @@
 - L'assistant principal (`/chat`) et `app.html` ne doivent JAMAIS être
   impactés par un changement du panneau technicien.
 
-## Centre de pilotage (panneau Directeur — `public/pilotage.html`)
-
-> Quasi-jumeau de `technicien.html`, adapté au Directeur. Mêmes garde-fous ;
-> le filet vit dans `test/smoke.test.mjs` (tests « CONTRAT pilotage … »).
-> Construit via clone de l'architecture éprouvée — ne pas diverger sans
-> décision + MAJ des tests.
-
-### Invariants pilotage (ne jamais supprimer sans décision + MAJ tests)
-- Anti-flash : classe `pilote-restore` sur `<html>` si `sessionIdDir` ;
-  `#chat-skeleton` + `window.pageContenuPret`.
-- Transition : `#nav-fx`, `window.navTo = function`, `sessionStorage 'navfx'`,
-  swoosh Web Audio (`decodeAudioData`) **uniquement à l'aller** (`d ===
-  'forward'`), assets cache-bustés `?v=N` (`swoosh%20tech.mp3?v=4`,
-  `notify.mp3?v=3`). Aucun audio dans `app.html` (inchangé).
-- Présence : `rendrePresence`, `tirerScenario`, `DELAIS` (source unique),
-  `etaScenario` (« Temps de réponse estimé »).
-- Historique : `chargerHistoriqueDir`, route `GET /directeur/sessions`,
-  `#hist-panel` ; canal `directeur` jamais mélangé à `technicien`/`chat`.
-- Notifications : `#notif-bubble`, `proposerNotif`, `notifierReponse`.
-- Cœur chat : `function ajouterMsg`, `async function envoyer`, `sessionIdDir`,
-  route `POST /directeur`.
-- Volet « Détails techniques » : `separerDetails`/`construireVolet`, regex
-  `RE_DETAILS` extrayant les blocs `【DÉTAILS】…【/DÉTAILS】` HORS du corps
-  visible (le corps ne montre jamais de jargon). Volet fermé par défaut.
-
-### Surface serveur `/directeur` (clone de `/technicien`)
-- `POST /directeur`, `GET /directeur/sessions`, `GET /directeur/statut`
-  héritent EXACTEMENT des gardes de `/technicien` : `limiteurChat,
-  authentifier, limiteurChatCompte` (POST), `authentifier` (GET) → 401 sans
-  token, jamais 500, aucune fuite. Seules différences fonctionnelles :
-  `system: promptDirecteur(...)` et `canal='directeur'`.
-- `/chat`, `/technicien`, `app.html` : strictement non régressés.
-
 ## Règles de travail (éviter les casses)
 1. Travailler sur la branche `feat/panel`, pas `main` direct (session
    parallèle « extension » pousse aussi sur `main`).

@@ -53,7 +53,7 @@
     .nav-item.primary { background: linear-gradient(135deg, var(--blue), var(--blue-dark)); color: #fff; font-weight: 600; border-color: transparent; box-shadow: 0 10px 26px rgba(37,99,235,0.34), inset 0 1px 0 rgba(255,255,255,0.14); margin-bottom: 9px; }
     .nav-item.primary:hover { color: #fff; transform: translateY(-1px); box-shadow: 0 12px 30px rgba(37,99,235,0.5), inset 0 1px 0 rgba(255,255,255,0.14); }
     .nav-item.primary.active::before { display: none; }
-    /* Escalade premium : "Contacter un technicien" / "Centre de pilotage" —
+    /* Escalade premium : "Contacter un technicien" —
        sort de la SPA. Accent cyan discret pour le distinguer du CTA. */
     .nav-item.escalate { color: #c2d6f6; border-color: rgba(34,211,238,0.16); background: linear-gradient(135deg, rgba(34,211,238,0.06), rgba(37,99,235,0.05)); }
     .nav-item.escalate::after { content: ''; position: absolute; right: 12px; top: 50%; width: 5px; height: 5px; border-radius: 50%; transform: translateY(-50%); background: var(--cyan); box-shadow: 0 0 8px rgba(34,211,238,0.75); opacity: 0.85; }
@@ -826,9 +826,6 @@
         <div class="nav-item escalate" onclick="navTo('/technicien.html','forward')" title="Parler à un technicien support expert">
           <span class="nav-icon">🛠️</span> Contacter un technicien
         </div>
-        <div class="nav-item escalate" onclick="navTo('/pilotage.html','forward')" title="Parler au Directeur de PC Helper et voir l'équipe au travail">
-          <span class="nav-icon">🏢</span> Centre de pilotage
-        </div>
       </div>
 
       <div class="nav-group" id="recents-group" style="display:none">
@@ -857,7 +854,7 @@
           <span class="sc-ic">🖥️</span> Mon PC
           <button type="button" class="pc-edit" id="pc-edit-btn"
                   onclick="ouvrirOnboardPC('edit')"
-                  title="Modifier les composants de mon PC">✎ Éditer</button>
+                  title="Saisir manuellement les composants de mon PC">✎ Saisir mon PC</button>
         </div>
 
         <div class="pc-grid">
