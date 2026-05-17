@@ -803,6 +803,168 @@
           "texte": "Le Bluetooth ne repond toujours pas : il peut s agir d un conflit de pilote, d un module Bluetooth desactive au niveau materiel ou d une incompatibilite de l appareil. L assistant PC Helper peut analyser votre cas precis et vous guider pas a pas."
         }
       }
+    },
+    {
+      "slug": "ecran-bleu-redemarrage",
+      "titre": "Ecran bleu / le PC redemarre seul",
+      "tagline": "Ecran bleu d erreur, plantage ou redemarrages intempestifs",
+      "icone": "💙",
+      "metaTitle": "Ecran bleu Windows : que faire, le guide de depannage pas a pas",
+      "metaDescription": "Ecran bleu d erreur, PC qui plante ou redemarre tout seul ? Suivez ce diagnostic guide : nouveau materiel, mise a jour, surchauffe, memoire, solutions.",
+      "duree": "5 a 9 minutes",
+      "motsCles": "ecran bleu, bsod, pc redemarre tout seul, plantage windows, code erreur ecran bleu, pc qui plante, redemarrages intempestifs, arret brutal",
+      "depart": "q_demarre",
+      "noeuds": {
+        "q_demarre": {
+          "type": "question",
+          "question": "Arrivez-vous quand meme a demarrer Windows jusqu au bureau, au moins quelques minutes, avant que l ecran bleu n apparaisse ?",
+          "oui": "q_recent",
+          "non": "a_sans_echec"
+        },
+        "q_recent": {
+          "type": "question",
+          "question": "Les ecrans bleus ont-ils commence juste apres un changement recent (nouveau materiel branche, nouveau logiciel/pilote installe, mise a jour) ?",
+          "oui": "a_annuler_changement",
+          "non": "a_temperature"
+        },
+        "a_annuler_changement": {
+          "type": "action",
+          "titre": "Annuler le changement recent",
+          "texte": "Debranchez tout materiel ajoute recemment (cle USB, disque externe, barrette memoire, peripherique). Si c est un logiciel ou un pilote : Parametres > Applications > desinstallez le dernier installe ; pour un pilote, Gestionnaire de peripheriques > clic droit sur l appareil concerne > « Proprietes » > onglet « Pilote » > « Restaurer le pilote ». Redemarrez ensuite.",
+          "suivant": "q_apres_changement"
+        },
+        "q_apres_changement": {
+          "type": "question",
+          "question": "Les ecrans bleus ont-ils cesse apres avoir annule ce changement ?",
+          "oui": "ok",
+          "non": "a_temperature"
+        },
+        "a_temperature": {
+          "type": "action",
+          "titre": "Ecarter la surchauffe et verifier la memoire",
+          "texte": "Assurez-vous que les aerations du PC ne sont pas obstruees (poussiere, surface molle) et qu il ne chauffe pas anormalement. Lancez ensuite le test memoire integre : touche Windows, tapez « Diagnostic de memoire Windows », ouvrez-le et choisissez « Redemarrer maintenant et rechercher les problemes ». Le PC redemarre et teste la RAM automatiquement.",
+          "suivant": "q_apres_temperature"
+        },
+        "q_apres_temperature": {
+          "type": "question",
+          "question": "Le test memoire s est-il termine sans erreur ET les plantages se sont-ils calmes ?",
+          "oui": "ok",
+          "non": "a_sfc"
+        },
+        "a_sans_echec": {
+          "type": "action",
+          "titre": "Demarrer en mode sans echec",
+          "texte": "Si le PC plante avant le bureau : eteignez-le de force (bouton power 10 s) au moment ou il demarre, 3 fois de suite. Au 3e essai, Windows ouvre la « Reparation automatique » > « Options avancees » > « Depannage » > « Parametres » > « Redemarrer » > touche 4 pour le « Mode sans echec ». Le PC demarre alors en mode allege.",
+          "suivant": "q_apres_sans_echec"
+        },
+        "q_apres_sans_echec": {
+          "type": "question",
+          "question": "Le PC reste-t-il stable en mode sans echec (pas d ecran bleu) ?",
+          "oui": "a_sfc",
+          "non": "assistant"
+        },
+        "a_sfc": {
+          "type": "action",
+          "titre": "Reparer les fichiers systeme",
+          "texte": "Touche Windows, tapez « cmd », clic droit sur « Invite de commandes » > « Executer en tant qu administrateur ». Tapez exactement : sfc /scannow puis Entree, et laissez aller jusqu a 100 %. Tapez ensuite : DISM /Online /Cleanup-Image /RestoreHealth puis Entree. Redemarrez le PC a la fin.",
+          "suivant": "q_apres_sfc"
+        },
+        "q_apres_sfc": {
+          "type": "question",
+          "question": "Le PC fonctionne-t-il sans ecran bleu apres la reparation et le redemarrage ?",
+          "oui": "ok",
+          "non": "assistant"
+        },
+        "ok": {
+          "type": "resolu",
+          "texte": "Probleme resolu : le PC est de nouveau stable. Notez le code d erreur si un ecran bleu reapparait (par ex. « DPC_WATCHDOG_VIOLATION ») : il oriente directement vers la cause exacte."
+        },
+        "assistant": {
+          "type": "assistant",
+          "texte": "Les ecrans bleus persistent : la cause peut etre un pilote defaillant precis, une barrette memoire HS ou un disque en fin de vie. L assistant PC Helper peut analyser le code d erreur affiche et vous guider vers la solution exacte, etape par etape."
+        }
+      }
+    },
+    {
+      "slug": "pc-surchauffe-ventilateur-bruyant",
+      "titre": "PC qui chauffe / ventilateur bruyant",
+      "tagline": "Ventilateur a fond, PC brulant, ralentissements ou arrets brusques",
+      "icone": "🔥",
+      "metaTitle": "PC qui chauffe et ventilateur bruyant : le guide pas a pas",
+      "metaDescription": "Ventilateur a fond, PC brulant ou qui s eteint seul ? Suivez ce diagnostic guide : aeration, processus gourmand, poussiere, alimentation portable, solutions.",
+      "duree": "4 a 7 minutes",
+      "motsCles": "pc surchauffe, ventilateur bruyant, pc qui chauffe, ordinateur brulant, pc s eteint tout seul, ventilateur a fond, surchauffe processeur, pc qui ralentit en chauffant",
+      "depart": "q_aeration",
+      "noeuds": {
+        "q_aeration": {
+          "type": "question",
+          "question": "Le PC est-il pose sur une surface dure et degagee, avec ses grilles d aeration libres (pas sur un lit, un canape, un coussin, ni colle a un mur) ?",
+          "oui": "a_processus",
+          "non": "a_aeration"
+        },
+        "a_aeration": {
+          "type": "action",
+          "titre": "Liberer la ventilation",
+          "texte": "Posez le PC portable sur une surface dure et plane (table, bureau). Pour une tour, ecartez-la du mur et des sources de chaleur. Verifiez qu aucune entree ni sortie d air n est bouchee. Laissez le PC refroidir 10 minutes a l arret, puis rallumez et observez.",
+          "suivant": "q_apres_aeration"
+        },
+        "q_apres_aeration": {
+          "type": "question",
+          "question": "Le ventilateur s est-il calme et le PC est-il moins chaud ?",
+          "oui": "ok",
+          "non": "a_processus"
+        },
+        "a_processus": {
+          "type": "action",
+          "titre": "Identifier le programme qui fait chauffer",
+          "texte": "Appuyez sur Ctrl + Maj + Echap pour ouvrir le Gestionnaire des taches. Onglet « Processus », cliquez sur la colonne « Processeur » pour trier du plus gourmand au moins gourmand. Reperez un programme qui reste a un usage tres eleve en continu (souvent un navigateur surcharge d onglets, un jeu, ou une mise a jour). Clic droit dessus > « Fin de tache » si ce n est pas un processus Windows essentiel.",
+          "suivant": "q_apres_processus"
+        },
+        "q_apres_processus": {
+          "type": "question",
+          "question": "Apres avoir ferme ce programme, le PC chauffe-t-il moins et le ventilateur ralentit-il ?",
+          "oui": "ok",
+          "non": "a_poussiere"
+        },
+        "a_poussiere": {
+          "type": "action",
+          "titre": "Depoussierer les aerations",
+          "texte": "Eteignez le PC et debranchez-le. Avec une bombe d air sec (vendue en magasin), soufflez par courtes impulsions dans les grilles d aeration et au niveau du ventilateur, sans le faire tourner a la main. La poussiere accumulee est la cause n°1 d un ventilateur bruyant en permanence. Rallumez ensuite et observez.",
+          "suivant": "q_apres_poussiere"
+        },
+        "q_apres_poussiere": {
+          "type": "question",
+          "question": "Le bruit du ventilateur et la chaleur sont-ils revenus a la normale ?",
+          "oui": "ok",
+          "non": "q_portable"
+        },
+        "q_portable": {
+          "type": "question",
+          "question": "S agit-il d un PC portable qui chauffe surtout, voire s eteint, quand il est branche au chargeur ?",
+          "oui": "a_chargeur",
+          "non": "assistant"
+        },
+        "a_chargeur": {
+          "type": "action",
+          "titre": "Verifier le chargeur d origine",
+          "texte": "Utilisez le chargeur d origine ou un modele de meme puissance (verifiez les valeurs en watts/volts indiquees dessus). Un chargeur sous-dimensionne ou abime fait surchauffer la batterie. Posez le PC bien aere pendant la charge et evitez les usages lourds (jeu, video) en charge.",
+          "suivant": "q_apres_chargeur"
+        },
+        "q_apres_chargeur": {
+          "type": "question",
+          "question": "La surchauffe en charge a-t-elle disparu ?",
+          "oui": "ok",
+          "non": "assistant"
+        },
+        "ok": {
+          "type": "resolu",
+          "texte": "Probleme resolu : le PC reste a une temperature normale. Pour le garder au frais : surface degagee, depoussierage tous les 6 a 12 mois, et evitez de boucher les aerations."
+        },
+        "assistant": {
+          "type": "assistant",
+          "texte": "Le PC continue de surchauffer malgre tout : la pate thermique est peut-etre seche, un ventilateur est en panne ou le materiel est sous-dimensionne pour l usage. L assistant PC Helper peut analyser les temperatures de votre machine et vous indiquer la marche a suivre."
+        }
+      }
     }
   ]
 }

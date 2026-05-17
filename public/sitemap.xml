@@ -63,4 +63,14 @@
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
+  <url>
+    <loc>https://assistant-pc.onrender.com/playbooks/ecran-bleu-redemarrage</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://assistant-pc.onrender.com/playbooks/pc-surchauffe-ventilateur-bruyant</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
 </urlset>
