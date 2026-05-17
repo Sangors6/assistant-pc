@@ -51,3 +51,18 @@ self.addEventListener('fetch', (e) => {
     }
   })())
 })
+
+/* Clic sur une notification « le technicien a répondu » : on ramène le
+ * client sur l'onglet technicien (focus s'il est déjà ouvert, sinon ouvre).
+ * Notification LOCALE déclenchée par la page (pas une push serveur : la
+ * réponse n'est produite que pendant que la page tient la requête). */
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close()
+  e.waitUntil((async () => {
+    const fenetres = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+    for (const c of fenetres) {
+      if (c.url.includes('/technicien') && 'focus' in c) return c.focus()
+    }
+    if (self.clients.openWindow) return self.clients.openWindow('/technicien.html')
+  })())
+})

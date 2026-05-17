@@ -365,6 +365,68 @@
       return 'Désolé, j’ai un souci technique de mon côté à l’instant — réessayez dans un moment. (' + msg + ')'
     }
 
+    /* --- Alerte de réponse : son + notification quand le client N'EST PAS
+       sur la page (autre onglet / fenêtre minimisée). Une vraie push
+       « navigateur fermé » exige une génération serveur découplée — hors
+       périmètre ici ; on couvre le cas réel du quotidien. */
+    const TITRE_BASE = 'Contacter un technicien — PC Helper'
+    let sonNotif = null
+    function jouerSon () {
+      try {
+        if (!sonNotif) { sonNotif = new Audio('/notify.mp3'); sonNotif.volume = 0.55 }
+        sonNotif.currentTime = 0
+        sonNotif.play().catch(() => {})
+      } catch {}
+    }
+    function pageVisible () {
+      return document.visibilityState === 'visible' && document.hasFocus()
+    }
+    function demanderPermissionNotif () {
+      try {
+        if ('Notification' in window && Notification.permission === 'default') {
+          Notification.requestPermission().catch(() => {})
+        }
+      } catch {}
+    }
+    async function notifierReponse (texte) {
+      if (pageVisible()) return                 // déjà sous les yeux du client
+      jouerSon()
+      document.title = '💬 Le technicien a répondu — PC Helper'
+      const corps = (texte || '').replace(/[#*`>_~\-]/g, '').replace(/\s+/g, ' ').trim().slice(0, 120)
+      try {
+        if ('Notification' in window && Notification.permission === 'granted') {
+          const opts = { body: corps || 'Vous avez une nouvelle réponse.', icon: '/favicon.svg', badge: '/favicon.svg', tag: 'tech-reponse', renotify: true }
+          if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+            const reg = await navigator.serviceWorker.ready
+            await reg.showNotification('Le technicien vous a répondu', opts)
+          } else if (Notification.permission === 'granted') {
+            new Notification('Le technicien vous a répondu', opts)
+          }
+        }
+      } catch {}
+    }
+    document.addEventListener('visibilitychange', () => {
+      if (pageVisible()) document.title = TITRE_BASE
+    })
+
+    /* --- Historique : la conversation technicien est persistée côté serveur
+       (table conversations, clé par sessionIdTech). On la recharge à
+       l'ouverture pour ne RIEN perdre si le client a quitté la page. */
+    async function chargerHistoriqueTech () {
+      if (!sessionId) return
+      try {
+        const r = await fetch('/historique/' + sessionId, { headers: { 'Authorization': 'Bearer ' + token } })
+        if (r.status === 401) { localStorage.removeItem('token'); window.location.href = '/login.html'; return }
+        if (!r.ok) return
+        const msgs = await r.json()
+        if (!Array.isArray(msgs) || !msgs.length) return
+        welcome.style.display = 'none'; sugGrid.style.display = 'none'
+        msgs.forEach((m) => ajouterMsg(m.contenu, m.role))
+        chatArea.scrollTop = chatArea.scrollHeight
+        srLive.textContent = 'Conversation précédente restaurée.'
+      } catch {}
+    }
+
     marked.setOptions({ breaks: true, gfm: true })
 
     function now() {
@@ -418,7 +480,8 @@
     function nouveauChat() {
       sessionId = null
       localStorage.removeItem('sessionIdTech')
-      document.querySelectorAll('.msg-row').forEach(m => m.remove())
+      document.querySelectorAll('.msg-row, .sys-note').forEach(m => m.remove())
+      document.title = TITRE_BASE
       welcome.style.display = ''
       sugGrid.style.display = ''
       retirerImage()
@@ -595,6 +658,7 @@
       const texte = inputEl.value.trim()
       if (!texte && !imageJointe) return
       enDiscussion = true
+      demanderPermissionNotif()   // geste utilisateur → moment idéal pour demander
 
       const row = document.createElement('div'); row.className = 'msg-row user'
       const av = document.createElement('div'); av.className = 'msg-av user'; av.textContent = initiale
@@ -699,6 +763,7 @@
         await attendre(reduit ? 400 : rng(2000, 4000))
         eb.classList.remove('typing'); eb.textContent = humaniserErreur(erreurMsg)
         if (indispo) etatServeur = 'occupe'
+        notifierReponse('Le technicien a un souci technique — réessayez dans un moment.')
         return finDiscussion()
       }
 
@@ -724,6 +789,7 @@
         await attendre(reduit ? 300 : rng(1500, 3000))
         typingBub.classList.remove('typing'); typingBub.textContent = humaniserErreur(erreurMsg)
         if (indispo) etatServeur = 'occupe'
+        notifierReponse('Le technicien a un souci technique — réessayez dans un moment.')
         return finDiscussion()
       }
       if (!texteReponse) {
@@ -738,6 +804,7 @@
 
       // 7) Réponse envoyée d'un bloc (comme un vrai humain)
       await revelerBloc(typingBub, texteReponse, reduit)
+      notifierReponse(texteReponse)   // son + notif si le client a quitté l'onglet
       finDiscussion()
     }
 
@@ -746,6 +813,7 @@
     rendrePresence()
     rafraichirStatut()
     setInterval(rafraichirStatut, 30000)
+    chargerHistoriqueTech()   // restaure la discussion si on revient sur la page
 
     inputEl.focus()
   </script>
