@@ -940,6 +940,13 @@ app.post('/auth/reset-demande', limiteurAuth, async (req, res) => {
     if (u && mailer.estConfigure()) {
       const tokenClair = crypto.randomUUID()
       const expire = new Date(Date.now() + 60 * 60 * 1000) // +1 h
+      // F-15 : une nouvelle demande invalide les liens reset précédents non
+      // consommés (un seul lien actif à la fois -> réduit la fenêtre d'abus
+      // si un ancien email a fuité).
+      await run(
+        'UPDATE password_resets SET utilise = TRUE WHERE utilisateur_id = $1 AND utilise = FALSE',
+        [u.id]
+      )
       await run(
         'INSERT INTO password_resets (utilisateur_id, token, expire_le) VALUES ($1, $2, $3)',
         [u.id, hacherToken(tokenClair), expire]
@@ -976,10 +983,18 @@ app.post('/auth/reset-confirme', limiteurAuth, limiteurTokenConfirme, async (req
       return res.status(400).json({ erreur: 'Ce mot de passe figure dans des fuites de données connues. Choisis-en un autre.' })
     }
     const hash = await bcrypt.hash(motDePasse, 10)
+    // F-09 : consommation ATOMIQUE du token (anti-TOCTOU). Le SELECT plus
+    // haut ne sert qu'au message UX ; c'est ce UPDATE conditionnel qui fait
+    // foi : deux requêtes concurrentes avec le même token -> une seule
+    // gagne la course, l'autre est rejetée (token strictement à usage unique).
+    const claim = await one(
+      'UPDATE password_resets SET utilise = TRUE WHERE id = $1 AND utilise = FALSE RETURNING id',
+      [ligne.id]
+    )
+    if (!claim) return res.status(400).json({ erreur: 'Lien invalide ou expiré' })
     // mdp_version +1 : invalide toutes les sessions existantes (vraie sécurité).
     await run('UPDATE utilisateurs SET mot_de_passe = $1, mdp_version = mdp_version + 1 WHERE id = $2',
       [hash, ligne.utilisateur_id])
-    await run('UPDATE password_resets SET utilise = TRUE WHERE id = $1', [ligne.id])
     res.json({ message: 'Mot de passe réinitialisé. Tu peux te connecter.' })
   } catch (erreur) {
     console.error('Reset confirme :', erreur.message)
@@ -1001,8 +1016,13 @@ app.post('/auth/verifier-confirme', limiteurAuth, limiteurTokenConfirme, async (
     if (!ligne || ligne.utilise || new Date(ligne.expire_le) < new Date()) {
       return res.status(400).json({ erreur: 'Lien invalide ou expiré' })
     }
+    // F-09 : consommation ATOMIQUE (anti-TOCTOU), même logique que reset.
+    const claim = await one(
+      'UPDATE email_verifications SET utilise = TRUE WHERE id = $1 AND utilise = FALSE RETURNING id',
+      [ligne.id]
+    )
+    if (!claim) return res.status(400).json({ erreur: 'Lien invalide ou expiré' })
     await run('UPDATE utilisateurs SET verifie = TRUE WHERE id = $1', [ligne.utilisateur_id])
-    await run('UPDATE email_verifications SET utilise = TRUE WHERE id = $1', [ligne.id])
     res.json({ message: 'Compte confirmé. Tu peux te connecter.' })
   } catch (erreur) {
     console.error('Vérification confirme :', erreur.message)
@@ -1023,6 +1043,11 @@ app.post('/auth/verifier-renvoi', limiteurAuth, async (req, res) => {
     if (u && u.verifie === false && mailer.estConfigure()) {
       const tokenClair = crypto.randomUUID()
       const expire = new Date(Date.now() + 24 * 60 * 60 * 1000)
+      // F-15 : un seul lien de vérification actif à la fois.
+      await run(
+        'UPDATE email_verifications SET utilise = TRUE WHERE utilisateur_id = $1 AND utilise = FALSE',
+        [u.id]
+      )
       await run(
         'INSERT INTO email_verifications (utilisateur_id, token, expire_le) VALUES ($1, $2, $3)',
         [u.id, hacherToken(tokenClair), expire]
