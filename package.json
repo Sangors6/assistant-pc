@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test --test-concurrency=1"
+    "test": "node --test --test-concurrency=1",
+    "cockpit": "node outils/generer-cockpit.js"
   },
   "engines": {
     "node": "22.x"
