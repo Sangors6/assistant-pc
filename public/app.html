@@ -374,39 +374,37 @@
     #mo-cancel:hover { background: rgba(37,99,235,0.1); color: #93c5fd; }
     #mo-confirm { flex: 1; padding: 12px; background: linear-gradient(135deg, #dc2626, #991b1b); border: none; border-radius: 11px; color: #fff; font-size: 13.5px; font-weight: 600; font-family: inherit; cursor: pointer; transition: all 0.15s; box-shadow: 0 4px 20px rgba(220,38,38,0.3); }
     #mo-confirm:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(220,38,38,0.5); }
-    /* Transition de page PREMIUM Dashboard ⇄ Contacter un technicien */
-    #nav-fx { position: fixed; inset: 0; z-index: 100000; display: none; align-items: center; justify-content: center; overflow: hidden; background: radial-gradient(125% 125% at 50% 28%, #122249 0%, #0a1430 42%, #050810 100%); transform: translateX(100%); will-change: transform; }
-    #nav-fx::before, #nav-fx::after { content: ''; position: absolute; top: 0; bottom: 0; width: 2px; background: linear-gradient(180deg, transparent, rgba(122,167,238,.85), rgba(34,211,238,.7), transparent); box-shadow: 0 0 26px 7px rgba(37,99,235,.5); }
-    #nav-fx::before { left: 0; }
-    #nav-fx::after { right: 0; }
-    #nav-fx .nfx-aura { position: absolute; width: 780px; height: 780px; border-radius: 50%; background: radial-gradient(circle, rgba(37,99,235,.32) 0%, rgba(34,211,238,.12) 38%, transparent 70%); filter: blur(6px); animation: nfxAura 3.2s ease-in-out infinite alternate; }
-    #nav-fx .nfx-grid { position: absolute; inset: -2px; background-image: linear-gradient(rgba(122,167,238,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(122,167,238,.07) 1px, transparent 1px); background-size: 46px 46px; -webkit-mask-image: radial-gradient(circle at 50% 44%, #000 0%, transparent 62%); mask-image: radial-gradient(circle at 50% 44%, #000 0%, transparent 62%); animation: nfxGrid 6s linear infinite; }
-    #nav-fx .nfx-core { position: relative; display: flex; flex-direction: column; align-items: center; gap: 14px; }
-    #nav-fx .nfx-badge { position: relative; width: 86px; height: 86px; border-radius: 23px; display: flex; align-items: center; justify-content: center; background: linear-gradient(140deg, #3b82f6, #1d4ed8); box-shadow: 0 20px 54px rgba(37,99,235,.55), inset 0 1px 0 rgba(255,255,255,.28); animation: nfxPop .72s cubic-bezier(.16,1,.3,1) both; }
-    #nav-fx .nfx-badge svg { width: 43px; height: 43px; fill: #fff; filter: drop-shadow(0 3px 8px rgba(0,0,0,.35)); }
-    #nav-fx .nfx-ring { position: absolute; inset: -11px; border-radius: 32px; border: 1.5px solid rgba(122,167,238,.45); animation: nfxRing 1.7s ease-out infinite; }
-    #nav-fx .nfx-title { font-size: 28px; font-weight: 800; letter-spacing: -.5px; background: linear-gradient(90deg, #eaf1ff, #9cc0ff 55%, #7aa7ee); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; animation: nfxUp .6s cubic-bezier(.16,1,.3,1) .08s both; }
-    #nav-fx .nfx-sub { font-size: 11px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: #5b78a8; animation: nfxUp .6s cubic-bezier(.16,1,.3,1) .16s both; }
-    #nav-fx .nfx-bar { width: 126px; height: 3px; border-radius: 3px; overflow: hidden; background: rgba(122,167,238,.16); margin-top: 6px; animation: nfxUp .6s cubic-bezier(.16,1,.3,1) .24s both; }
-    #nav-fx .nfx-bar i { display: block; width: 42%; height: 100%; border-radius: 3px; background: linear-gradient(90deg, transparent, #3b82f6, #22d3ee, transparent); animation: nfxBar 1.05s ease-in-out infinite; }
-    @keyframes nfxAura { from { transform: scale(.85); opacity: .6; } to { transform: scale(1.12); opacity: 1; } }
-    @keyframes nfxGrid { from { background-position: 0 0, 0 0; } to { background-position: 46px 46px, 46px 46px; } }
-    @keyframes nfxPop { from { opacity: 0; transform: scale(.6) rotate(-12deg); } to { opacity: 1; transform: none; } }
-    @keyframes nfxRing { 0% { transform: scale(.85); opacity: .7; } 100% { transform: scale(1.5); opacity: 0; } }
-    @keyframes nfxUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-    @keyframes nfxBar { 0% { transform: translateX(-130%); } 100% { transform: translateX(330%); } }
-    @media (prefers-reduced-motion: reduce) { #nav-fx { display: none !important; } #nav-fx .nfx-aura, #nav-fx .nfx-grid, #nav-fx .nfx-badge, #nav-fx .nfx-ring, #nav-fx .nfx-title, #nav-fx .nfx-sub, #nav-fx .nfx-bar, #nav-fx .nfx-bar i { animation: none !important; } }
+    /* Transition de page — sombre, sobre, solide (Dashboard ⇄ Technicien) */
+    #nav-fx { position: fixed; inset: 0; width: 100vw; height: 100dvh; z-index: 100000; display: none; align-items: center; justify-content: center; overflow: hidden; background: #04060c; transform: translateX(100%); will-change: transform; }
+    #nav-fx .nfx-glow { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(46% 42% at 50% 44%, rgba(37,99,235,.10) 0%, rgba(4,6,12,0) 62%), radial-gradient(125% 120% at 50% 50%, transparent 52%, rgba(0,0,0,.72) 100%); }
+    #nav-fx .nfx-edge { position: absolute; top: 0; bottom: 0; width: 1px; background: linear-gradient(180deg, transparent, rgba(96,140,220,.42), transparent); }
+    #nav-fx .nfx-edge.l { left: 0; } #nav-fx .nfx-edge.r { right: 0; }
+    #nav-fx .nfx-core { position: relative; display: flex; flex-direction: column; align-items: center; gap: 17px; opacity: 0; transform: translateY(7px); animation: nfxIn .5s cubic-bezier(.22,1,.36,1) .04s forwards; }
+    #nav-fx .nfx-badge { position: relative; width: 76px; height: 76px; border-radius: 20px; display: flex; align-items: center; justify-content: center; background: linear-gradient(160deg, rgba(28,38,62,.92), rgba(11,16,28,.92)); border: 1px solid rgba(96,140,220,.20); box-shadow: 0 16px 44px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.05); }
+    #nav-fx .nfx-badge::before { content: ''; position: absolute; inset: -1px; border-radius: 20px; background: radial-gradient(circle at 50% 28%, rgba(59,130,246,.26), transparent 68%); }
+    #nav-fx .nfx-badge svg { position: relative; width: 36px; height: 36px; fill: #9db8e6; }
+    #nav-fx .nfx-ring { position: absolute; inset: -8px; border-radius: 26px; border: 1px solid rgba(96,140,220,.16); }
+    #nav-fx .nfx-title { font-size: 20px; font-weight: 600; letter-spacing: .2px; color: #9fb2cf; }
+    #nav-fx .nfx-title b { color: #eaf0fb; font-weight: 700; }
+    #nav-fx .nfx-sub { font-size: 9.5px; font-weight: 600; letter-spacing: 3.5px; text-transform: uppercase; color: #3c5274; }
+    #nav-fx .nfx-dots { display: flex; gap: 6px; margin-top: 5px; }
+    #nav-fx .nfx-dots i { width: 5px; height: 5px; border-radius: 50%; background: #3b557e; animation: nfxDot 1.15s ease-in-out infinite; }
+    #nav-fx .nfx-dots i:nth-child(2) { animation-delay: .15s; }
+    #nav-fx .nfx-dots i:nth-child(3) { animation-delay: .3s; }
+    @keyframes nfxIn { to { opacity: 1; transform: none; } }
+    @keyframes nfxDot { 0%, 70%, 100% { opacity: .25; transform: translateY(0); } 35% { opacity: 1; transform: translateY(-4px); } }
+    @media (prefers-reduced-motion: reduce) { #nav-fx { display: none !important; } #nav-fx .nfx-core, #nav-fx .nfx-dots i { animation: none !important; opacity: 1; transform: none; } }
   </style>
 </head>
 <body>
 <div id="nav-fx" aria-hidden="true">
-  <div class="nfx-aura"></div>
-  <div class="nfx-grid"></div>
+  <div class="nfx-glow"></div>
+  <span class="nfx-edge l"></span><span class="nfx-edge r"></span>
   <div class="nfx-core">
     <div class="nfx-badge"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8A2.5 2.5 0 0 1 17.5 16H13v2h3a1 1 0 1 1 0 2H8a1 1 0 1 1 0-2h3v-2H6.5A2.5 2.5 0 0 1 4 13.5v-8Z"/></svg><span class="nfx-ring"></span></div>
-    <div class="nfx-title">PC&nbsp;Helper</div>
+    <div class="nfx-title">PC&nbsp;<b>Helper</b></div>
     <div class="nfx-sub">Technicien support expert</div>
-    <div class="nfx-bar"><i></i></div>
+    <div class="nfx-dots"><i></i><i></i><i></i></div>
   </div>
 </div>
 <audio id="snd-swoosh" src="/swoosh%20tech.mp3" preload="auto"></audio>
@@ -419,9 +417,13 @@
   var fx = document.getElementById('nav-fx')
   var REDUIT = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   var snd = document.getElementById('snd-swoosh')
+  var swooshFait = false
+  // UN SEUL swoosh par transition, joué au RETRAIT du voile (page stable,
+  // son entier, synchro du glissement visible). Garde idempotente.
   function swoosh () {
-    if (REDUIT || !snd) return
-    try { snd.currentTime = 0; snd.volume = 0.5; var p = snd.play(); if (p && p.catch) p.catch(function () {}) } catch (e) {}
+    if (REDUIT || !snd || swooshFait) return
+    swooshFait = true
+    try { snd.currentTime = 0; snd.volume = 0.55; var p = snd.play(); if (p && p.catch) p.catch(function () {}) } catch (e) {}
   }
   window.navTo = function (u, d) {
     if (REDUIT || !fx) { location.href = u; return }
@@ -430,7 +432,6 @@
     fx.style.transform = (d === 'back') ? 'translateX(-100%)' : 'translateX(100%)'
     void fx.offsetWidth
     fx.style.transition = 'transform .34s cubic-bezier(.7,0,.3,1)'
-    swoosh()                                   // son = départ exact du glissement
     fx.style.transform = 'translateX(0)'
     setTimeout(function () { location.href = u }, 330)
   }
