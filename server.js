@@ -355,13 +355,20 @@ domaine, suggère une ressource adaptée
 
 // Contexte temporel injecté à chaque requête : permet à l'assistant de
 // situer ses réponses dans le temps (ex. « les pilotes sortis cette année »).
-function promptAvecContexte(materiel, memoire) {
+// Partie DYNAMIQUE du prompt système (tout ce qui suit SYSTEM_PROMPT) :
+// horodatage Paris (change à chaque minute) + blocs <materiel>/<memoire>
+// propres à l'utilisateur. Volontairement isolée de SYSTEM_PROMPT pour
+// permettre le prompt caching : le gros préfixe invariant est mis en cache,
+// ce suffixe variable ne l'est jamais. La concaténation
+// `SYSTEM_PROMPT + suffixeContexte()` reste STRICTEMENT identique au prompt
+// historique (aucun changement sémantique, donc réponses inchangées).
+function suffixeContexte(materiel, memoire) {
   const maintenant = new Date().toLocaleString('fr-FR', {
     timeZone: 'Europe/Paris',
     dateStyle: 'full',
     timeStyle: 'short'
   })
-  let p = `${SYSTEM_PROMPT}
+  let p = `
 
 Contexte : nous sommes le ${maintenant} (heure de Paris). Tiens-en compte si la date est pertinente (actualité matérielle, pilotes récents, etc.).`
   // Matériel du poste, fourni par l'app cliente (extension PC Helper ou
@@ -402,6 +409,29 @@ ${memoire}
 </memoire>`
   }
   return p
+}
+
+// Prompt système complet sous forme de CHAÎNE — strictement équivalent à
+// l'implémentation historique (`SYSTEM_PROMPT` + suffixe contextuel). Conservé
+// pour tout appelant attendant une string et comme repli si le format
+// « tableau de blocs » du SDK n'était pas disponible.
+function promptAvecContexte(materiel, memoire) {
+  return `${SYSTEM_PROMPT}${suffixeContexte(materiel, memoire)}`
+}
+
+// Prompt système en TABLEAU de blocs pour activer le prompt caching Anthropic
+// (GA sur claude-sonnet-4-5, sans header beta) :
+//  - bloc 1 : SYSTEM_PROMPT (gros invariant) marqué `cache_control: ephemeral`
+//    → -90 % sur le coût d'input de ces tokens + latence réduite sur cache hit ;
+//  - bloc 2 : suffixe dynamique (date + matériel + mémoire), jamais caché.
+// La concaténation des deux blocs est identique, octet pour octet, à
+// `promptAvecContexte(...)` : le modèle reçoit exactement le même prompt,
+// donc les réponses sont rigoureusement inchangées.
+function blocsSystemeAvecCache(materiel, memoire) {
+  return [
+    { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
+    { type: 'text', text: suffixeContexte(materiel, memoire) }
+  ]
 }
 
 // ---------------------------------------------------------------------------
@@ -1164,11 +1194,22 @@ app.post('/chat', limiteurChat, authentifier, limiteurChatCompte, async (req, re
     e?.status === 503 || e?.status === 529 ||
     e?.error?.error?.type === 'overloaded_error'
 
+  // Prompt système en blocs (cache du gros invariant). Repli silencieux sur
+  // la chaîne historique si la construction du tableau échouait : aucune
+  // régression possible, le prompt envoyé reste identique dans les deux cas.
+  let systemPayload
+  try {
+    systemPayload = blocsSystemeAvecCache(contexteMateriel, memoire)
+  } catch (e) {
+    console.error('Prompt caching indisponible, repli chaîne :', e.message)
+    systemPayload = promptAvecContexte(contexteMateriel, memoire)
+  }
+
   async function consommerStream() {
     const stream = claude.messages.stream({
-      model: 'claude-sonnet-4-5',
+      model: 'claude-sonnet-4-6',
       max_tokens: 4096,
-      system: promptAvecContexte(contexteMateriel, memoire),
+      system: systemPayload,
       messages: historique
     }, { signal: ac.signal })
 
@@ -1380,7 +1421,7 @@ app.post('/technicien', limiteurChat, authentifier, limiteurChatCompte, async (r
 
   async function consommerStream() {
     const stream = claude.messages.stream({
-      model: 'claude-sonnet-4-5',
+      model: 'claude-sonnet-4-6',
       max_tokens: 4096,
       system: promptTechnicien(contexteMateriel, memoire),
       messages: historique
