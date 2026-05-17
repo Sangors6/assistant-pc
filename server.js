@@ -266,6 +266,83 @@ Télémétrie temps réel (auto-détectée, approximative) : ${a}`
   return a || null
 }
 
+// Niveau d'expertise informatique de l'utilisateur, déduit du questionnaire
+// « 1re connexion » (4 questions). Ensemble FERMÉ : seules ces valeurs sont
+// acceptées/stockées (cf. nettoyerQuestionnaire). 'debutant' est le mode par
+// défaut visé : l'IA simplifie radicalement son langage.
+const NIVEAUX = ['debutant', 'intermediaire', 'avance']
+
+// Fragment de prompt système qui ADAPTE LE LANGAGE de PC Helper au niveau
+// déclaré. Contrairement aux blocs <materiel>/<memoire> (DONNÉE non fiable),
+// ceci est une VRAIE consigne : la valeur provient d'un enum fermé validé
+// côté serveur (zéro entrée libre -> aucun risque d'injection). Renvoie ''
+// si niveau inconnu/absent -> prompt strictement identique à l'historique
+// (zéro régression pour les comptes sans questionnaire).
+function directiveNiveau(niveau) {
+  if (niveau === 'debutant') {
+    return `
+
+ADAPTATION AU NIVEAU DE L'UTILISATEUR — DÉBUTANT (consigne prioritaire de
+forme). L'utilisateur a indiqué être DÉBUTANT en informatique. Adapte ton
+langage en conséquence, sans jamais le lui faire remarquer :
+- Zéro jargon. Si un terme technique est inévitable, explique-le aussitôt
+  avec des mots simples et une comparaison du quotidien.
+- Phrases courtes, ton chaleureux et rassurant, jamais condescendant.
+- Procède TOUJOURS étape par étape (numérotées, une seule action par
+  étape), en décrivant précisément où cliquer : libellé exact du bouton,
+  endroit à l'écran. Pas de « ouvrez regedit » sans guider le chemin.
+- Évite l'invite de commandes / le terminal sauf nécessité réelle ; si
+  c'est indispensable, donne la commande exacte à copier-coller et dis en
+  une phrase simple ce qu'elle fait.
+- Préviens des fenêtres de confirmation ou des écrans qui changent, et
+  rassure (« c'est normal, continuez »).
+- Termine en vérifiant que tout est clair et en offrant une porte de
+  sortie (« si votre écran ne ressemble pas à ça, décrivez-le-moi »).
+Cette consigne prime sur le style par défaut, mais JAMAIS sur l'exactitude
+ni sur les règles d'identité et d'anti-fabrication.`
+  }
+  if (niveau === 'intermediaire') {
+    return `
+
+ADAPTATION AU NIVEAU DE L'UTILISATEUR — INTERMÉDIAIRE. L'utilisateur se
+débrouille en informatique : reste clair et structuré, explique en une
+courte parenthèse les termes techniques importants, donne des étapes
+concises, et tu peux proposer l'invite de commandes quand c'est la voie
+la plus efficace. Pas de sur-vulgarisation inutile.`
+  }
+  if (niveau === 'avance') {
+    return `
+
+ADAPTATION AU NIVEAU DE L'UTILISATEUR — AVANCÉ. L'utilisateur est très à
+l'aise : sois direct, technique et concis. Inutile de définir les termes
+courants ou de détailler chaque clic ; va au cœur du diagnostic (cause
+racine). Commandes, scripts et options avancées sont les bienvenus.`
+  }
+  return ''
+}
+
+// Questionnaire « 1re connexion » : 4 questions, chacune notée 0..3
+// (0 = le plus novice, 3 = le plus expert). Valide STRICTEMENT l'entrée
+// (exactement 4 entiers bornés) puis déduit le niveau à partir de la
+// moyenne. Renvoie null si le payload est invalide -> 400 explicite côté
+// route (jamais de 500, jamais de niveau « deviné »).
+const QUESTIONNAIRE_NB = 4
+function niveauDepuisQuestionnaire(reponses) {
+  if (!Array.isArray(reponses) || reponses.length !== QUESTIONNAIRE_NB) return null
+  let total = 0
+  for (const r of reponses) {
+    const n = Number(r)
+    if (!Number.isInteger(n) || n < 0 || n > 3) return null
+    total += n
+  }
+  const moyenne = total / QUESTIONNAIRE_NB
+  // Seuils volontairement prudents : on bascule vite en « débutant » (mode
+  // visé par défaut) ; il faut un profil nettement autonome pour « avancé ».
+  if (moyenne <= 1) return 'debutant'
+  if (moyenne < 2.25) return 'intermediaire'
+  return 'avance'
+}
+
 function motDePasseCompromis(mdp) {
   return new Promise((resolve) => {
     try {
@@ -461,7 +538,7 @@ domaine, suggère une ressource adaptée
 // ce suffixe variable ne l'est jamais. La concaténation
 // `SYSTEM_PROMPT + suffixeContexte()` reste STRICTEMENT identique au prompt
 // historique (aucun changement sémantique, donc réponses inchangées).
-function suffixeContexte(materiel, memoire) {
+function suffixeContexte(materiel, memoire, niveau) {
   const maintenant = new Date().toLocaleString('fr-FR', {
     timeZone: 'Europe/Paris',
     dateStyle: 'full',
@@ -507,6 +584,11 @@ sinon ignore-le, ne le récite pas.
 ${memoire}
 </memoire>`
   }
+  // Adaptation du langage au niveau de l'utilisateur (questionnaire 1re
+  // connexion). Placée en DERNIER, dans le bloc dynamique non caché : c'est
+  // une consigne propre à l'utilisateur, issue d'un enum fermé. Sans niveau
+  // -> '' -> suffixe identique à l'historique (zéro régression).
+  p += directiveNiveau(niveau)
   return p
 }
 
@@ -514,8 +596,8 @@ ${memoire}
 // l'implémentation historique (`SYSTEM_PROMPT` + suffixe contextuel). Conservé
 // pour tout appelant attendant une string et comme repli si le format
 // « tableau de blocs » du SDK n'était pas disponible.
-function promptAvecContexte(materiel, memoire) {
-  return `${SYSTEM_PROMPT}${suffixeContexte(materiel, memoire)}`
+function promptAvecContexte(materiel, memoire, niveau) {
+  return `${SYSTEM_PROMPT}${suffixeContexte(materiel, memoire, niveau)}`
 }
 
 // Prompt système en TABLEAU de blocs pour activer le prompt caching Anthropic
@@ -526,10 +608,10 @@ function promptAvecContexte(materiel, memoire) {
 // La concaténation des deux blocs est identique, octet pour octet, à
 // `promptAvecContexte(...)` : le modèle reçoit exactement le même prompt,
 // donc les réponses sont rigoureusement inchangées.
-function blocsSystemeAvecCache(materiel, memoire) {
+function blocsSystemeAvecCache(materiel, memoire, niveau) {
   return [
     { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
-    { type: 'text', text: suffixeContexte(materiel, memoire) }
+    { type: 'text', text: suffixeContexte(materiel, memoire, niveau) }
   ]
 }
 
@@ -631,7 +713,7 @@ si explicitement demandée.`
 
 // Analogue de promptAvecContexte : même contexte temporel, même durcissement
 // anti prompt-injection des blocs <materiel>/<memoire>, seul le socle change.
-function promptTechnicien(materiel, memoire) {
+function promptTechnicien(materiel, memoire, niveau) {
   const maintenant = new Date().toLocaleString('fr-FR', {
     timeZone: 'Europe/Paris',
     dateStyle: 'full',
@@ -667,6 +749,9 @@ sinon ignore-le, ne le récite pas.
 ${memoire}
 </memoire>`
   }
+  // Même adaptation au niveau que l'assistant grand public : un débutant qui
+  // contacte le « technicien » a tout autant besoin d'un langage simple.
+  p += directiveNiveau(niveau)
   return p
 }
 
@@ -927,7 +1012,7 @@ app.get('/auth/moi', authentifier, async (req, res) => {
 
 app.get('/profil', authentifier, async (req, res) => {
   try {
-    const utilisateur = await one('SELECT id, email, plan, messages_utilises, cree_le, profil_pc, pc_onboarding_vu FROM utilisateurs WHERE id = $1', [req.utilisateur.id])
+    const utilisateur = await one('SELECT id, email, plan, messages_utilises, cree_le, profil_pc, pc_onboarding_vu, questionnaire_vu FROM utilisateurs WHERE id = $1', [req.utilisateur.id])
 
     const nbConversations = await one(
       'SELECT COUNT(DISTINCT session_id) as total FROM conversations WHERE utilisateur_id = $1',
@@ -968,7 +1053,10 @@ app.get('/profil', authentifier, async (req, res) => {
       // multi-appareils (source serveur, pas un localStorage isolé).
       // profil_pc JSONB est déjà désérialisé par `pg` (objet ou null).
       profil_pc: utilisateur.profil_pc || null,
-      pc_onboarding_vu: utilisateur.pc_onboarding_vu === true
+      pc_onboarding_vu: utilisateur.pc_onboarding_vu === true,
+      // Questionnaire OBLIGATOIRE de profilage (4 questions) : décide
+      // l'ouverture du questionnaire, AVANT la modale composants PC.
+      questionnaire_vu: utilisateur.questionnaire_vu === true
     })
   } catch (erreur) {
     console.error('Profil :', erreur.message)
@@ -1032,13 +1120,62 @@ app.post('/profil/pc', authentifier, limiteurChatCompte, async (req, res) => {
     // Écrit le profil ET pose le flag onboarding dans la même requête :
     // l'utilisateur a fait son choix, la modale ne doit plus se rouvrir
     // automatiquement (le bouton « Éditer » reste le chemin manuel).
-    await run(
-      'UPDATE utilisateurs SET profil_pc = $1, pc_onboarding_vu = TRUE WHERE id = $2',
+    // FUSION JSONB (`||`) et non remplacement : les clés non matérielles
+    // déjà présentes — notamment `niveau` posé par le questionnaire — sont
+    // préservées quand l'utilisateur (re)saisit ses composants. Les clés
+    // matérielles fournies écrasent les anciennes (comportement attendu).
+    const ligne = await one(
+      `UPDATE utilisateurs
+         SET profil_pc = COALESCE(profil_pc, '{}'::jsonb) || $1::jsonb,
+             pc_onboarding_vu = TRUE
+       WHERE id = $2
+       RETURNING profil_pc`,
       [JSON.stringify(profil), req.utilisateur.id]
     )
-    res.json({ message: 'PC enregistré', profil_pc: profil, pc_onboarding_vu: true })
+    res.json({
+      message: 'PC enregistré',
+      profil_pc: (ligne && ligne.profil_pc) || profil,
+      pc_onboarding_vu: true
+    })
   } catch (erreur) {
     console.error('Profil PC :', erreur.message)
+    res.status(500).json({ erreur: 'Enregistrement impossible' })
+  }
+})
+
+// Questionnaire OBLIGATOIRE de profilage (« 1re connexion »). Reçoit les 4
+// réponses (entiers 0..3), déduit le niveau d'expertise et le persiste dans
+// profil_pc.niveau via FUSION JSONB (n'écrase pas les composants déjà
+// saisis). Pose le flag questionnaire_vu pour ne plus jamais le réafficher
+// (fiable, multi-appareils). Le niveau adapte le langage de PC Helper
+// (cf. directiveNiveau). 100 % additif : si jamais répondu -> prompt
+// identique à l'historique.
+app.post('/profil/questionnaire', authentifier, limiteurChatCompte, async (req, res) => {
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {}
+    const niveau = niveauDepuisQuestionnaire(body.reponses)
+    if (!niveau) {
+      return res.status(400).json({ erreur: 'Réponses invalides : 4 réponses attendues.' })
+    }
+    // On ne stocke QUE le résultat exploitable (niveau), pas les réponses
+    // brutes : utile au prompt, minimal en données, et l'enum fermé garantit
+    // l'absence de texte libre dans profil_pc (défense anti prompt-injection).
+    const ligne = await one(
+      `UPDATE utilisateurs
+         SET profil_pc = COALESCE(profil_pc, '{}'::jsonb) || $1::jsonb,
+             questionnaire_vu = TRUE
+       WHERE id = $2
+       RETURNING profil_pc`,
+      [JSON.stringify({ niveau }), req.utilisateur.id]
+    )
+    res.json({
+      message: 'Questionnaire enregistré',
+      niveau,
+      questionnaire_vu: true,
+      profil_pc: (ligne && ligne.profil_pc) || { niveau }
+    })
+  } catch (erreur) {
+    console.error('Questionnaire :', erreur.message)
     res.status(500).json({ erreur: 'Enregistrement impossible' })
   }
 })
@@ -1373,12 +1510,18 @@ app.post('/chat', limiteurChat, authentifier, limiteurChatCompte, async (req, re
   // Prompt système en blocs (cache du gros invariant). Repli silencieux sur
   // la chaîne historique si la construction du tableau échouait : aucune
   // régression possible, le prompt envoyé reste identique dans les deux cas.
+  // Niveau déclaré au questionnaire (profil_pc.niveau, enum fermé). Absent
+  // -> directiveNiveau('') renvoie '' -> prompt identique à l'historique.
+  const niveauUtilisateur = utilisateur.profil_pc &&
+    NIVEAUX.includes(utilisateur.profil_pc.niveau)
+    ? utilisateur.profil_pc.niveau : undefined
+
   let systemPayload
   try {
-    systemPayload = blocsSystemeAvecCache(contexteMateriel, memoire)
+    systemPayload = blocsSystemeAvecCache(contexteMateriel, memoire, niveauUtilisateur)
   } catch (e) {
     console.error('Prompt caching indisponible, repli chaîne :', e.message)
-    systemPayload = promptAvecContexte(contexteMateriel, memoire)
+    systemPayload = promptAvecContexte(contexteMateriel, memoire, niveauUtilisateur)
   }
 
   async function consommerStream() {
@@ -1602,6 +1745,11 @@ app.post('/technicien', limiteurChat, authentifier, limiteurChatCompte, async (r
     contexteMateriel
   )
 
+  // Même adaptation au niveau que /chat (cf. directiveNiveau).
+  const niveauUtilisateur = utilisateur.profil_pc &&
+    NIVEAUX.includes(utilisateur.profil_pc.niveau)
+    ? utilisateur.profil_pc.niveau : undefined
+
   const id = sessionId || crypto.randomUUID()
 
   // 10 derniers messages du fil technicien (clé par son session_id propre).
@@ -1678,7 +1826,7 @@ app.post('/technicien', limiteurChat, authentifier, limiteurChatCompte, async (r
     const stream = claude.messages.stream({
       model: 'claude-sonnet-4-6',
       max_tokens: 4096,
-      system: promptTechnicien(contexteMateriel, memoire),
+      system: promptTechnicien(contexteMateriel, memoire, niveauUtilisateur),
       messages: historique
     }, { signal: ac.signal })
 

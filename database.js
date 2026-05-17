@@ -122,6 +122,14 @@ async function initDb() {
   // simple localStorage). DEFAULT FALSE -> la modale s'ouvre une fois pour
   // les comptes existants comme nouveaux (comportement voulu, non bloquant).
   await pool.query(`ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS pc_onboarding_vu BOOLEAN DEFAULT FALSE`)
+  // Flag questionnaire « 1re connexion » : passe à TRUE dès que l'utilisateur
+  // a répondu aux 4 questions de profilage (niveau informatique). Sert à
+  // décider l'ouverture OBLIGATOIRE du questionnaire de façon fiable et
+  // multi-appareils (source serveur, pas un localStorage isolé). Le niveau
+  // calculé est stocké dans profil_pc.niveau (JSONB) et adapte le langage
+  // de PC Helper. DEFAULT FALSE -> le questionnaire s'affiche une fois pour
+  // les comptes existants comme nouveaux. Additif, idempotent, non destructif.
+  await pool.query(`ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS questionnaire_vu BOOLEAN DEFAULT FALSE`)
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_conv_user ON conversations(utilisateur_id)`)
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_conv_session ON conversations(utilisateur_id, session_id)`)
   // Sert exactement les requêtes chaudes : historique et chargement du

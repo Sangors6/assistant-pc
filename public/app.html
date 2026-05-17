@@ -347,6 +347,57 @@
       .po-save { width: 100%; justify-content: center; margin-left: 0; }
     }
 
+    /* ── QUESTIONNAIRE « 1re connexion » (OBLIGATOIRE) ────────────────────
+       Précède la modale composants PC. Aucune sortie : pas de croix, pas de
+       « plus tard », pas de fermeture au clic/Échap. Même langage visuel que
+       #pc-onboard pour la cohérence. */
+    #qz-overlay { position: fixed; inset: 0; background: rgba(2,5,12,0.74); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); z-index: 1250; display: none; align-items: center; justify-content: center; padding: 20px; opacity: 0; transition: opacity .34s ease; }
+    #qz-overlay.visible { display: flex; }
+    #qz-overlay.in { opacity: 1; }
+    #qz { width: 480px; max-width: 100%; max-height: 92vh; overflow: hidden; display: flex; flex-direction: column; background: linear-gradient(180deg, rgba(12,17,32,0.99), rgba(8,12,24,0.99)); border: 1px solid rgba(59,130,246,0.22); border-radius: 22px; box-shadow: 0 28px 90px rgba(0,0,0,0.72), 0 0 0 1px rgba(255,255,255,0.02) inset; position: relative; transform: translateY(26px) scale(0.965); opacity: 0; transition: transform .42s cubic-bezier(.16,1,.3,1), opacity .34s ease; }
+    #qz-overlay.in #qz { transform: translateY(0) scale(1); opacity: 1; }
+    #qz::before { content: ''; position: absolute; top: -70px; right: -70px; width: 220px; height: 220px; background: radial-gradient(circle, rgba(37,99,235,0.12) 0%, transparent 70%); pointer-events: none; }
+    #qz::after { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--blue) 35%, var(--cyan) 60%, transparent); opacity: 0.55; }
+    .qz-head { padding: 28px 28px 4px; }
+    .qz-progress { display: flex; gap: 6px; margin-bottom: 16px; }
+    .qz-progress i { flex: 1; height: 4px; border-radius: 4px; background: rgba(148,163,184,0.14); transition: background .3s ease; }
+    .qz-progress i.on { background: linear-gradient(90deg, var(--blue), var(--cyan)); }
+    .qz-step { font-size: 9.5px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: var(--cyan); }
+    .qz-q { font-size: 19px; font-weight: 700; color: #fff; letter-spacing: -0.4px; margin-top: 10px; line-height: 1.35; }
+    .qz-sub { font-size: 12px; line-height: 1.6; color: var(--text-mid); margin-top: 8px; }
+    .qz-body { padding: 14px 28px 8px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(37,99,235,0.2) transparent; }
+    .qz-body::-webkit-scrollbar { width: 4px; }
+    .qz-body::-webkit-scrollbar-thumb { background: rgba(37,99,235,0.25); border-radius: 4px; }
+    .qz-opt { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 14px 15px; margin-bottom: 9px; background: rgba(6,10,20,0.7); border: 1px solid var(--border); border-radius: 13px; color: var(--text); font-family: inherit; font-size: 13.5px; cursor: pointer; transition: border-color .16s, background .16s, transform .12s; }
+    .qz-opt:hover { border-color: var(--border-hover); background: rgba(37,99,235,0.06); }
+    .qz-opt:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+    .qz-opt .qz-tick { width: 20px; height: 20px; flex-shrink: 0; border-radius: 50%; border: 2px solid rgba(148,163,184,0.35); display: flex; align-items: center; justify-content: center; transition: border-color .16s, background .16s; }
+    .qz-opt .qz-tick svg { width: 12px; height: 12px; opacity: 0; transform: scale(.6); transition: opacity .14s, transform .14s; }
+    .qz-opt.sel { border-color: var(--blue); background: rgba(37,99,235,0.12); }
+    .qz-opt.sel .qz-tick { border-color: var(--blue); background: var(--blue); color: #fff; }
+    .qz-opt.sel .qz-tick svg { opacity: 1; transform: scale(1); }
+    .qz-foot { padding: 16px 28px 24px; display: flex; align-items: center; gap: 12px; border-top: 1px solid var(--border); margin-top: 14px; background: rgba(6,10,20,0.4); }
+    .qz-back { font-size: 12px; font-weight: 500; color: var(--text-mid); background: none; border: none; cursor: pointer; padding: 10px 6px; transition: color .15s; }
+    .qz-back:hover { color: #cfe0fb; }
+    .qz-back:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; border-radius: 6px; }
+    .qz-back[hidden] { display: none; }
+    .qz-next { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; padding: 12px 22px; border-radius: 12px; font-size: 13px; font-weight: 600; color: #fff; background: linear-gradient(135deg, var(--blue), var(--blue-dark)); border: 1px solid transparent; cursor: pointer; transition: transform .18s, box-shadow .18s; box-shadow: 0 10px 26px rgba(37,99,235,0.34), inset 0 1px 0 rgba(255,255,255,0.14); }
+    .qz-next:hover { transform: translateY(-1px); box-shadow: 0 13px 32px rgba(37,99,235,0.5), inset 0 1px 0 rgba(255,255,255,0.14); }
+    .qz-next:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+    .qz-next[disabled] { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+    .qz-err { font-size: 11px; color: #fca5a5; padding: 0 28px; margin-top: 4px; display: none; }
+    .qz-err.show { display: block; }
+    @media (prefers-reduced-motion: reduce) {
+      #qz-overlay, #qz { transition: opacity .15s ease; }
+      #qz, #qz-overlay.in #qz { transform: none; }
+      .qz-next:hover { transform: none; }
+    }
+    @media (max-width: 520px) {
+      #qz { width: 100%; border-radius: 18px; }
+      .qz-foot { flex-wrap: wrap; }
+      .qz-next { width: 100%; justify-content: center; margin-left: 0; }
+    }
+
     /* Image dans chat */
     .msg-image { max-width: 280px; max-height: 200px; border-radius: 10px; object-fit: cover; border: 1px solid rgba(59,130,246,0.2); display: block; margin-bottom: 6px; cursor: pointer; transition: opacity 0.15s; }
     .msg-image:hover { opacity: 0.9; }
@@ -1270,6 +1321,35 @@
         </button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- QUESTIONNAIRE « PREMIÈRE CONNEXION » — OBLIGATOIRE. 4 questions pour
+     déterminer le niveau informatique de l'utilisateur et adapter le langage
+     de PC Helper. S'ouvre APRÈS l'animation de transition de login et AVANT
+     la modale composants PC. Aucune sortie possible (pas de croix / Échap /
+     clic overlay) : la question courante doit être répondue pour avancer.
+     Décision d'ouverture : flag serveur (GET /profil -> questionnaire_vu).
+     Soumission -> POST /profil/questionnaire. -->
+<div id="qz-overlay" role="dialog" aria-modal="true" aria-labelledby="qz-q">
+  <div id="qz">
+    <div class="qz-head">
+      <div class="qz-progress" id="qz-progress" aria-hidden="true">
+        <i></i><i></i><i></i><i></i>
+      </div>
+      <span class="qz-step" id="qz-step">Question 1 / 4</span>
+      <h2 class="qz-q" id="qz-q">…</h2>
+      <p class="qz-sub">Vos réponses restent privées. Elles servent uniquement
+        à adapter la façon dont PC Helper vous explique les choses.</p>
+    </div>
+    <div class="qz-body" id="qz-body" role="radiogroup" aria-labelledby="qz-q">
+      <!-- options injectées par JS -->
+    </div>
+    <div class="qz-err" id="qz-err" role="alert">Choisissez une réponse pour continuer.</div>
+    <div class="qz-foot">
+      <button type="button" class="qz-back" id="qz-back" hidden>← Précédent</button>
+      <button type="button" class="qz-next" id="qz-next" disabled>Continuer →</button>
+    </div>
   </div>
 </div>
 
@@ -2618,9 +2698,13 @@ Analyse cette configuration : est-elle équilibrée ? Quels sont les points faib
     })
 
     // Décision d'ouverture : source serveur (fiable, multi-appareils).
-    // - profil_pc présent  -> remplit la carte (état « rempli »)
-    // - sinon              -> carte état « vide »
-    // - !pc_onboarding_vu  -> ouvre la modale une fois (après l'intro)
+    // SÉQUENCE 1re connexion :
+    //   animation login/intro  →  QUESTIONNAIRE (obligatoire)  →  composants PC
+    // - profil_pc présent   -> remplit la carte (état « rempli »)
+    // - sinon               -> carte état « vide »
+    // - !questionnaire_vu   -> questionnaire d'abord ; à sa fin, enchaîne
+    //                          la modale PC si !pc_onboarding_vu
+    // - questionnaire_vu    -> comportement historique : modale PC si besoin
     if (typeof token === 'string' && token) {
       fetch('/profil', { headers: { 'Authorization': 'Bearer ' + token } })
         .then(function (r) { return r.ok ? r.json() : null })
@@ -2628,14 +2712,229 @@ Analyse cette configuration : est-elle équilibrée ? Quels sont les points faib
           if (!data) return
           profilCourant = data.profil_pc || null
           appliquerProfilCarte(profilCourant)
-          if (!data.pc_onboarding_vu) {
-            // Laisse l'intro/onboarding existant respirer : ouverture différée.
-            setTimeout(function () {
+
+          // Ouvre la modale composants PC (différée, sauf si déjà visible).
+          function ouvrirPcSiBesoin(differe) {
+            if (data.pc_onboarding_vu) return
+            var go = function () {
               if (!overlay.classList.contains('visible')) window.ouvrirOnboardPC('firstrun')
+            }
+            differe ? setTimeout(go, differe) : go()
+          }
+
+          if (!data.questionnaire_vu && typeof window.ouvrirQuestionnaire === 'function') {
+            // OBLIGATOIRE et PRIORITAIRE. Laisse l'intro/animation de login
+            // respirer (même délai que l'onboarding historique), puis le
+            // questionnaire prend la main. À sa complétion : enchaîne la
+            // modale composants PC après une courte respiration.
+            setTimeout(function () {
+              window.ouvrirQuestionnaire(function () {
+                ouvrirPcSiBesoin(520)
+              })
             }, 4200)
+          } else {
+            // Questionnaire déjà fait (ou indispo) : flux historique.
+            ouvrirPcSiBesoin(4200)
           }
         })
         .catch(function () { /* profil indispo : carte garde l'état auto */ })
+    }
+  })()
+</script>
+
+<script>
+  /* ───────────────────────────────────────────────────────────────────────
+     QUESTIONNAIRE « 1re CONNEXION » — OBLIGATOIRE.
+     4 questions (une à la fois), notées 0..3 (0 = novice, 3 = expert).
+     Persistance serveur (POST /profil/questionnaire) ; le serveur déduit le
+     niveau et adapte le langage de PC Helper (mode « débutant » par défaut
+     visé). Aucune sortie : pas de croix, pas d'Échap, pas de clic-overlay —
+     il faut répondre pour avancer. 100 % additif : dégrade gracieusement
+     (si l'API échoue, on n'enferme JAMAIS l'utilisateur).
+     Expose window.ouvrirQuestionnaire(onComplete).
+     ─────────────────────────────────────────────────────────────────────── */
+  (function () {
+    var overlay = document.getElementById('qz-overlay')
+    var elBody = document.getElementById('qz-body')
+    var elQ = document.getElementById('qz-q')
+    var elStep = document.getElementById('qz-step')
+    var elErr = document.getElementById('qz-err')
+    var elNext = document.getElementById('qz-next')
+    var elBack = document.getElementById('qz-back')
+    var elProg = document.getElementById('qz-progress')
+    if (!overlay || !elBody || !elNext) return
+
+    // 4 questions. Chaque option porte un score (0 = le plus novice).
+    var QUESTIONS = [
+      {
+        q: 'Comment décririez-vous votre niveau en informatique ?',
+        opts: [
+          { t: 'Grand débutant — je touche à peu de choses', s: 0 },
+          { t: 'Je sais faire les bases (naviguer, installer une appli)', s: 1 },
+          { t: 'Je suis plutôt à l’aise', s: 2 },
+          { t: 'Très à l’aise, j’aime bidouiller', s: 3 }
+        ]
+      },
+      {
+        q: 'Quand votre PC a un souci, que faites-vous le plus souvent ?',
+        opts: [
+          { t: 'Je demande à quelqu’un de m’aider', s: 0 },
+          { t: 'J’essaie des manipulations simples si on me guide', s: 1 },
+          { t: 'Je cherche la solution et je la fais moi-même', s: 2 },
+          { t: 'Je diagnostique en profondeur (paramètres avancés, logs)', s: 3 }
+        ]
+      },
+      {
+        q: 'Êtes-vous à l’aise avec les paramètres Windows, les pilotes, l’invite de commandes ?',
+        opts: [
+          { t: 'Pas du tout, ça m’impressionne', s: 0 },
+          { t: 'Un peu, si c’est expliqué pas à pas', s: 1 },
+          { t: 'Oui, plutôt', s: 2 },
+          { t: 'Très à l’aise', s: 3 }
+        ]
+      },
+      {
+        q: 'Comment préférez-vous qu’on vous explique les solutions ?',
+        opts: [
+          { t: 'Très simplement, sans mots techniques, étape par étape', s: 0 },
+          { t: 'Simplement, avec les mots de base expliqués', s: 1 },
+          { t: 'Normalement', s: 2 },
+          { t: 'Directement et techniquement, sans détour', s: 3 }
+        ]
+      }
+    ]
+
+    var TICK = '<span class="qz-tick"><svg aria-hidden="true" focusable="false"><use href="#i-check"/></svg></span>'
+
+    var idx = 0
+    var reponses = [null, null, null, null]
+    var onDone = null
+    var envoiEnCours = false
+
+    function rendre() {
+      var Q = QUESTIONS[idx]
+      elStep.textContent = 'Question ' + (idx + 1) + ' / ' + QUESTIONS.length
+      elQ.textContent = Q.q
+      if (elErr) elErr.classList.remove('show')
+      // Dots de progression.
+      var dots = elProg ? elProg.children : []
+      for (var d = 0; d < dots.length; d++) {
+        dots[d].classList.toggle('on', d <= idx)
+      }
+      // Options.
+      elBody.innerHTML = ''
+      Q.opts.forEach(function (o, i) {
+        var b = document.createElement('button')
+        b.type = 'button'
+        b.className = 'qz-opt' + (reponses[idx] === o.s ? ' sel' : '')
+        b.setAttribute('role', 'radio')
+        b.setAttribute('aria-checked', reponses[idx] === o.s ? 'true' : 'false')
+        b.innerHTML = TICK + '<span>' + o.t + '</span>'
+        b.addEventListener('click', function () {
+          reponses[idx] = o.s
+          // Rafraîchit l'état sélectionné sans tout reconstruire.
+          var all = elBody.querySelectorAll('.qz-opt')
+          all.forEach(function (x, j) {
+            var on = j === i
+            x.classList.toggle('sel', on)
+            x.setAttribute('aria-checked', on ? 'true' : 'false')
+          })
+          elNext.disabled = false
+          if (elErr) elErr.classList.remove('show')
+        })
+        elBody.appendChild(b)
+      })
+      elBack.hidden = idx === 0
+      elNext.disabled = reponses[idx] === null
+      elNext.textContent = (idx === QUESTIONS.length - 1) ? 'Terminer ✓' : 'Continuer →'
+      // Focus la 1re option (accessibilité), sans scroll brusque.
+      var f = elBody.querySelector('.qz-opt')
+      if (f) setTimeout(function () { try { f.focus({ preventScroll: true }) } catch (e) {} }, 60)
+    }
+
+    function fermer(cb) {
+      overlay.classList.remove('in')
+      var done = function () {
+        overlay.classList.remove('visible')
+        overlay.removeEventListener('transitionend', done)
+        if (cb) cb()
+      }
+      overlay.addEventListener('transitionend', done)
+      setTimeout(done, 460) // filet reduced-motion
+    }
+
+    function soumettre() {
+      if (envoiEnCours) return
+      envoiEnCours = true
+      var libelle = elNext.textContent
+      elNext.disabled = true
+      elNext.textContent = 'Enregistrement…'
+      var tok = (typeof token === 'string') ? token : ''
+      fetch('/profil/questionnaire', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok },
+        body: JSON.stringify({ reponses: reponses })
+      }).then(function (r) {
+        return r.json().then(function (d) { return { ok: r.ok, d: d } })
+      }).then(function (res) {
+        if (!res.ok) {
+          if (elErr) {
+            elErr.textContent = (res.d && res.d.erreur) || 'Enregistrement impossible. Réessayez.'
+            elErr.classList.add('show')
+          }
+          return
+        }
+        var cb = onDone; onDone = null
+        fermer(function () { if (typeof cb === 'function') cb() })
+      }).catch(function () {
+        if (elErr) {
+          elErr.textContent = 'Connexion impossible. Vérifiez votre réseau et réessayez.'
+          elErr.classList.add('show')
+        }
+      }).finally(function () {
+        envoiEnCours = false
+        // Réactive seulement si on est resté ouvert (échec) — sinon la
+        // modale se ferme et le bouton n'a plus d'importance.
+        if (overlay.classList.contains('visible')) {
+          elNext.disabled = false
+          elNext.textContent = libelle
+        }
+      })
+    }
+
+    elNext.addEventListener('click', function () {
+      if (reponses[idx] === null) {
+        if (elErr) elErr.classList.add('show')
+        return
+      }
+      if (idx < QUESTIONS.length - 1) { idx++; rendre(); return }
+      soumettre()
+    })
+    elBack.addEventListener('click', function () {
+      if (idx > 0) { idx--; rendre() }
+    })
+
+    // OBLIGATOIRE : on neutralise toute tentative de fermeture (Échap, clic
+    // overlay). Aucune croix n'existe dans le markup. La capture empêche les
+    // handlers globaux (ex. fermeture de modales) d'agir sur Échap ici.
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && overlay.classList.contains('visible')) {
+        e.stopPropagation(); e.preventDefault()
+      }
+    }, true)
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay) { e.stopPropagation(); e.preventDefault() }
+    })
+
+    window.ouvrirQuestionnaire = function (onComplete) {
+      onDone = (typeof onComplete === 'function') ? onComplete : null
+      idx = 0
+      reponses = [null, null, null, null]
+      rendre()
+      overlay.classList.add('visible')
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () { overlay.classList.add('in') })
+      })
     }
   })()
 </script>
