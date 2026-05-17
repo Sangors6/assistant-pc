@@ -78,26 +78,43 @@ app.set('trust proxy', 1)
 // provoque un 401 « marche en local, échoue en ligne ».
 const claude = new Anthropic({ apiKey: (process.env.ANTHROPIC_API_KEY || '').trim() })
 
-// Normalisation d'email :
-//  1) trim + minuscule -> "A@x.com" et "a@x.com" = un seul compte.
-//  2) Anti sous-adressage (RFC 5233) : on retire tout ce qui suit le
-//     PREMIER '+' dans la partie locale. "jean+1@gmail.com",
-//     "jean+spam@gmail.com" -> "jean@gmail.com". Empêche de créer plusieurs
-//     comptes / recevoir plusieurs emails sur la MÊME boîte réelle via des
-//     alias jetables (le "+tag" est livré à la même boîte chez Gmail,
-//     Outlook, iCloud, Proton, etc.). Centralisé ici -> appliqué de façon
-//     cohérente à l'inscription, la connexion, le reset et la vérification.
+// Normalisation d'email — anti multi-comptes / multi-emails sur la MÊME
+// boîte réelle. Tout passe par cette unique fonction (inscription /
+// connexion / reset / vérification) donc le canonical est cohérent partout.
+//   1) NFKC + retrait des caractères invisibles (zero-width, BOM) puis trim
+//      + minuscule  -> "A@x.com" == "a@x.com", anti-confusables Unicode.
+//   2) Domaine : on retire le(s) point(s) final(aux) ("gmail.com." == FQDN
+//      "gmail.com") ; "googlemail.com" est un alias strict de "gmail.com".
+//   3) Sous-adressage (RFC 5233) : on retire tout ce qui suit le PREMIER
+//      '+' dans la partie locale ("jean+1@", "jean+spam@" -> "jean@").
+//      Livré à la même boîte chez Gmail, Outlook, iCloud, Proton, etc.
+//   4) Gmail uniquement : les points de la partie locale sont ignorés par
+//      Google ("j.e.an@gmail.com" == "jean@gmail.com") -> on les retire,
+//      sinon l'abus du #2/#3 reste trivialement contournable (faille HAUTE
+//      relevée par l'audit Sécurité + Red Team, post-5bbea88). On NE touche
+//      PAS aux points des autres domaines (ils y sont significatifs).
+const GMAIL_DOMAINES = new Set(['gmail.com', 'googlemail.com'])
+// Construit sans littéral invisible dans le source (un éditeur/git
+// pourrait sinon les stripper en silence et casser la protection).
+const ZERO_WIDTH = new RegExp('[\\u200B-\\u200D\\uFEFF]', 'g')
 const normaliserEmail = (e) => {
-  const s = String(e).trim().toLowerCase()
+  let s
+  try { s = String(e).normalize('NFKC') } catch (_) { s = String(e) }
+  s = s.replace(ZERO_WIDTH, '').trim().toLowerCase()
   const at = s.lastIndexOf('@')
   if (at <= 0) return s // pas d'@ exploitable : la regex d'email rejettera
   let local = s.slice(0, at)
-  const domaine = s.slice(at + 1)
+  let domaine = s.slice(at + 1).replace(/\.+$/, '') // FQDN : point final ignoré
   const plus = local.indexOf('+')
   if (plus !== -1) local = local.slice(0, plus)
+  if (GMAIL_DOMAINES.has(domaine)) {
+    domaine = 'gmail.com'
+    local = local.replace(/\./g, '') // Gmail ignore les points du local
+  }
   // local vide (ex. "+1@x.com") -> "@x.com" : rejeté par la regex d'email.
   return local + '@' + domaine
 }
+
 
 const JWT_SECRET = process.env.JWT_SECRET
 if (!JWT_SECRET || JWT_SECRET.length < 32) {
