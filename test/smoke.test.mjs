@@ -207,3 +207,37 @@ test('connexion compte inexistant → 401 (anti-énumération, aucune écriture)
   })
   assert.equal(r.status, 401)
 })
+
+/* --- Technicien support expert (route IA dédiée /technicien) --- */
+
+test('POST /technicien sans token → 401 (garde-accès, aucune écriture)', async () => {
+  const r = await fetch(`${BASE}/technicien`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ message: 'test' })
+  })
+  assert.equal(r.status, 401)
+})
+
+test('POST /technicien token bidon → 401 (jamais 500, aucune fuite)', async () => {
+  const r = await fetch(`${BASE}/technicien`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'Authorization': 'Bearer bidon' },
+    body: JSON.stringify({ message: 'test' })
+  })
+  assert.equal(r.status, 401)
+})
+
+test('/technicien.html servi (200)', async () => {
+  const r = await fetch(`${BASE}/technicien.html`)
+  assert.equal(r.status, 200)
+})
+
+test('non-régression : POST /chat sans token → 401 (garde inchangée)', async () => {
+  const r = await fetch(`${BASE}/chat`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ message: 'test' })
+  })
+  assert.equal(r.status, 401)
+})

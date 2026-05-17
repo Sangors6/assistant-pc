@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contacter un technicien — PC Helper</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/favicon.svg">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#03070d">
+  <script>if('serviceWorker' in navigator){addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){})})}</script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --blue: #2563eb; --blue-light: #3b82f6; --blue-dark: #1d4ed8;
+      --cyan: #22d3ee; --bg: #060910;
+      --bg-panel: rgba(10, 15, 28, 0.92); --bg-card: rgba(13, 19, 35, 0.85);
+      --border: rgba(59, 130, 246, 0.12); --border-hover: rgba(59, 130, 246, 0.4);
+      --text: #e2e8f0; --text-dim: #475569; --text-mid: #94a3b8;
+      --glow: rgba(37, 99, 235, 0.4); --success: #22c55e; --danger: #ef4444;
+    }
+
+    body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    #bg-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.5; }
+    #app { display: flex; flex-direction: column; flex: 1; overflow: hidden; position: relative; z-index: 1; }
+
+    /* TOPBAR */
+    #topbar { display: flex; align-items: center; gap: 14px; padding: 14px 22px; border-bottom: 1px solid var(--border); background: linear-gradient(180deg, rgba(8,13,26,0.92), rgba(5,8,18,0.7)); backdrop-filter: blur(24px); flex-shrink: 0; position: relative; z-index: 10; }
+    #topbar::after { content: ''; position: absolute; left: 8%; right: 8%; bottom: -1px; height: 1px; background: linear-gradient(to right, transparent, var(--blue) 35%, var(--cyan) 55%, transparent); opacity: 0.4; }
+    .back-btn { display: flex; align-items: center; gap: 7px; padding: 8px 13px; border-radius: 10px; font-size: 12.5px; font-weight: 600; color: var(--text-mid); text-decoration: none; border: 1px solid var(--border); background: rgba(6,10,20,0.6); transition: color .18s ease, border-color .18s ease, transform .18s ease, background .18s ease; }
+    .back-btn:hover { color: #bcd4f5; border-color: var(--border-hover); transform: translateX(-2px); background: rgba(37,99,235,0.08); }
+    .back-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+    #tb-id { display: flex; align-items: center; gap: 12px; }
+    #tb-icon { width: 40px; height: 40px; background: linear-gradient(135deg, var(--blue-light), var(--blue-dark)); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 19px; box-shadow: 0 6px 18px rgba(37,99,235,0.4), inset 0 1px 0 rgba(255,255,255,0.18); flex-shrink: 0; }
+    #tb-name { font-size: 15.5px; font-weight: 700; color: #fff; letter-spacing: -0.4px; }
+    #tb-sub { font-size: 10px; color: var(--text-dim); font-weight: 600; letter-spacing: 1.1px; text-transform: uppercase; margin-top: 2px; }
+    #tb-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+    .tb-chip { display: flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 700; color: var(--cyan); background: rgba(34,211,238,0.08); border: 1px solid rgba(34,211,238,0.22); padding: 5px 11px; border-radius: 20px; letter-spacing: 0.4px; }
+    .tb-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+    .tb-new { padding: 8px 14px; border-radius: 10px; font-size: 12.5px; font-weight: 600; color: #fff; cursor: pointer; border: none; background: linear-gradient(135deg, var(--blue), var(--blue-dark)); box-shadow: 0 8px 22px rgba(37,99,235,0.32); transition: transform .18s ease, box-shadow .18s ease; }
+    .tb-new:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(37,99,235,0.46); }
+
+    /* CHAT */
+    #chat-wrap { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    #chat-area { flex: 1; overflow-y: auto; padding: 28px 22px 14px; scroll-behavior: smooth; }
+    #chat-inner { max-width: 860px; margin: 0 auto; }
+
+    #welcome { max-width: 860px; margin: 22px auto 8px; padding: 26px 26px 24px; border-radius: 20px; background: linear-gradient(160deg, rgba(13,19,35,0.85), rgba(8,12,24,0.6)); border: 1px solid var(--border); position: relative; overflow: hidden; animation: rise .5s cubic-bezier(.22,1,.36,1) both; }
+    @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    #welcome::before { content: ''; position: absolute; inset: 0; background: radial-gradient(620px 200px at 12% -20%, rgba(37,99,235,0.16), transparent 70%); pointer-events: none; }
+    #welcome h1 { font-size: 21px; font-weight: 700; color: #fff; letter-spacing: -0.5px; position: relative; }
+    #welcome p { font-size: 13.5px; color: var(--text-mid); line-height: 1.65; margin-top: 10px; max-width: 660px; position: relative; }
+    #welcome .wtags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; position: relative; }
+    #welcome .wtag { font-size: 11.5px; font-weight: 600; color: #bcd4f5; background: rgba(37,99,235,0.1); border: 1px solid rgba(59,130,246,0.2); padding: 6px 12px; border-radius: 20px; }
+
+    .sug-grid { max-width: 860px; margin: 16px auto 4px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+    .sug { padding: 13px 15px; border-radius: 13px; background: rgba(6,10,20,0.6); border: 1px solid var(--border); cursor: pointer; transition: border-color .18s ease, transform .18s ease, background .18s ease; animation: rise .5s cubic-bezier(.22,1,.36,1) both; }
+    .sug:nth-child(1) { animation-delay: .06s; } .sug:nth-child(2) { animation-delay: .12s; }
+    .sug:nth-child(3) { animation-delay: .18s; } .sug:nth-child(4) { animation-delay: .24s; }
+    .sug:hover { border-color: var(--border-hover); transform: translateY(-2px); background: rgba(37,99,235,0.07); }
+    .sug-ic { font-size: 15px; }
+    .sug-text { display: block; font-size: 12.5px; color: var(--text); margin-top: 7px; line-height: 1.45; }
+
+    .msg-row { display: flex; gap: 13px; margin: 20px 0; align-items: flex-start; }
+    .msg-row.user { flex-direction: row-reverse; }
+    .msg-av { width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+    .msg-av.assistant { background: linear-gradient(135deg, var(--blue-light), var(--blue-dark)); color: #fff; box-shadow: 0 4px 14px rgba(37,99,235,0.35); }
+    .msg-av.user { background: rgba(148,163,184,0.14); color: var(--text-mid); border: 1px solid var(--border); }
+    .msg-wrap { max-width: 78%; position: relative; }
+    .msg-row.user .msg-wrap { align-items: flex-end; }
+    .msg-meta { display: flex; gap: 8px; align-items: baseline; margin-bottom: 5px; padding: 0 4px; }
+    .msg-name { font-size: 12px; font-weight: 600; color: var(--text-mid); }
+    .msg-time { font-size: 10px; color: var(--text-dim); }
+    .bubble { padding: 13px 16px; border-radius: 14px; font-size: 13.5px; line-height: 1.7; word-wrap: break-word; }
+    .bubble.assistant { background: var(--bg-card); border: 1px solid var(--border); color: var(--text); border-top-left-radius: 4px; }
+    .bubble.user { background: linear-gradient(135deg, var(--blue), var(--blue-dark)); color: #fff; border-top-right-radius: 4px; }
+    .bubble.user img.msg-image { max-width: 240px; border-radius: 9px; display: block; margin-bottom: 8px; cursor: pointer; }
+    .bubble p { margin: 0 0 9px; } .bubble p:last-child { margin-bottom: 0; }
+    .bubble ul, .bubble ol { margin: 6px 0 9px 20px; } .bubble li { margin: 3px 0; }
+    .bubble h1, .bubble h2, .bubble h3 { font-size: 14.5px; margin: 12px 0 7px; color: #fff; }
+    .bubble code { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: rgba(2,6,16,0.7); padding: 2px 6px; border-radius: 5px; border: 1px solid var(--border); }
+    .bubble pre { margin: 9px 0; border-radius: 11px; overflow: hidden; border: 1px solid var(--border); }
+    .bubble pre code { display: block; padding: 13px 15px; background: #0a0f1c; border: none; font-size: 12px; line-height: 1.6; overflow-x: auto; }
+    .bubble a { color: var(--cyan); }
+    .bubble.typing { background: var(--bg-card); border: 1px solid var(--border); }
+    .typing-anim { display: flex; gap: 5px; padding: 3px 0; }
+    .typing-anim span { width: 7px; height: 7px; border-radius: 50%; background: var(--blue-light); animation: tp 1.2s infinite ease-in-out; }
+    .typing-anim span:nth-child(2) { animation-delay: .15s; } .typing-anim span:nth-child(3) { animation-delay: .3s; }
+    @keyframes tp { 0%, 60%, 100% { transform: translateY(0); opacity: .4; } 30% { transform: translateY(-6px); opacity: 1; } }
+
+    .copy-btn { position: absolute; top: -2px; right: 0; background: rgba(6,10,20,0.7); border: 1px solid var(--border); border-radius: 7px; padding: 4px 7px; font-size: 11px; cursor: pointer; opacity: 0; transition: opacity .18s ease, border-color .18s ease; }
+    .msg-wrap:hover .copy-btn { opacity: 1; }
+    .copy-btn:hover { border-color: var(--border-hover); }
+    .copy-btn.copied { color: var(--success); border-color: rgba(34,197,94,0.4); }
+
+    .pc-actions { margin-top: 12px; display: flex; flex-direction: column; gap: 9px; }
+    .pc-warn { display: flex; gap: 8px; align-items: flex-start; font-size: 11.5px; color: #fbbf24; background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.22); padding: 9px 12px; border-radius: 10px; line-height: 1.5; }
+    .pc-dl-btn { align-self: flex-start; font-size: 12px; font-weight: 600; color: #fff; cursor: pointer; border: none; padding: 8px 14px; border-radius: 9px; background: linear-gradient(135deg, var(--blue), var(--blue-dark)); box-shadow: 0 6px 16px rgba(37,99,235,0.3); transition: transform .18s ease, box-shadow .18s ease; }
+    .pc-dl-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(37,99,235,0.44); }
+
+    /* INPUT */
+    #input-zone { padding: 14px 22px 20px; border-top: 1px solid var(--border); background: linear-gradient(180deg, rgba(5,8,18,0.4), rgba(8,13,26,0.85)); flex-shrink: 0; }
+    #input-inner { max-width: 860px; margin: 0 auto; }
+    #img-preview { display: none; align-items: center; gap: 10px; margin-bottom: 10px; padding: 9px 12px; border-radius: 11px; background: rgba(6,10,20,0.6); border: 1px solid var(--border); }
+    #img-preview img { width: 44px; height: 44px; object-fit: cover; border-radius: 8px; }
+    #img-preview .ip-x { margin-left: auto; cursor: pointer; color: var(--text-mid); font-size: 16px; padding: 4px 8px; border-radius: 7px; }
+    #img-preview .ip-x:hover { color: var(--danger); background: rgba(239,68,68,0.1); }
+    #input-box { display: flex; align-items: flex-end; gap: 10px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 10px 12px; transition: border-color .2s ease, box-shadow .2s ease; }
+    #input-box:focus-within { border-color: var(--border-hover); box-shadow: 0 0 0 4px rgba(37,99,235,0.08); }
+    .io-btn { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--border); background: rgba(6,10,20,0.5); color: var(--text-mid); cursor: pointer; font-size: 15px; flex-shrink: 0; transition: color .18s ease, border-color .18s ease; }
+    .io-btn:hover { color: #bcd4f5; border-color: var(--border-hover); }
+    #msg-input { flex: 1; background: none; border: none; outline: none; color: var(--text); font-family: inherit; font-size: 13.5px; line-height: 1.55; resize: none; max-height: 168px; padding: 8px 2px; }
+    #msg-input::placeholder { color: var(--text-dim); }
+    #send-btn { width: 38px; height: 38px; border-radius: 11px; border: none; background: linear-gradient(135deg, var(--blue), var(--blue-dark)); color: #fff; cursor: pointer; font-size: 16px; flex-shrink: 0; box-shadow: 0 6px 16px rgba(37,99,235,0.34); transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease; }
+    #send-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(37,99,235,0.48); }
+    #send-btn:disabled { opacity: .45; cursor: default; }
+    #input-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 9px; padding: 0 4px; font-size: 10.5px; color: var(--text-dim); }
+    #char-count { font-variant-numeric: tabular-nums; }
+
+    @media (max-width: 720px) {
+      #topbar { padding: 12px 14px; gap: 10px; }
+      #tb-sub { display: none; }
+      .tb-chip span:not(.dot) { display: none; }
+      #chat-area, #input-zone { padding-left: 14px; padding-right: 14px; }
+      .msg-wrap { max-width: 88%; }
+      #welcome { margin: 14px auto 6px; padding: 20px; }
+      #welcome h1 { font-size: 18px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { scroll-behavior: auto !important; }
+      .typing-anim span { animation: none; opacity: .6; }
+      #welcome, .sug { animation: none !important; opacity: 1; transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="bg-canvas"></canvas>
+  <div id="app">
+    <div id="topbar">
+      <a class="back-btn" href="/app.html" title="Retour au tableau de bord"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Tableau de bord</a>
+      <div id="tb-id">
+        <div id="tb-icon">🛠️</div>
+        <div>
+          <div id="tb-name">Contacter un technicien</div>
+          <div id="tb-sub">Technicien support expert — niveau ingénieur senior</div>
+        </div>
+      </div>
+      <div id="tb-actions">
+        <div class="tb-chip"><span class="dot"></span><span>En ligne</span></div>
+        <button class="tb-new" id="new-btn" title="Nouvelle conversation (Ctrl/Cmd + K)">＋ Nouveau</button>
+      </div>
+    </div>
+
+    <div id="chat-wrap">
+      <div id="chat-area">
+        <div id="chat-inner">
+          <div id="welcome">
+            <h1>Vous parlez à un technicien support expert</h1>
+            <p>Un technicien de très haut niveau, profil ingénieur logiciel &amp; systèmes senior. Il traite les cas
+              complexes&nbsp;: diagnostics avancés, lecture de logs, scripts robustes (PowerShell, Bash, Batch, Python),
+              réseau bas niveau, performances CPU/GPU/RAM, BIOS/UEFI, stockage et virtualisation. Décrivez votre problème
+              le plus précisément possible&nbsp;: messages d'erreur exacts, contexte, ce que vous avez déjà tenté.</p>
+            <div class="wtags">
+              <span class="wtag">Diagnostic cause racine</span>
+              <span class="wtag">Scripts production</span>
+              <span class="wtag">Réseau &amp; perf</span>
+              <span class="wtag">Multi-OS bas niveau</span>
+            </div>
+          </div>
+          <div class="sug-grid" id="sug-grid">
+            <div class="sug" onclick="suggerer(this)"><span class="sug-ic">🧩</span><span class="sug-text">Mon PC freeze aléatoirement, voici l'Observateur d'événements — analyse les logs</span></div>
+            <div class="sug" onclick="suggerer(this)"><span class="sug-ic">⚙️</span><span class="sug-text">Écris-moi un script PowerShell robuste pour diagnostiquer un démarrage lent</span></div>
+            <div class="sug" onclick="suggerer(this)"><span class="sug-ic">🌐</span><span class="sug-text">Latence et pertes de paquets en jeu — comment isoler la cause réseau ?</span></div>
+            <div class="sug" onclick="suggerer(this)"><span class="sug-ic">💾</span><span class="sug-text">Mon SSD NVMe ralentit avec le temps : diagnostic SMART et causes probables</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="input-zone">
+        <div id="input-inner">
+          <div id="img-preview">
+            <img id="ip-thumb" alt="">
+            <span style="font-size:12px;color:var(--text-mid)">Image jointe</span>
+            <span class="ip-x" onclick="retirerImage()" title="Retirer">✕</span>
+          </div>
+          <div id="input-box">
+            <button class="io-btn" id="img-btn" title="Joindre une capture d'écran" onclick="document.getElementById('file-input').click()">📎</button>
+            <input type="file" id="file-input" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none">
+            <textarea id="msg-input" rows="1" placeholder="Décrivez votre problème technique en détail…" aria-label="Votre message au technicien"></textarea>
+            <button id="send-btn" title="Envoyer" disabled>➤</button>
+          </div>
+          <div id="input-foot">
+            <span>Entrée pour envoyer · Maj+Entrée pour un saut de ligne</span>
+            <span><span id="char-count">0</span> / 4000</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="sr-live" aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);"></div>
+
+  <script>
+    /* Auth — page authentifiée côté client, comme app.html */
+    let token = localStorage.getItem('token')
+    if (!token) window.location.href = '/login.html'
+
+    // Refresh silencieux : prolonge la session à l'ouverture. Échec ignoré
+    // ici ; les gestionnaires 401 gèrent l'expiration réelle.
+    ;(function refreshSilencieux () {
+      if (!token) return
+      fetch('/auth/refresh', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } })
+        .then(function (r) { return r.ok ? r.json() : null })
+        .then(function (d) { if (d && d.token) { token = d.token; localStorage.setItem('token', d.token) } })
+        .catch(function () {})
+    })()
+
+    const email = localStorage.getItem('email') || ''
+    const pseudo = email.split('@')[0] || 'utilisateur'
+    const initiale = pseudo.charAt(0).toUpperCase()
+
+    // sessionId DISTINCT du fil de l'assistant principal (pas de collision).
+    let sessionId = localStorage.getItem('sessionIdTech') || null
+
+    const chatArea = document.getElementById('chat-area')
+    const inputEl = document.getElementById('msg-input')
+    const sendBtn = document.getElementById('send-btn')
+    const welcome = document.getElementById('welcome')
+    const sugGrid = document.getElementById('sug-grid')
+    const srLive = document.getElementById('sr-live')
+    let imageJointe = null
+
+    marked.setOptions({ breaks: true, gfm: true })
+
+    function now() {
+      return new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+    }
+
+    /* Fond animé léger — respecte prefers-reduced-motion */
+    ;(function fond() {
+      const c = document.getElementById('bg-canvas'), x = c.getContext('2d')
+      let pts = [], w, h
+      const reduit = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      function dim() { w = c.width = innerWidth; h = c.height = innerHeight }
+      dim(); addEventListener('resize', dim)
+      for (let i = 0; i < 46; i++) pts.push({ x: Math.random() * innerWidth, y: Math.random() * innerHeight, vx: (Math.random() - 0.5) * 0.22, vy: (Math.random() - 0.5) * 0.22 })
+      function tick() {
+        x.clearRect(0, 0, w, h)
+        for (const p of pts) {
+          if (!reduit) { p.x += p.vx; p.y += p.vy }
+          if (p.x < 0 || p.x > w) p.vx *= -1
+          if (p.y < 0 || p.y > h) p.vy *= -1
+          x.beginPath(); x.arc(p.x, p.y, 1.4, 0, 7); x.fillStyle = 'rgba(59,130,246,0.5)'; x.fill()
+        }
+        for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
+          const dx = pts[i].x - pts[j].x, dy = pts[i].y - pts[j].y, d = Math.hypot(dx, dy)
+          if (d < 130) { x.beginPath(); x.moveTo(pts[i].x, pts[i].y); x.lineTo(pts[j].x, pts[j].y); x.strokeStyle = 'rgba(37,99,235,' + (0.13 * (1 - d / 130)) + ')'; x.stroke() }
+        }
+        requestAnimationFrame(tick)
+      }
+      tick()
+    })()
+
+    /* Auto-resize input + compteur */
+    inputEl.addEventListener('input', () => {
+      inputEl.style.height = 'auto'
+      inputEl.style.height = Math.min(inputEl.scrollHeight, 168) + 'px'
+      const n = inputEl.value.length
+      document.getElementById('char-count').textContent = n
+      sendBtn.disabled = (inputEl.value.trim().length === 0 && !imageJointe)
+    })
+    inputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (!sendBtn.disabled) envoyer() }
+    })
+    sendBtn.addEventListener('click', () => { if (!sendBtn.disabled) envoyer() })
+
+    /* Ctrl/Cmd+K = nouveau chat */
+    addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); nouveauChat() }
+    })
+    document.getElementById('new-btn').addEventListener('click', nouveauChat)
+
+    function nouveauChat() {
+      sessionId = null
+      localStorage.removeItem('sessionIdTech')
+      document.querySelectorAll('.msg-row').forEach(m => m.remove())
+      welcome.style.display = ''
+      sugGrid.style.display = ''
+      retirerImage()
+      inputEl.value = ''; inputEl.style.height = 'auto'
+      document.getElementById('char-count').textContent = '0'
+      sendBtn.disabled = true
+      inputEl.focus()
+    }
+
+    /* Image jointe (capture d'écran) */
+    document.getElementById('file-input').addEventListener('change', (e) => {
+      const f = e.target.files[0]
+      if (!f) return
+      if (f.size > 5 * 1024 * 1024) { alert('Image trop volumineuse (max 5 Mo).'); return }
+      const reader = new FileReader()
+      reader.onload = () => {
+        const b64 = String(reader.result).split(',')[1]
+        imageJointe = { data: b64, mediaType: f.type }
+        document.getElementById('ip-thumb').src = reader.result
+        document.getElementById('img-preview').style.display = 'flex'
+        sendBtn.disabled = false
+      }
+      reader.readAsDataURL(f)
+      e.target.value = ''
+    })
+    function retirerImage() {
+      imageJointe = null
+      document.getElementById('img-preview').style.display = 'none'
+      document.getElementById('ip-thumb').src = ''
+      sendBtn.disabled = (inputEl.value.trim().length === 0)
+    }
+
+    function suggerer(el) {
+      inputEl.value = el.querySelector('.sug-text').textContent.trim()
+      inputEl.dispatchEvent(new Event('input'))
+      envoyer()
+    }
+
+    /* Enrichissement : téléchargement de script depuis les blocs de code
+       (identique à app.html — même entête d'avertissement). */
+    function enrichirActions(bub) {
+      const blocs = Array.prototype.slice.call(bub.querySelectorAll('pre code'))
+      if (!blocs.length) return
+      const detect = (c) => {
+        const m = (c.className || '').toLowerCase()
+        if (/powershell|ps1/.test(m)) return ['powershell', 'ps1']
+        if (/batch|\bbat\b|\bcmd\b/.test(m)) return ['bat', 'bat']
+        if (/bash|shell|zsh|\bsh\b/.test(m)) return ['bash', 'sh']
+        if (/python|\bpy\b/.test(m)) return ['python', 'py']
+        return null
+      }
+      let lang = null
+      for (let i = 0; i < blocs.length; i++) { const d = detect(blocs[i]); if (d) { lang = d; break } }
+      const ext = lang ? lang[1] : 'txt'
+      const contenu = blocs.map((b) => b.textContent.replace(/\s+$/, '')).join('\n\n')
+      if (contenu.trim().length < 2) return
+      const box = document.createElement('div'); box.className = 'pc-actions'
+      const warn = document.createElement('div'); warn.className = 'pc-warn'
+      const wi = document.createElement('span'); wi.textContent = '⚠️'
+      const wt = document.createElement('span')
+      wt.textContent = 'Vérifie chaque commande avant de l’exécuter. Ne lance un script que si tu comprends ce qu’il fait.'
+      warn.appendChild(wi); warn.appendChild(wt)
+      const btn = document.createElement('button')
+      btn.type = 'button'; btn.className = 'pc-dl-btn'
+      btn.textContent = '⬇️ Télécharger le script (.' + ext + ')'
+      btn.onclick = () => {
+        let entete = 'Genere par PC Helper - verifie avant execution\n'
+        if (lang && lang[0] === 'powershell') entete = '# Genere par PC Helper - verifie avant execution\n'
+        else if (lang && lang[0] === 'bash') entete = '#!/usr/bin/env bash\n# Genere par PC Helper - verifie avant execution\n'
+        else if (lang && lang[0] === 'bat') entete = '@echo off\nREM Genere par PC Helper - verifie avant execution\n'
+        else if (lang && lang[0] === 'python') entete = '# Genere par PC Helper - verifie avant execution\n'
+        const blob = new Blob([entete + '\n' + contenu + '\n'], { type: 'text/plain;charset=utf-8' })
+        const u = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = u; a.download = 'pc-helper-script.' + ext
+        document.body.appendChild(a); a.click()
+        setTimeout(() => { URL.revokeObjectURL(u); a.remove() }, 0)
+      }
+      box.appendChild(warn); box.appendChild(btn)
+      bub.appendChild(box)
+    }
+
+    function ajouterMsg(texte, role) {
+      welcome.style.display = 'none'; sugGrid.style.display = 'none'
+      const row = document.createElement('div'); row.className = 'msg-row ' + role
+      const av = document.createElement('div'); av.className = 'msg-av ' + role
+      av.textContent = role === 'assistant' ? '🛠️' : initiale
+      const wrap = document.createElement('div'); wrap.className = 'msg-wrap'
+      const meta = document.createElement('div'); meta.className = 'msg-meta'
+      const nameSpan = document.createElement('span'); nameSpan.className = 'msg-name'
+      nameSpan.textContent = role === 'assistant' ? 'Technicien PC Helper' : pseudo
+      const timeSpan = document.createElement('span'); timeSpan.className = 'msg-time'
+      timeSpan.textContent = now()
+      meta.appendChild(nameSpan); meta.appendChild(timeSpan)
+      if (role === 'user') meta.style.flexDirection = 'row-reverse'
+      const bub = document.createElement('div'); bub.className = 'bubble ' + role
+      if (texte === '__typing__') {
+        bub.classList.add('typing'); bub.innerHTML = '<div class="typing-anim"><span></span><span></span><span></span></div>'
+      } else if (role === 'assistant') {
+        bub.innerHTML = DOMPurify.sanitize(marked.parse(texte))
+        bub.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b))
+        enrichirActions(bub)
+      } else { bub.textContent = texte }
+      if (role === 'assistant' && texte !== '__typing__') {
+        const copyBtn = document.createElement('button'); copyBtn.className = 'copy-btn'; copyBtn.title = 'Copier'; copyBtn.textContent = '📋'
+        copyBtn.onclick = () => { navigator.clipboard.writeText(texte); copyBtn.textContent = '✅'; copyBtn.classList.add('copied'); setTimeout(() => { copyBtn.textContent = '📋'; copyBtn.classList.remove('copied') }, 2000) }
+        wrap.appendChild(copyBtn)
+      }
+      wrap.appendChild(meta); wrap.appendChild(bub); row.appendChild(av); row.appendChild(wrap)
+      chatArea.appendChild(row); chatArea.scrollTop = chatArea.scrollHeight
+      return bub
+    }
+
+    /* Envoi — pipeline SSE identique à app.html (streaming fluide). */
+    async function envoyer() {
+      const texte = inputEl.value.trim()
+      if (!texte && !imageJointe) return
+
+      const row = document.createElement('div'); row.className = 'msg-row user'
+      const av = document.createElement('div'); av.className = 'msg-av user'; av.textContent = initiale
+      const wrap = document.createElement('div'); wrap.className = 'msg-wrap'
+      const meta = document.createElement('div'); meta.className = 'msg-meta'; meta.style.flexDirection = 'row-reverse'
+      const mName = document.createElement('span'); mName.className = 'msg-name'; mName.textContent = pseudo
+      const mTime = document.createElement('span'); mTime.className = 'msg-time'; mTime.textContent = now()
+      meta.appendChild(mName); meta.appendChild(mTime)
+      const bub = document.createElement('div'); bub.className = 'bubble user'
+      if (imageJointe && imageJointe.mediaType.startsWith('image/')) {
+        const img = document.createElement('img'); img.src = 'data:' + imageJointe.mediaType + ';base64,' + imageJointe.data
+        img.className = 'msg-image'; img.onclick = () => window.open(img.src, '_blank'); bub.appendChild(img)
+      }
+      if (texte) { const t = document.createElement('span'); t.textContent = texte; bub.appendChild(t) }
+      welcome.style.display = 'none'; sugGrid.style.display = 'none'
+      wrap.appendChild(meta); wrap.appendChild(bub); row.appendChild(av); row.appendChild(wrap)
+      chatArea.appendChild(row); chatArea.scrollTop = chatArea.scrollHeight
+
+      const imageEnvoyee = imageJointe ? { data: imageJointe.data, mediaType: imageJointe.mediaType } : null
+      inputEl.value = ''; inputEl.style.height = 'auto'
+      document.getElementById('char-count').textContent = '0'
+      retirerImage(); sendBtn.disabled = true
+
+      const typingBub = ajouterMsg('__typing__', 'assistant')
+
+      let texteReponse = ''
+      let rendu = 0
+      let recu = false
+      let finalise = false
+      let rafId = null
+
+      function finaliser() {
+        if (finalise) return
+        finalise = true
+        if (rafId) { cancelAnimationFrame(rafId); rafId = null }
+        typingBub.classList.remove('typing', 'streaming')
+        const rendreMarkdown = () => {
+          typingBub.innerHTML = DOMPurify.sanitize(marked.parse(texteReponse))
+          typingBub.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b))
+          enrichirActions(typingBub)
+        }
+        const reduit = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        if (reduit) {
+          rendreMarkdown()
+        } else {
+          typingBub.style.transition = 'opacity .16s ease'
+          typingBub.style.opacity = '0'
+          requestAnimationFrame(() => {
+            rendreMarkdown()
+            requestAnimationFrame(() => { typingBub.style.opacity = '1' })
+          })
+        }
+        srLive.textContent = 'Réponse du technicien reçue.'
+        const w = typingBub.parentElement
+        if (w && !w.querySelector('.copy-btn')) {
+          const copyBtn = document.createElement('button'); copyBtn.className = 'copy-btn'; copyBtn.title = 'Copier'; copyBtn.textContent = '📋'
+          copyBtn.onclick = () => { navigator.clipboard.writeText(texteReponse); copyBtn.textContent = '✅'; copyBtn.classList.add('copied'); setTimeout(() => { copyBtn.textContent = '📋'; copyBtn.classList.remove('copied') }, 2000) }
+          w.appendChild(copyBtn)
+        }
+      }
+
+      function revealer() {
+        rafId = null
+        const restant = texteReponse.length - rendu
+        if (restant > 0) {
+          rendu = Math.min(texteReponse.length, rendu + Math.max(1, Math.ceil(restant / 6)))
+          typingBub.textContent = texteReponse.slice(0, rendu)
+          chatArea.scrollTop = chatArea.scrollHeight
+        }
+        if (recu && rendu >= texteReponse.length) { finaliser(); return }
+        rafId = requestAnimationFrame(revealer)
+      }
+      function demarrerRevealer() {
+        if (rafId == null && !finalise) rafId = requestAnimationFrame(revealer)
+      }
+
+      try {
+        const body = { message: texte, sessionId }
+        if (imageEnvoyee) body.image = { data: imageEnvoyee.data, mediaType: imageEnvoyee.mediaType }
+
+        const res = await fetch('/technicien', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify(body)
+        })
+
+        if (res.status === 401) { localStorage.removeItem('token'); window.location.href = '/login.html'; return }
+        if (res.status === 403) {
+          const data = await res.json()
+          if (data.erreur === 'limite_atteinte') { typingBub.classList.remove('typing'); typingBub.innerHTML = '🔒 Limite atteinte.'; return }
+        }
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          typingBub.classList.remove('typing'); typingBub.textContent = data.erreur || 'Erreur de connexion.'
+          return
+        }
+
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ''
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n')
+          buffer = lines.pop()
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue
+            const json = line.slice(6).trim()
+            if (!json) continue
+            try {
+              const data = JSON.parse(json)
+              if (data.type === 'session') {
+                sessionId = data.sessionId
+                localStorage.setItem('sessionIdTech', sessionId)
+              } else if (data.type === 'chunk') {
+                texteReponse += data.text
+                if (typingBub.classList.contains('typing')) {
+                  typingBub.classList.remove('typing')
+                  typingBub.classList.add('streaming')
+                  typingBub.textContent = ''
+                }
+                demarrerRevealer()
+              } else if (data.type === 'done') {
+                recu = true
+                demarrerRevealer()
+              } else if (data.type === 'erreur') {
+                recu = true
+                finalise = true
+                if (rafId) { cancelAnimationFrame(rafId); rafId = null }
+                typingBub.classList.remove('typing', 'streaming')
+                typingBub.textContent = data.message || 'Erreur de connexion.'
+              }
+            } catch {}
+          }
+        }
+        recu = true
+        demarrerRevealer()
+
+      } catch {
+        finalise = true
+        if (rafId) { cancelAnimationFrame(rafId); rafId = null }
+        typingBub.classList.remove('typing', 'streaming')
+        typingBub.textContent = 'Erreur de connexion.'
+      } finally {
+        sendBtn.disabled = false; inputEl.focus()
+      }
+    }
+
+    inputEl.focus()
+  </script>
+</body>
+</html>
