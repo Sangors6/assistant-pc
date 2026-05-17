@@ -9,6 +9,8 @@ import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
+import { readFileSync } from 'node:fs'
+import vm from 'node:vm'
 
 const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..')
 const PORT = 3010
@@ -342,4 +344,45 @@ test('#009 non-régression : /chat & /technicien toujours 401 sans token', async
     })
     assert.equal(r.status, 401, `${p} garde inchangée`)
   }
+})
+
+/* --- CONTRAT PANNEAU TECHNICIEN (filet anti-régression P0) -----------------
+   Garde-fou statique : si un futur edit supprime un hook critique ou casse la
+   syntaxe JS de public/technicien.html, ces tests échouent AVANT la prod.
+   Voir docs/CONTRAT-technicien.md. NON destructif, lecture disque seule. */
+const TECH_HTML = readFileSync(join(RACINE, 'public', 'technicien.html'), 'utf8')
+
+// Hooks/IDs/fonctions qui NE DOIVENT JAMAIS disparaître sans décision explicite.
+const CONTRAT_TECHNICIEN = [
+  'tech-restore', 'pageContenuPret', 'id="chat-skeleton"',          // anti-flash
+  'id="nav-fx"', 'window.navTo = function', "sessionStorage.setItem('navfx'",
+  'decodeAudioData', "d === 'forward'",                              // transition + son
+  'function rendrePresence', 'function tirerScenario', 'const DELAIS', // présence
+  'function chargerHistoriqueTech', '/technicien/sessions', 'id="hist-panel"', // historique
+  'id="notif-bubble"', 'function proposerNotif', 'function notifierReponse',   // notif
+  'Temps de réponse estimé', 'function etaScenario',                 // ETA
+  'function ajouterMsg', 'async function envoyer', 'sessionIdTech'   // chat coeur
+]
+
+test('CONTRAT technicien : tous les hooks critiques présents', () => {
+  const manquants = CONTRAT_TECHNICIEN.filter((m) => !TECH_HTML.includes(m))
+  assert.deepEqual(manquants, [], `hooks disparus de technicien.html : ${manquants.join(', ')}`)
+})
+
+test('CONTRAT technicien : assets média toujours cache-bustés (?v=N)', () => {
+  assert.match(TECH_HTML, /swoosh%20tech\.mp3\?v=\d/, 'swoosh doit garder un ?v=N')
+  assert.match(TECH_HTML, /notify\.mp3\?v=\d/, 'notify doit garder un ?v=N')
+})
+
+test('CONTRAT technicien : tout le JS inline compile (syntaxe valide)', () => {
+  const blocs = [...TECH_HTML.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map((x) => x[1])
+  assert.ok(blocs.length >= 2, 'au moins 2 blocs <script> inline attendus')
+  blocs.forEach((code, i) => {
+    assert.doesNotThrow(() => new vm.Script(code), `bloc <script> #${i + 1} : erreur de syntaxe JS`)
+  })
+})
+
+test('CONTRAT : app.html n’a AUCUN audio swoosh (son uniquement à l’aller)', () => {
+  const APP_HTML = readFileSync(join(RACINE, 'public', 'app.html'), 'utf8')
+  assert.ok(!/snd-swoosh/.test(APP_HTML), 'app.html ne doit pas réintroduire le swoosh')
 })
