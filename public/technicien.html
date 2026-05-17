@@ -41,8 +41,26 @@
     #tb-name { font-size: 15.5px; font-weight: 700; color: #fff; letter-spacing: -0.4px; }
     #tb-sub { font-size: 10px; color: var(--text-dim); font-weight: 600; letter-spacing: 1.1px; text-transform: uppercase; margin-top: 2px; }
     #tb-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
-    .tb-chip { display: flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 700; color: var(--cyan); background: rgba(34,211,238,0.08); border: 1px solid rgba(34,211,238,0.22); padding: 5px 11px; border-radius: 20px; letter-spacing: 0.4px; }
-    .tb-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+    .tb-chip { display: flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 700; color: var(--cyan); background: rgba(34,211,238,0.08); border: 1px solid rgba(34,211,238,0.22); padding: 5px 11px; border-radius: 20px; letter-spacing: 0.4px; transition: color .3s ease, background .3s ease, border-color .3s ease; }
+    .tb-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 8px var(--cyan); position: relative; transition: background .3s ease, box-shadow .3s ease; }
+    .tb-chip.etat-en_ligne { color: var(--success); background: rgba(34,197,94,0.09); border-color: rgba(34,197,94,0.28); }
+    .tb-chip.etat-en_ligne .dot { background: var(--success); box-shadow: 0 0 8px var(--success); }
+    .tb-chip.etat-en_ligne .dot::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; border: 1px solid var(--success); animation: pulseRing 1.9s ease-out infinite; }
+    @keyframes pulseRing { 0% { transform: scale(.55); opacity: .7; } 100% { transform: scale(2.5); opacity: 0; } }
+    .tb-chip.etat-occupe { color: #fbbf24; background: rgba(251,191,36,0.09); border-color: rgba(251,191,36,0.3); }
+    .tb-chip.etat-occupe .dot { background: #fbbf24; box-shadow: 0 0 8px #fbbf24; }
+    .tb-chip.etat-hors_ligne { color: #94a3b8; background: rgba(148,163,184,0.08); border-color: rgba(148,163,184,0.22); }
+    .tb-chip.etat-hors_ligne .dot { background: #64748b; box-shadow: none; }
+    .msg-seen { display: flex; gap: 5px; align-items: center; justify-content: flex-end; font-size: 10px; color: var(--text-dim); margin-top: 5px; padding: 0 4px; opacity: 0; max-height: 0; transition: opacity .35s ease; }
+    .msg-seen.show { opacity: 1; max-height: 20px; }
+    .msg-seen svg { width: 12px; height: 12px; color: var(--cyan); }
+    #offline-banner { display: none; align-items: center; gap: 11px; margin-bottom: 11px; padding: 11px 15px; border-radius: 12px; background: rgba(148,163,184,0.07); border: 1px solid rgba(148,163,184,0.22); color: var(--text-mid); font-size: 12.5px; line-height: 1.55; }
+    #offline-banner.show { display: flex; }
+    #offline-banner .ob-ic { font-size: 16px; flex-shrink: 0; }
+    #offline-banner b { color: #cbd5e1; font-weight: 600; }
+    #input-box.disabled { opacity: .5; pointer-events: none; }
+    #welcome .wmeta { display: flex; align-items: center; gap: 8px; margin-top: 14px; font-size: 12px; color: var(--text-mid); position: relative; }
+    #welcome .wmeta .wdot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); box-shadow: 0 0 8px var(--success); flex-shrink: 0; }
     .tb-new { padding: 8px 14px; border-radius: 10px; font-size: 12.5px; font-weight: 600; color: #fff; cursor: pointer; border: none; background: linear-gradient(135deg, var(--blue), var(--blue-dark)); box-shadow: 0 8px 22px rgba(37,99,235,0.32); transition: transform .18s ease, box-shadow .18s ease; }
     .tb-new:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(37,99,235,0.46); }
 
@@ -135,6 +153,7 @@
     @media (prefers-reduced-motion: reduce) {
       * { scroll-behavior: auto !important; }
       .typing-anim span { animation: none; opacity: .6; }
+      .tb-chip.etat-en_ligne .dot::after { animation: none; opacity: 0; }
       #welcome, .sug { animation: none !important; opacity: 1; transform: none; }
     }
   </style>
@@ -152,7 +171,7 @@
         </div>
       </div>
       <div id="tb-actions">
-        <div class="tb-chip"><span class="dot"></span><span>En ligne</span></div>
+        <div class="tb-chip etat-en_ligne"><span class="dot"></span><span>En ligne</span></div>
         <button class="tb-new" id="new-btn" title="Nouvelle conversation (Ctrl/Cmd + K)">＋ Nouveau</button>
       </div>
     </div>
@@ -172,6 +191,7 @@
               <span class="wtag">Réseau &amp; perf</span>
               <span class="wtag">Multi-OS bas niveau</span>
             </div>
+            <div class="wmeta"><span class="wdot" id="wmeta-dot"></span><span id="wmeta-txt">En ligne — répond généralement en moins d'une minute</span></div>
           </div>
           <div class="sug-grid" id="sug-grid">
             <div class="sug" onclick="suggerer(this)"><span class="sug-ic">🧩</span><span class="sug-text">Mon PC freeze aléatoirement, voici l'Observateur d'événements — analyse les logs</span></div>
@@ -184,6 +204,10 @@
 
       <div id="input-zone">
         <div id="input-inner">
+          <div id="offline-banner">
+            <span class="ob-ic">🌙</span>
+            <span><b>Le technicien est momentanément hors ligne.</b> Il revient dès que possible — réessayez dans quelques minutes. Vous pouvez aussi utiliser l'assistant principal en attendant.</span>
+          </div>
           <div id="img-preview">
             <img id="ip-thumb" alt="">
             <span style="font-size:12px;color:var(--text-mid)">Image jointe</span>
@@ -236,6 +260,51 @@
     const srLive = document.getElementById('sr-live')
     let imageJointe = null
 
+    /* --- Présence "humaine" du technicien ---------------------------------
+       Le technicien se comporte comme un vrai humain : état de présence réel
+       (serveur), accusé "Vu", délai de lecture, durée de rédaction. */
+    const chip = document.querySelector('.tb-chip')
+    const chipLabel = chip.querySelector('span:not(.dot)')
+    const offlineBanner = document.getElementById('offline-banner')
+    const inputBox = document.getElementById('input-box')
+    const wmetaDot = document.getElementById('wmeta-dot')
+    const wmetaTxt = document.getElementById('wmeta-txt')
+    let etatActuel = 'en_ligne'
+    let enDiscussion = false
+
+    const PRESENCE = {
+      en_ligne:   { label: 'En ligne',        wmeta: 'En ligne — répond généralement en moins d\'une minute', wdot: 'var(--success)' },
+      occupe:     { label: 'Très sollicité',  wmeta: 'Très sollicité — la réponse peut prendre un peu plus longtemps', wdot: '#fbbf24' },
+      hors_ligne: { label: 'Hors ligne',      wmeta: 'Hors ligne — le technicien revient dès que possible', wdot: '#64748b' }
+    }
+
+    function appliquerEtat (etat) {
+      if (!PRESENCE[etat]) etat = 'en_ligne'
+      etatActuel = etat
+      chip.classList.remove('etat-en_ligne', 'etat-occupe', 'etat-hors_ligne')
+      chip.classList.add('etat-' + etat)
+      chipLabel.textContent = PRESENCE[etat].label
+      if (wmetaTxt) wmetaTxt.textContent = PRESENCE[etat].wmeta
+      if (wmetaDot) { wmetaDot.style.background = PRESENCE[etat].wdot; wmetaDot.style.boxShadow = etat === 'hors_ligne' ? 'none' : '0 0 8px ' + PRESENCE[etat].wdot }
+      const horsLigne = etat === 'hors_ligne'
+      inputBox.classList.toggle('disabled', horsLigne)
+      offlineBanner.classList.toggle('show', horsLigne)
+      sendBtn.disabled = horsLigne || (inputEl.value.trim().length === 0 && !imageJointe)
+    }
+
+    async function rafraichirStatut () {
+      try {
+        const r = await fetch('/technicien/statut', { headers: { 'Authorization': 'Bearer ' + token } })
+        if (!r.ok) return
+        const d = await r.json()
+        if (d && d.etat && !enDiscussion) appliquerEtat(d.etat)
+      } catch {}
+    }
+
+    const attendre = (ms) => new Promise((r) => setTimeout(r, Math.max(0, ms)))
+    const alea = (base, variation) => base + (Math.random() * 2 - 1) * variation
+    const borne = (v, min, max) => Math.max(min, Math.min(max, v))
+
     marked.setOptions({ breaks: true, gfm: true })
 
     function now() {
@@ -273,7 +342,7 @@
       inputEl.style.height = Math.min(inputEl.scrollHeight, 168) + 'px'
       const n = inputEl.value.length
       document.getElementById('char-count').textContent = n
-      sendBtn.disabled = (inputEl.value.trim().length === 0 && !imageJointe)
+      sendBtn.disabled = etatActuel === 'hors_ligne' || (inputEl.value.trim().length === 0 && !imageJointe)
     })
     inputEl.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (!sendBtn.disabled) envoyer() }
@@ -403,10 +472,54 @@
       return bub
     }
 
-    /* Envoi — pipeline SSE identique à app.html (streaming fluide). */
-    async function envoyer() {
+    /* Envoi — comportement "humain". Le fetch SSE tourne EN PARALLÈLE des
+       délais (la latence réseau chevauche l'attente humaine : on n'empile
+       jamais "délai humain + temps API", on prend le max-ish). Séquence :
+       accusé Vu → délai de lecture → bulle "écrit…" maintenue une durée
+       réaliste → révélation progressive naturelle. */
+    function revelerHumain (bub, texte, reduit) {
+      return new Promise((resolve) => {
+        bub.classList.remove('typing'); bub.classList.add('streaming'); bub.textContent = ''
+        const finaliser = () => {
+          bub.classList.remove('streaming')
+          bub.innerHTML = DOMPurify.sanitize(marked.parse(texte))
+          bub.querySelectorAll('pre code').forEach((b) => hljs.highlightElement(b))
+          enrichirActions(bub)
+          const w = bub.parentElement
+          if (w && !w.querySelector('.copy-btn')) {
+            const c = document.createElement('button'); c.className = 'copy-btn'; c.title = 'Copier'; c.textContent = '📋'
+            c.onclick = () => { navigator.clipboard.writeText(texte); c.textContent = '✅'; c.classList.add('copied'); setTimeout(() => { c.textContent = '📋'; c.classList.remove('copied') }, 2000) }
+            w.appendChild(c)
+          }
+          srLive.textContent = 'Réponse du technicien reçue.'
+          resolve()
+        }
+        const total = reduit ? 0 : borne(texte.length * 4.5, 1100, 3000)
+        if (total <= 0) { finaliser(); return }
+        const t0 = performance.now()
+        function step (t) {
+          const p = Math.min(1, (t - t0) / total)
+          bub.textContent = texte.slice(0, Math.floor(p * texte.length))
+          chatArea.scrollTop = chatArea.scrollHeight
+          if (p < 1) requestAnimationFrame(step)
+          else finaliser()
+        }
+        requestAnimationFrame(step)
+      })
+    }
+
+    function finDiscussion () {
+      enDiscussion = false
+      sendBtn.disabled = etatActuel === 'hors_ligne' || (inputEl.value.trim().length === 0 && !imageJointe)
+      inputEl.focus()
+      rafraichirStatut()
+    }
+
+    async function envoyer () {
+      if (etatActuel === 'hors_ligne') { offlineBanner.classList.add('show'); rafraichirStatut(); return }
       const texte = inputEl.value.trim()
       if (!texte && !imageJointe) return
+      enDiscussion = true
 
       const row = document.createElement('div'); row.className = 'msg-row user'
       const av = document.createElement('div'); av.className = 'msg-av user'; av.textContent = initiale
@@ -422,7 +535,10 @@
       }
       if (texte) { const t = document.createElement('span'); t.textContent = texte; bub.appendChild(t) }
       welcome.style.display = 'none'; sugGrid.style.display = 'none'
-      wrap.appendChild(meta); wrap.appendChild(bub); row.appendChild(av); row.appendChild(wrap)
+      const seen = document.createElement('div'); seen.className = 'msg-seen'
+      seen.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M2 13l4 4L13 7"/><path d="M9 17l1 1L22 6"/></svg><span>Envoyé</span>'
+      wrap.appendChild(meta); wrap.appendChild(bub); wrap.appendChild(seen)
+      row.appendChild(av); row.appendChild(wrap)
       chatArea.appendChild(row); chatArea.scrollTop = chatArea.scrollHeight
 
       const imageEnvoyee = imageJointe ? { data: imageJointe.data, mediaType: imageJointe.mediaType } : null
@@ -430,132 +546,109 @@
       document.getElementById('char-count').textContent = '0'
       retirerImage(); sendBtn.disabled = true
 
-      const typingBub = ajouterMsg('__typing__', 'assistant')
-
+      // --- Fetch SSE lancé immédiatement, en parallèle des délais humains ---
       let texteReponse = ''
-      let rendu = 0
-      let recu = false
-      let finalise = false
-      let rafId = null
-
-      function finaliser() {
-        if (finalise) return
-        finalise = true
-        if (rafId) { cancelAnimationFrame(rafId); rafId = null }
-        typingBub.classList.remove('typing', 'streaming')
-        const rendreMarkdown = () => {
-          typingBub.innerHTML = DOMPurify.sanitize(marked.parse(texteReponse))
-          typingBub.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b))
-          enrichirActions(typingBub)
-        }
-        const reduit = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-        if (reduit) {
-          rendreMarkdown()
-        } else {
-          typingBub.style.transition = 'opacity .16s ease'
-          typingBub.style.opacity = '0'
-          requestAnimationFrame(() => {
-            rendreMarkdown()
-            requestAnimationFrame(() => { typingBub.style.opacity = '1' })
+      let erreurMsg = null
+      let limite = false
+      let indispo = false
+      const recuP = (async () => {
+        try {
+          const body = { message: texte, sessionId }
+          if (imageEnvoyee) body.image = { data: imageEnvoyee.data, mediaType: imageEnvoyee.mediaType }
+          const res = await fetch('/technicien', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify(body)
           })
-        }
-        srLive.textContent = 'Réponse du technicien reçue.'
-        const w = typingBub.parentElement
-        if (w && !w.querySelector('.copy-btn')) {
-          const copyBtn = document.createElement('button'); copyBtn.className = 'copy-btn'; copyBtn.title = 'Copier'; copyBtn.textContent = '📋'
-          copyBtn.onclick = () => { navigator.clipboard.writeText(texteReponse); copyBtn.textContent = '✅'; copyBtn.classList.add('copied'); setTimeout(() => { copyBtn.textContent = '📋'; copyBtn.classList.remove('copied') }, 2000) }
-          w.appendChild(copyBtn)
-        }
-      }
-
-      function revealer() {
-        rafId = null
-        const restant = texteReponse.length - rendu
-        if (restant > 0) {
-          rendu = Math.min(texteReponse.length, rendu + Math.max(1, Math.ceil(restant / 6)))
-          typingBub.textContent = texteReponse.slice(0, rendu)
-          chatArea.scrollTop = chatArea.scrollHeight
-        }
-        if (recu && rendu >= texteReponse.length) { finaliser(); return }
-        rafId = requestAnimationFrame(revealer)
-      }
-      function demarrerRevealer() {
-        if (rafId == null && !finalise) rafId = requestAnimationFrame(revealer)
-      }
-
-      try {
-        const body = { message: texte, sessionId }
-        if (imageEnvoyee) body.image = { data: imageEnvoyee.data, mediaType: imageEnvoyee.mediaType }
-
-        const res = await fetch('/technicien', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-          body: JSON.stringify(body)
-        })
-
-        if (res.status === 401) { localStorage.removeItem('token'); window.location.href = '/login.html'; return }
-        if (res.status === 403) {
-          const data = await res.json()
-          if (data.erreur === 'limite_atteinte') { typingBub.classList.remove('typing'); typingBub.innerHTML = '🔒 Limite atteinte.'; return }
-        }
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}))
-          typingBub.classList.remove('typing'); typingBub.textContent = data.erreur || 'Erreur de connexion.'
-          return
-        }
-
-        const reader = res.body.getReader()
-        const decoder = new TextDecoder()
-        let buffer = ''
-
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          buffer += decoder.decode(value, { stream: true })
-          const lines = buffer.split('\n')
-          buffer = lines.pop()
-          for (const line of lines) {
-            if (!line.startsWith('data: ')) continue
-            const json = line.slice(6).trim()
-            if (!json) continue
-            try {
-              const data = JSON.parse(json)
-              if (data.type === 'session') {
-                sessionId = data.sessionId
-                localStorage.setItem('sessionIdTech', sessionId)
-              } else if (data.type === 'chunk') {
-                texteReponse += data.text
-                if (typingBub.classList.contains('typing')) {
-                  typingBub.classList.remove('typing')
-                  typingBub.classList.add('streaming')
-                  typingBub.textContent = ''
-                }
-                demarrerRevealer()
-              } else if (data.type === 'done') {
-                recu = true
-                demarrerRevealer()
-              } else if (data.type === 'erreur') {
-                recu = true
-                finalise = true
-                if (rafId) { cancelAnimationFrame(rafId); rafId = null }
-                typingBub.classList.remove('typing', 'streaming')
-                typingBub.textContent = data.message || 'Erreur de connexion.'
-              }
-            } catch {}
+          if (res.status === 401) { localStorage.removeItem('token'); window.location.href = '/login.html'; return }
+          if (res.status === 403) {
+            const data = await res.json().catch(() => ({}))
+            if (data.erreur === 'limite_atteinte') { limite = true; return }
           }
-        }
-        recu = true
-        demarrerRevealer()
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}))
+            erreurMsg = data.erreur || 'Erreur de connexion.'; indispo = true; return
+          }
+          const reader = res.body.getReader()
+          const decoder = new TextDecoder()
+          let buffer = ''
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+            buffer += decoder.decode(value, { stream: true })
+            const lines = buffer.split('\n')
+            buffer = lines.pop()
+            for (const line of lines) {
+              if (!line.startsWith('data: ')) continue
+              const json = line.slice(6).trim()
+              if (!json) continue
+              try {
+                const data = JSON.parse(json)
+                if (data.type === 'session') {
+                  sessionId = data.sessionId
+                  localStorage.setItem('sessionIdTech', sessionId)
+                } else if (data.type === 'chunk') {
+                  texteReponse += data.text
+                } else if (data.type === 'erreur') {
+                  erreurMsg = data.message || 'Erreur de connexion.'; indispo = true
+                }
+              } catch {}
+            }
+          }
+        } catch { erreurMsg = 'Erreur de connexion.'; indispo = true }
+      })()
 
-      } catch {
-        finalise = true
-        if (rafId) { cancelAnimationFrame(rafId); rafId = null }
-        typingBub.classList.remove('typing', 'streaming')
-        typingBub.textContent = 'Erreur de connexion.'
-      } finally {
-        sendBtn.disabled = false; inputEl.focus()
+      const reduit = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+      // 1) Accusé "Envoyé" → "Vu à HH:MM" (comme une vraie messagerie)
+      await attendre(reduit ? 200 : 650)
+      seen.classList.add('show')
+      await attendre(reduit ? 200 : 600)
+      seen.querySelector('span').textContent = 'Vu à ' + now()
+
+      // 2) Délai de "lecture" avant que le technicien commence à écrire
+      const lng = (texte ? texte.length : 0) + (imageEnvoyee ? 280 : 0)
+      let lectureMs = borne(alea(950 + lng * 13, 450), 1300, 4800)
+      if (reduit) lectureMs = Math.min(lectureMs, 800)
+      await attendre(lectureMs)
+
+      // 3) Bulle "écrit…"
+      const typingBub = ajouterMsg('__typing__', 'assistant')
+      srLive.textContent = 'Le technicien rédige une réponse…'
+      const dotsAt = Date.now()
+
+      // 4) Attendre la réponse complète (déjà en cours en arrière-plan)
+      await recuP
+
+      if (limite) {
+        typingBub.classList.remove('typing'); typingBub.innerHTML = '🔒 Limite atteinte.'
+        return finDiscussion()
       }
+      if (erreurMsg) {
+        typingBub.classList.remove('typing'); typingBub.textContent = erreurMsg
+        if (indispo && etatActuel === 'en_ligne') appliquerEtat('occupe')
+        return finDiscussion()
+      }
+      if (!texteReponse) {
+        typingBub.classList.remove('typing'); typingBub.textContent = 'Réponse vide. Réessaie.'
+        return finDiscussion()
+      }
+
+      // 5) Durée minimale de "rédaction" proportionnelle à la réponse
+      let redactionMin = borne(texteReponse.length * 7.5, 1600, 7000)
+      redactionMin = alea(redactionMin, redactionMin * 0.15)
+      if (reduit) redactionMin = Math.min(redactionMin, 600)
+      await attendre(redactionMin - (Date.now() - dotsAt))
+
+      // 6) Révélation progressive à un rythme naturel
+      await revelerHumain(typingBub, texteReponse, reduit)
+      finDiscussion()
     }
+
+    // Présence : état initial + synchronisation périodique avec le serveur
+    appliquerEtat('en_ligne')
+    rafraichirStatut()
+    setInterval(rafraichirStatut, 30000)
 
     inputEl.focus()
   </script>

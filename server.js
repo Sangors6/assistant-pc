@@ -1292,6 +1292,48 @@ app.post('/chat', limiteurChat, authentifier, limiteurChatCompte, async (req, re
 })
 
 // ---------------------------------------------------------------------------
+// Présence "humaine" du technicien support.
+// L'onglet « Contacter un technicien » se comporte comme un vrai humain : il a
+// un état de présence RÉEL, dérivé de la santé effective du service IA observée
+// sur la route /technicien (pas une simulation creuse). Si les derniers
+// échanges ont échoué (timeout, surcharge, 5xx, quota), le technicien est
+// annoncé « très sollicité » puis « hors ligne » le temps que ça se rétablisse,
+// avec un back-off doux. Tout appel abouti remet la présence à « en ligne ».
+const presenceTech = {
+  derniereReussite: Date.now(),
+  indispoJusqu: 0,         // ms epoch : indisponible tant que > maintenant
+  echecsConsecutifs: 0
+}
+function techIndispo () {
+  presenceTech.echecsConsecutifs += 1
+  // 1er incident : court (40 s). Persiste → s'allonge, plafonné à 5 min.
+  const duree = Math.min(40 * presenceTech.echecsConsecutifs, 300)
+  presenceTech.indispoJusqu = Date.now() + duree * 1000
+}
+function techDispo () {
+  presenceTech.echecsConsecutifs = 0
+  presenceTech.indispoJusqu = 0
+  presenceTech.derniereReussite = Date.now()
+}
+function etatTech () {
+  const restant = presenceTech.indispoJusqu - Date.now()
+  if (restant <= 0) return { etat: 'en_ligne', disponible: true, reprise_s: 0 }
+  // Incident isolé → « occupé » (l'utilisateur peut écrire, attente plus
+  // longue). Échecs répétés → « hors ligne » (saisie bloquée côté UI).
+  if (presenceTech.echecsConsecutifs <= 1) {
+    return { etat: 'occupe', disponible: true, reprise_s: Math.ceil(restant / 1000) }
+  }
+  return { etat: 'hors_ligne', disponible: false, reprise_s: Math.ceil(restant / 1000) }
+}
+
+// GET /technicien/statut — présence courante (léger, aucun appel IA). Auth
+// requise comme les autres routes /technicien (cohérence + zéro fuite).
+app.get('/technicien/statut', authentifier, (req, res) => {
+  res.setHeader('Cache-Control', 'no-store')
+  res.json(etatTech())
+})
+
+// ---------------------------------------------------------------------------
 // POST /technicien — Technicien support expert (second assistant, distinct
 // de /chat). CHOIX D'ARCHITECTURE : route dédiée réutilisant À L'IDENTIQUE
 // les mêmes middlewares (limiteurChat, authentifier, limiteurChatCompte),
@@ -1458,6 +1500,8 @@ app.post('/technicien', limiteurChat, authentifier, limiteurChatCompte, async (r
       [utilisateur.id, id, 'assistant', texteReponse])
     await run('UPDATE utilisateurs SET messages_utilises = messages_utilises + 1 WHERE id = $1', [utilisateur.id])
 
+    techDispo()  // échange abouti → technicien « en ligne »
+
     res.write(`data: ${JSON.stringify({ type: 'done', messagesUtilises: utilisateur.messages_utilises + 1 })}\n\n`)
     res.end()
 
@@ -1493,6 +1537,14 @@ app.post('/technicien', limiteurChat, authentifier, limiteurChatCompte, async (r
       messageClient = "Le service IA est momentanément surchargé. Réessaie dans un instant."
     } else if (status >= 500 || erreur?.name === 'APIConnectionError') {
       messageClient = 'Le service IA est momentanément indisponible. Réessaie dans un instant.'
+    }
+
+    // Indisponibilité TRANSITOIRE réelle → bascule la présence en « occupé /
+    // hors ligne ». Les erreurs de config (401/403/404/crédits) ne changent
+    // PAS la présence : elles doivent rester visibles comme erreurs.
+    if (timedOut || status === 429 || estSurcharge(erreur) ||
+        status >= 500 || erreur?.name === 'APIConnectionError') {
+      techIndispo()
     }
 
     if (!res.writableEnded) {

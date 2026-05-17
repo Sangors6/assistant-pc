@@ -233,6 +233,18 @@ test('/technicien.html servi (200)', async () => {
   assert.equal(r.status, 200)
 })
 
+test('GET /technicien/statut sans token → 401 (présence protégée)', async () => {
+  const r = await fetch(`${BASE}/technicien/statut`)
+  assert.equal(r.status, 401)
+})
+
+test('GET /technicien/statut token bidon → 401 (jamais 500)', async () => {
+  const r = await fetch(`${BASE}/technicien/statut`, {
+    headers: { 'Authorization': 'Bearer bidon' }
+  })
+  assert.equal(r.status, 401)
+})
+
 test('non-régression : POST /chat sans token → 401 (garde inchangée)', async () => {
   const r = await fetch(`${BASE}/chat`, {
     method: 'POST',
