@@ -407,24 +407,16 @@
     <div class="nfx-dots"><i></i><i></i><i></i></div>
   </div>
 </div>
-<audio id="snd-swoosh" src="/swoosh%20tech.mp3" preload="auto"></audio>
 <script>
 /* Transition fluide Dashboard ⇄ Contacter un technicien. Couvre l'écran très
    tôt (anti-flash) puis se retire au chargement. navTo() exposé pour les
    liens. N'interfère pas avec #dash-intro (retiré sur navigation interne).
+   AUCUN son ici : le swoosh ne se joue QU'EN ARRIVANT sur le technicien
+   (côté technicien.html), jamais au retour vers le dashboard.
    Respecte prefers-reduced-motion. */
 (function () {
   var fx = document.getElementById('nav-fx')
   var REDUIT = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  var snd = document.getElementById('snd-swoosh')
-  var swooshFait = false
-  // UN SEUL swoosh par transition, joué au RETRAIT du voile (page stable,
-  // son entier, synchro du glissement visible). Garde idempotente.
-  function swoosh () {
-    if (REDUIT || !snd || swooshFait) return
-    swooshFait = true
-    try { snd.currentTime = 0; snd.volume = 0.55; var p = snd.play(); if (p && p.catch) p.catch(function () {}) } catch (e) {}
-  }
   window.navTo = function (u, d) {
     if (REDUIT || !fx) { location.href = u; return }
     try { sessionStorage.setItem('navfx', d) } catch (e) {}
@@ -443,7 +435,6 @@
   addEventListener('load', function () {
     requestAnimationFrame(function () { requestAnimationFrame(function () {
       fx.style.transition = 'transform .46s cubic-bezier(.7,0,.3,1)'
-      swoosh()                                 // son = départ exact du retrait
       fx.style.transform = (d === 'back') ? 'translateX(100%)' : 'translateX(-100%)'
       setTimeout(function () { fx.style.display = 'none' }, 480)
     }) })

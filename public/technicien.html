@@ -272,7 +272,7 @@
       <div class="nfx-dots"><i></i><i></i><i></i></div>
     </div>
   </div>
-  <audio id="snd-swoosh" src="/swoosh%20tech.mp3" preload="auto"></audio>
+  <audio id="snd-swoosh" src="/swoosh%20tech.mp3?v=3" preload="auto"></audio>
   <script>
   /* Transition fluide Dashboard ⇄ Contacter un technicien. Couvre l'écran
      très tôt (anti-flash), puis se retire au chargement. navTo() est exposé
@@ -321,7 +321,7 @@
       retire = true
       requestAnimationFrame(function () { requestAnimationFrame(function () {
         fx.style.transition = 'transform .46s cubic-bezier(.7,0,.3,1)'
-        swoosh()                                 // son = départ exact du retrait
+        if (d === 'forward') swoosh()            // son UNIQUEMENT en arrivant sur le technicien
         fx.style.transform = (d === 'back') ? 'translateX(100%)' : 'translateX(-100%)'
         setTimeout(function () { fx.style.display = 'none' }, 480)
       }) })
@@ -574,7 +574,7 @@
     let sonNotif = null
     function jouerSon () {
       try {
-        if (!sonNotif) { sonNotif = new Audio('/notify.mp3'); sonNotif.volume = 0.55 }
+        if (!sonNotif) { sonNotif = new Audio('/notify.mp3?v=3'); sonNotif.volume = 0.55 }
         sonNotif.currentTime = 0
         sonNotif.play().catch(() => {})
       } catch {}
