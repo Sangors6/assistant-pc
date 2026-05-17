@@ -311,7 +311,19 @@
     var actx = null            // AudioContext partagé
     var swBuf = null           // AudioBuffer décodé, prêt à jouer
     var swOffset = 0           // offset (s) pour sauter le silence de tête
+    var swAudible = 0          // durée audible réelle du son (s), hors silences
     var swReady = false        // décodage terminé → chemin Web Audio armé
+
+    /* Le glissement du voile est calé sur la durée AUDIBLE réelle du swoosh :
+       même tick au départ + même longueur ⇒ l'attaque ET la fin du son
+       tombent à l'échantillon près sur le début et la fin du glissement.
+       Le son déborde volontairement de SW_DEBORD_MS sur la page technicien
+       (« un tout petit peu », demande fondateur). Bornes de sécurité pour
+       que la révélation reste fluide même si le fichier audio change. */
+    var SW_MIN_S = 0.42        // glissement jamais plus court (UX)
+    var SW_MAX_S = 0.95        // glissement jamais plus long (UX)
+    var SW_DEBORD_MS = 35      // débordement maîtrisé du son sur la page
+    var SW_DEFAUT_S = 0.46     // durée de repli (fallback / audio non décodé)
 
     function detecterSilence (buf) {
       // Premier échantillon dépassant un seuil bas (≈ -54 dBFS) = attaque
@@ -328,6 +340,30 @@
       } catch (e) { return 0 }
     }
 
+    function detecterFinSon (buf) {
+      // Symétrique : dernier échantillon au-dessus du seuil = fin de l'énergie
+      // sonore réelle. On ajoute ~30 ms de release pour ne pas couper la
+      // décroissance naturelle du swoosh.
+      try {
+        var ch = buf.getChannelData(0)
+        var sr = buf.sampleRate
+        var seuil = 0.002
+        var j = ch.length - 1
+        while (j > 0 && Math.abs(ch[j]) < seuil) j--
+        if (j <= 0) return buf.duration
+        return Math.min(buf.duration, (j / sr) + 0.030)
+      } catch (e) { return buf.duration }
+    }
+
+    // Durée (s) à appliquer au glissement = durée audible − débordement
+    // voulu, bornée. Si le son n'est pas décodé → durée de repli.
+    function dureeGlissement () {
+      var d = (swReady && swAudible > 0)
+        ? swAudible - (SW_DEBORD_MS / 1000)
+        : SW_DEFAUT_S
+      return Math.max(SW_MIN_S, Math.min(SW_MAX_S, d))
+    }
+
     function armerWebAudio () {
       if (!AC || swReady || swBuf) return
       try {
@@ -341,8 +377,13 @@
               if (p && p.then) p.then(res, rej)
             })
           })
-          .then(function (buf) { swBuf = buf; swOffset = detecterSilence(buf); swReady = true })
-          .catch(function () { swReady = false; swBuf = null })   // → fallback <audio>
+          .then(function (buf) {
+            swBuf = buf
+            swOffset = detecterSilence(buf)
+            swAudible = Math.max(0.001, detecterFinSon(buf) - swOffset)
+            swReady = true
+          })
+          .catch(function () { swReady = false; swBuf = null; swAudible = 0 })   // → fallback <audio>
       } catch (e) {}
     }
 
@@ -410,10 +451,16 @@
         // échantillon-précise, silence de tête déjà compensé) puis on commite
         // le transform. start() et commit transform sont adjacents → l'attaque
         // sonore tombe sur la 1re frame peinte du glissement (écart < ~16 ms).
-        fx.style.transition = 'transform .46s cubic-bezier(.7,0,.3,1)'
+        // La DURÉE du glissement = durée audible réelle du son → la fin du
+        // glissement et la fin du son coïncident à l'échantillon près (le
+        // son déborde de SW_DEBORD_MS sur la page, voulu).
+        var durS = dureeGlissement()
+        fx.style.transition = 'transform ' + durS.toFixed(3) + 's cubic-bezier(.7,0,.3,1)'
         if (d === 'forward') swoosh()            // son UNIQUEMENT en arrivant sur le technicien
         fx.style.transform = (d === 'back') ? 'translateX(100%)' : 'translateX(-100%)'
-        setTimeout(function () { fx.style.display = 'none' }, 480)
+        // Voile retiré du flux juste après la fin du glissement (le son, lui,
+        // continue librement : un BufferSource Web Audio n'est pas lié au DOM).
+        setTimeout(function () { fx.style.display = 'none' }, Math.round(durS * 1000) + 30)
       }) })
     }
     setTimeout(function () { miniEcoule = true; retirer() }, 320)
