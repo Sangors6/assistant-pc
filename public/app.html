@@ -699,6 +699,117 @@
     #input-shell.attn { animation: none; box-shadow: 0 0 0 3px rgba(59,130,246,.16), 0 4px 24px rgba(0,0,0,.3); }
   }
 
+  /* ════════════════════════════════════════════════════════════════════
+     BLOC Design — Onboarding 1er arrivage + barre de saisie focale.
+     Aucun id/classe/contrat JS retiré : on RE-STYLE et on ENRICHIT le
+     contenu de #welcome-body / #suggestions-grid, et on rend #input-shell
+     intrinsèquement évident. UI/UX Pro Max : R1 contraste >=4.5:1,
+     R2 cibles >=44px, R4 icônes SVG (zéro emoji), R5 responsive,
+     R7 motion 150-300ms + prefers-reduced-motion. Ligne fondateur :
+     premium MAIS sobre, 1 seule action principale (la saisie).
+     ════════════════════════════════════════════════════════════════════ */
+
+  /* Carte de bienvenue : titre clair + frise 3 étapes (cohérence index.html .how) */
+  #welcome-body h2 { font-size: 22px; }
+  .wb-lead { font-size: 14px; color: #9fb3cd; line-height: 1.7; margin-bottom: 4px; }
+  .wb-lead b { color: #cfe0fb; font-weight: 600; }
+
+  .wb-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 20px; }
+  .wb-step { position: relative; padding: 16px 15px 15px; border-radius: 14px; background: linear-gradient(180deg, rgba(13,19,35,0.6), rgba(6,10,20,0.55)); border: 1px solid var(--border); overflow: hidden; }
+  .wb-step::before { content: ''; position: absolute; top: -40px; right: -40px; width: 100px; height: 100px; background: radial-gradient(circle, rgba(37,99,235,0.09) 0%, transparent 70%); pointer-events: none; }
+  .wb-step-top { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; }
+  .wb-step-n { width: 26px; height: 26px; flex-shrink: 0; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: #bcd4f7; background: rgba(37,99,235,0.14); border: 1px solid rgba(59,130,246,0.26); }
+  .wb-step-ic { width: 30px; height: 30px; flex-shrink: 0; margin-left: auto; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 15px; color: #7fb0ee; background: linear-gradient(135deg, rgba(37,99,235,0.18), rgba(34,211,238,0.07)); border: 1px solid rgba(59,130,246,0.16); }
+  .wb-step-line { display: none; }
+  .wb-step h4 { font-size: 13px; font-weight: 700; color: #e8f0fb; margin-bottom: 4px; letter-spacing: -0.2px; }
+  .wb-step p { font-size: 11.5px; color: #8095ad; line-height: 1.55; }
+  @media (max-width: 720px) { .wb-steps { grid-template-columns: 1fr; gap: 9px; } }
+
+  /* Ruban de réassurance : IA (pas un humain) + technicien + guides + privé */
+  .wb-trust { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 18px; padding-top: 16px; border-top: 1px solid rgba(59,130,246,0.08); }
+  .wb-trust-i { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; color: #768aa2; line-height: 1.4; }
+  .wb-trust-i .ico { color: #5e7a9e; font-size: 13px; }
+  .wb-trust-link { color: #8fbcf2; font-weight: 600; text-decoration: none; border-bottom: 1px solid rgba(143,188,242,0.28); padding-bottom: 1px; transition: color .15s, border-color .15s; cursor: pointer; }
+  .wb-trust-link:hover { color: #cfe0fb; border-color: rgba(207,224,251,0.5); }
+  .wb-trust-link:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; border-radius: 3px; }
+
+  /* Suggestions : rendre l'aspect « cliquable / exemple à essayer » évident */
+  #suggestions-grid { margin-top: 4px; }
+  .sug-head { display: flex; align-items: center; gap: 8px; grid-column: 1 / -1; margin: 6px 2px 2px; font-size: 11px; font-weight: 600; color: #768aa2; letter-spacing: 0.2px; }
+  .sug-head .ico { font-size: 13px; color: #5e7a9e; }
+  .sug-card { padding-right: 34px; }
+  .sug-card .sug-text { color: #aebfd4; }
+  .sug-card::after { content: ''; position: absolute; top: 50%; right: 13px; width: 18px; height: 18px; margin-top: -9px; border-radius: 50%; background: rgba(37,99,235,0.12) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237fb0ee' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 6l6 6-6 6'/%3E%3C/svg%3E") center / 11px no-repeat; opacity: 0.55; transition: opacity .2s ease, transform .2s ease, background-color .2s ease; }
+  .sug-card:hover::after, .sug-card:focus-visible::after { opacity: 1; transform: translateX(3px); background-color: rgba(37,99,235,0.22); }
+  .sug-card:focus-visible { outline: none; border-color: var(--border-hover); box-shadow: 0 0 0 2px rgba(59,130,246,0.5); }
+  @media (prefers-reduced-motion: reduce) { .sug-card::after { transition: none; } .sug-card:hover::after { transform: none; } }
+
+  /* ── Barre de saisie : point focal indiscutable ──────────────────────
+     Halo permanent doux + anneau focus premium + label flottant. */
+  #input-wrap { position: relative; }
+  #input-shell {
+    border-color: rgba(80,150,240,0.34);
+    box-shadow: 0 0 0 1px rgba(59,130,246,0.10),
+                0 0 26px rgba(45,130,255,0.16),
+                0 10px 34px rgba(0,0,0,0.42);
+  }
+  #input-shell::after {
+    content: ''; position: absolute; inset: -1px; border-radius: 18px;
+    pointer-events: none; z-index: 0;
+    background: linear-gradient(180deg, rgba(59,130,246,0.05), transparent 60%);
+  }
+  #input-shell > * { position: relative; z-index: 1; }
+  #input-shell:focus-within {
+    border-color: rgba(98,166,255,0.65);
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.22),
+                0 0 34px rgba(78,170,255,0.26),
+                0 10px 34px rgba(0,0,0,0.42);
+  }
+  #input::placeholder { color: rgba(148,163,184,0.62); }
+  #send-btn {
+    width: 42px; height: 42px; border-radius: 12px; font-size: 15px;
+    box-shadow: 0 0 24px rgba(37,99,235,0.6), inset 0 1px 0 rgba(255,255,255,0.18);
+  }
+  #send-btn:hover { transform: scale(1.06) translateY(-1px); box-shadow: 0 0 36px rgba(37,99,235,0.78), inset 0 1px 0 rgba(255,255,255,0.18); }
+
+  /* Label flottant « Commencez ici » au-dessus de la barre (sobre, pas
+     clignotant). Se retire en douceur dès qu'on tape (classe .typed sur
+     #input-wrap, posée par un écouteur non destructif). */
+  #start-cue {
+    position: absolute; left: 26px; bottom: 100%; margin-bottom: 8px;
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.2px;
+    color: #bcd4f7;
+    background: linear-gradient(180deg, rgba(22,42,76,0.92), rgba(11,21,40,0.92));
+    border: 1px solid rgba(98,166,255,0.26);
+    padding: 6px 12px; border-radius: 999px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    backdrop-filter: blur(8px);
+    pointer-events: none;
+    transition: opacity .35s ease, transform .35s ease;
+  }
+  #start-cue .ico { font-size: 13px; color: var(--cyan); }
+  #start-cue::after {
+    content: ''; position: absolute; left: 22px; top: 100%;
+    width: 9px; height: 9px; margin-top: -5px;
+    transform: rotate(45deg);
+    background: rgba(11,21,40,0.92);
+    border-right: 1px solid rgba(98,166,255,0.26);
+    border-bottom: 1px solid rgba(98,166,255,0.26);
+  }
+  #input-wrap.typed #start-cue,
+  #input-wrap.hidecue #start-cue { opacity: 0; transform: translateY(4px); }
+  /* Anti-empilement : tant que la bulle one-shot #tip-saisie est affichée
+     (#input-shell.attn), on masque le label flottant pour éviter le doublon. */
+  #input-wrap:has(#input-shell.attn) #start-cue { opacity: 0; transform: translateY(4px); }
+  @media (prefers-reduced-motion: reduce) { #start-cue { transition: opacity .2s linear; } }
+  @media (max-width: 560px) { #start-cue { left: 50%; transform: translateX(-50%); font-size: 10.5px; } #start-cue::after { left: 50%; margin-left: -5px; } #input-wrap.typed #start-cue, #input-wrap.hidecue #start-cue, #input-wrap:has(#input-shell.attn) #start-cue { transform: translateX(-50%) translateY(4px); } }
+
+  /* Le #tip-saisie historique reste piloté par sa logique localStorage,
+     mais devient redondant : on l'allège (la barre est déjà évidente). */
+  #input-shell.attn { animation: none; }
+  @media (prefers-reduced-motion: reduce) { #input-shell.attn { box-shadow: 0 0 0 3px rgba(59,130,246,.16), 0 4px 24px rgba(0,0,0,.3); } }
+
   #exit-veil {
     position: fixed;
     inset: 0;
@@ -1085,24 +1196,59 @@
           <div id="welcome-bot-badge">EN LIGNE</div>
         </div>
         <div id="welcome-body">
-          <h2>Salut ! 👋<br>Comment puis-je t'aider ?</h2>
-          <p>Je diagnostique et résous tes problèmes PC, Windows, réseau et gaming.<br>Décris-moi ce qui se passe ou envoie une capture d'écran — je vais t'aider étape par étape.</p>
+          <h2>Votre dépanneur PC, en français simple.</h2>
+          <p class="wb-lead">Décrivez votre souci <b>avec vos mots</b> — pas besoin de termes techniques. PC Helper diagnostique le problème et vous guide pas à pas, expliqué <b>à votre niveau</b>.</p>
+
+          <div class="wb-steps" role="list" aria-label="Comment ça marche en 3 étapes">
+            <div class="wb-step" role="listitem">
+              <div class="wb-step-top">
+                <span class="wb-step-n">01</span>
+                <span class="wb-step-ic"><svg class="ico" aria-hidden="true"><use href="#i-chat"/></svg></span>
+              </div>
+              <h4>Décrivez le problème</h4>
+              <p>« Mon PC rame », « le Wi-Fi coupe », « écran bleu ». Une capture d'écran aide aussi.</p>
+            </div>
+            <div class="wb-step" role="listitem">
+              <div class="wb-step-top">
+                <span class="wb-step-n">02</span>
+                <span class="wb-step-ic"><svg class="ico" aria-hidden="true"><use href="#i-search"/></svg></span>
+              </div>
+              <h4>L'IA diagnostique</h4>
+              <p>Elle analyse votre souci et identifie la cause la plus probable en quelques secondes.</p>
+            </div>
+            <div class="wb-step" role="listitem">
+              <div class="wb-step-top">
+                <span class="wb-step-n">03</span>
+                <span class="wb-step-ic"><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg></span>
+              </div>
+              <h4>Vous suivez les étapes</h4>
+              <p>Une solution claire, étape par étape, adaptée à votre niveau. Bloqué&nbsp;? Un humain prend le relais.</p>
+            </div>
+          </div>
+
+          <div class="wb-trust">
+            <span class="wb-trust-i"><svg class="ico" aria-hidden="true"><use href="#i-spark"/></svg> PC Helper est une IA — pour un humain, <a class="wb-trust-link" onclick="navTo('/technicien.html','forward')" tabindex="0" role="link">contactez un technicien</a></span>
+            <span class="wb-trust-i"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg> <a class="wb-trust-link" href="/playbooks.html">Guides pas à pas</a></span>
+            <span class="wb-trust-i"><svg class="ico" aria-hidden="true"><use href="#i-lock"/></svg> Vos échanges restent privés</span>
+          </div>
         </div>
       </div>
 
       <div id="suggestions-grid">
-        <div class="sug-card" onclick="suggerer(this)"><div class="sug-icon"><svg class="ico" aria-hidden="true"><use href="#i-gauge"/></svg></div><div class="sug-text">Mon PC rame</div></div>
-        <div class="sug-card" onclick="suggerer(this)"><div class="sug-icon"><svg class="ico" aria-hidden="true"><use href="#i-wifi"/></svg></div><div class="sug-text">Wi-Fi instable</div></div>
-        <div class="sug-card" onclick="suggerer(this)"><div class="sug-icon"><svg class="ico" aria-hidden="true"><use href="#i-gpu"/></svg></div><div class="sug-text">FPS trop bas</div></div>
-        <div class="sug-card" onclick="suggerer(this)"><div class="sug-icon"><svg class="ico" aria-hidden="true"><use href="#i-bsod"/></svg></div><div class="sug-text">Écran bleu</div></div>
-        <div class="sug-card" onclick="suggerer(this)"><div class="sug-icon"><svg class="ico" aria-hidden="true"><use href="#i-temp"/></svg></div><div class="sug-text">PC qui surchauffe</div></div>
-        <div class="sug-card" onclick="suggerer(this)"><div class="sug-icon"><svg class="ico" aria-hidden="true"><use href="#i-refresh"/></svg></div><div class="sug-text">Drivers à jour ?</div></div>
+        <div class="sug-head"><svg class="ico" aria-hidden="true"><use href="#i-bulb"/></svg> Pas sûr de comment formuler&nbsp;? Cliquez un exemple pour démarrer&nbsp;:</div>
+        <div class="sug-card" role="button" tabindex="0" onclick="suggerer(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();suggerer(this)}"><div class="sug-icon"><svg class="ico" aria-hidden="true"><use href="#i-gauge"/></svg></div><div class="sug-text">Mon PC rame</div></div>
+        <div class="sug-card" role="button" tabindex="0" onclick="suggerer(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();suggerer(this)}"><div class="sug-icon"><svg class="ico" aria-hidden="true"><use href="#i-wifi"/></svg></div><div class="sug-text">Wi-Fi instable</div></div>
+        <div class="sug-card" role="button" tabindex="0" onclick="suggerer(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();suggerer(this)}"><div class="sug-icon"><svg class="ico" aria-hidden="true"><use href="#i-gpu"/></svg></div><div class="sug-text">FPS trop bas</div></div>
+        <div class="sug-card" role="button" tabindex="0" onclick="suggerer(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();suggerer(this)}"><div class="sug-icon"><svg class="ico" aria-hidden="true"><use href="#i-bsod"/></svg></div><div class="sug-text">Écran bleu</div></div>
+        <div class="sug-card" role="button" tabindex="0" onclick="suggerer(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();suggerer(this)}"><div class="sug-icon"><svg class="ico" aria-hidden="true"><use href="#i-temp"/></svg></div><div class="sug-text">PC qui surchauffe</div></div>
+        <div class="sug-card" role="button" tabindex="0" onclick="suggerer(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();suggerer(this)}"><div class="sug-icon"><svg class="ico" aria-hidden="true"><use href="#i-refresh"/></svg></div><div class="sug-text">Drivers à jour ?</div></div>
       </div>
 
       <div id="panel-conv"></div>
     </div>
 
     <div id="input-wrap">
+      <div id="start-cue" aria-hidden="true"><svg class="ico"><use href="#i-spark"/></svg> Commencez ici — décrivez votre souci</div>
       <div id="input-shell">
         <div id="tip-saisie" role="status">
           <div class="tip-row">
@@ -1128,7 +1274,7 @@
           </div>
         </div>
         <div id="input-top">
-          <textarea id="input" placeholder="Pose ta question ici — ex. « Mon PC rame, que faire ? »" rows="1"></textarea>
+          <textarea id="input" placeholder="Décrivez votre souci ici… (ex. « mon PC rame depuis ce matin »)" rows="1"></textarea>
           <input type="file" id="file-input" accept="image/*,.pdf,.txt,.log" style="display:none">
           <button class="tool-btn" title="Pièce jointe" aria-label="Pièce jointe" onclick="document.getElementById('file-input').click()"><svg class="ico" aria-hidden="true"><use href="#i-clip"/></svg></button>
           <button class="tool-btn" id="voice-btn" type="button" title="Dictée vocale (beta)" aria-label="Dictée vocale (beta)" onclick="toggleVocal()"><svg class="ico" aria-hidden="true"><use href="#i-mic"/></svg></button>
@@ -3103,6 +3249,21 @@ Analyse cette configuration : est-elle équilibrée ? Quels sont les points faib
       })
     }
   })()
+</script>
+<script>/* Label flottant « Commencez ici » : purement présentationnel.
+   Se retire dès que l'utilisateur prend la main (focus / saisie) ou
+   qu'un chat existe. N'ajoute AUCUN handler aux contrats JS existants :
+   écouteurs passifs sur #input, aucun preventDefault, idempotent. */
+(function () {
+  var wrap = document.getElementById('input-wrap')
+  var inp = document.getElementById('input')
+  if (!wrap || !inp) return
+  function masquer() { wrap.classList.add('hidecue') }
+  // Conversation déjà ouverte (refresh interne) -> pas de cue.
+  try { if (localStorage.getItem('sessionId')) masquer() } catch (e) {}
+  inp.addEventListener('focus', masquer, { passive: true, once: true })
+  inp.addEventListener('input', masquer, { passive: true, once: true })
+})()
 </script>
 <script>/* Fix bouton « Précédent » du navigateur : sur restauration bfcache,
    l'overlay plein écran #nav-fx (z-index 100000) ou l'intro #dash-intro
