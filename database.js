@@ -186,6 +186,24 @@ async function initDb() {
   // Index unique partiel — la base, pas l'applicatif, garantit l'unicité
   // même sous requêtes concurrentes du pool. Additif, idempotent, réversible.
   await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS uniq_resol_pending ON resolutions(utilisateur_id, session_id) WHERE confirme_le IS NULL`)
+  // Instrumentation usage interne ANONYME (#017) : analytics purement
+  // AGRÉGÉE, zéro tiers, zéro donnée personnelle. STRICTEMENT par charte :
+  // aucune colonne utilisateur_id / email / IP / user-agent / contenu /
+  // texte libre — aucune liaison ré-identifiante. `type` = enum fermé côté
+  // serveur (cf. EVENEMENTS, server.js). `meta` = uniquement primitives non
+  // identifiantes issues d'une liste blanche serveur (cf. metaSure). 100 %
+  // additif, idempotent, non destructif, réversible (DROP TABLE) — aucun
+  // ALTER sur une table existante, aucune FK (volontaire : pas de lien user).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS evenements (
+      id BIGSERIAL PRIMARY KEY,
+      type TEXT NOT NULL,
+      cree_le TIMESTAMPTZ NOT NULL DEFAULT now(),
+      meta JSONB NOT NULL DEFAULT '{}'::jsonb
+    )
+  `)
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_evt_type_date ON evenements(type, cree_le)`)
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_evt_date ON evenements(cree_le)`)
 }
 
 // Sonde de vivacité pour /health : vérifie que la base répond réellement.

@@ -376,6 +376,100 @@ Télémétrie temps réel (auto-détectée, approximative) : ${a}`
 // défaut visé : l'IA simplifie radicalement son langage.
 const NIVEAUX = ['debutant', 'intermediaire', 'avance']
 
+// ---------------------------------------------------------------------------
+// Instrumentation usage interne ANONYME (#017).
+// CHARTE VIE PRIVÉE STRICTE (la Sécurité auditera, tout écart = veto) :
+//  - `evenements` ne contient JAMAIS : id/email utilisateur, IP, user-agent,
+//    contenu de message, texte libre utilisateur, aucun identifiant
+//    ré-identifiant. AUCUNE liaison par utilisateur (pas de user_id).
+//  - `meta` = uniquement des primitives NON identifiantes issues d'enums
+//    fermés / booléens / petits entiers, validées ici par metaSure() contre
+//    une LISTE BLANCHE stricte par type. Tout le reste est ignoré. Jamais de
+//    propagation d'entrée client brute dans `meta`.
+// Enum FERMÉ des types d'événements : un type hors liste => trackEvent no-op.
+const EVENEMENTS = Object.freeze({
+  SESSION_DEMARREE: 'session_demarree',
+  MESSAGE_ENVOYE: 'message_envoye',
+  RESOLUTION_CONFIRMEE: 'resolution_confirmee',
+  RESOLUTION_RELANCE: 'resolution_relance',
+  CAPTURE_ENVOYEE: 'capture_envoyee',
+  PLAYBOOK_OUVERT: 'playbook_ouvert',
+  FEEDBACK_DONNE: 'feedback_donne',
+  NIVEAU_CHANGE: 'niveau_change'
+})
+const EVENEMENTS_VALIDES = new Set(Object.values(EVENEMENTS))
+
+// metaSure(type, meta) -> objet ne contenant QUE des clés/valeurs autorisées
+// pour ce type précis (liste blanche fermée). Toute clé inconnue, tout type
+// de valeur inattendu ou hors enum est SILENCIEUSEMENT ignoré -> {}.
+// Aucune valeur n'est jamais une chaîne libre côté utilisateur : `slug` est
+// le seul champ texte, borné [a-z0-9-] et tronqué 64 (contenu PUBLIC d'un
+// guide, non identifiant). Ne lève jamais.
+function metaSure (type, meta) {
+  const src = (meta && typeof meta === 'object') ? meta : {}
+  const out = {}
+  try {
+    switch (type) {
+      case EVENEMENTS.MESSAGE_ENVOYE: {
+        if (typeof src.niveau === 'string' && NIVEAUX.includes(src.niveau)) {
+          out.niveau = src.niveau
+        }
+        if (typeof src.avec_image === 'boolean') out.avec_image = src.avec_image
+        break
+      }
+      case EVENEMENTS.PLAYBOOK_OUVERT: {
+        if (typeof src.slug === 'string') {
+          const s = src.slug.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 64)
+          if (s) out.slug = s
+        }
+        break
+      }
+      case EVENEMENTS.FEEDBACK_DONNE: {
+        if (src.valeur === 'positif' || src.valeur === 'negatif') {
+          out.valeur = src.valeur
+        }
+        break
+      }
+      case EVENEMENTS.NIVEAU_CHANGE: {
+        if (typeof src.niveau === 'string' && NIVEAUX.includes(src.niveau)) {
+          out.niveau = src.niveau
+        }
+        break
+      }
+      // session_demarree, resolution_confirmee, resolution_relance,
+      // capture_envoyee : aucune méta autorisée -> {}.
+      default:
+        break
+    }
+  } catch { return {} }
+  return out
+}
+
+// trackEvent(type, meta) : enregistrement « fire-and-forget ».
+// GARANTIES (zéro régression de latence / d'erreur) :
+//  - JAMAIS d'await dans le chemin de réponse user (l'appelant n'await pas).
+//  - JAMAIS de throw vers la requête : tout est encapsulé try/catch +
+//    Promise.resolve().catch() ; un échec/lenteur DB n'affecte JAMAIS la
+//    réponse utilisateur (avalé + loggé console seulement).
+//  - Réutilise le pool/`run` de database.js (aucune nouvelle connexion).
+//  - Type hors enum fermé => no-op silencieux. `meta` filtré par metaSure().
+function trackEvent (type, meta) {
+  try {
+    if (!EVENEMENTS_VALIDES.has(type)) return
+    const propre = metaSure(type, meta)
+    // run() renvoie une promesse : on ne l'attend pas, on neutralise le rejet.
+    Promise.resolve()
+      .then(() => run(
+        'INSERT INTO evenements (type, meta) VALUES ($1, $2::jsonb)',
+        [type, JSON.stringify(propre)]
+      ))
+      .catch((e) => { console.error('trackEvent (avalé) :', type, e.message) })
+  } catch (e) {
+    // Filet ultime : ne JAMAIS remonter à la requête.
+    console.error('trackEvent (sync, avalé) :', e && e.message)
+  }
+}
+
 // Fragment de prompt système qui ADAPTE LE LANGAGE de PC Helper au niveau
 // déclaré. Contrairement aux blocs <materiel>/<memoire> (DONNÉE non fiable),
 // ceci est une VRAIE consigne : la valeur provient d'un enum fermé validé
@@ -1645,6 +1739,9 @@ app.post('/feedback', authentifier, async (req, res) => {
   try {
     await run('INSERT INTO feedback (utilisateur_id, session_id, positif) VALUES ($1, $2, $3)',
       [req.utilisateur.id, sid, positif])
+    // #017 : analytics anonyme — uniquement le signe du feedback (enum),
+    // aucun lien utilisateur/session. Non bloquant (fire-and-forget).
+    trackEvent(EVENEMENTS.FEEDBACK_DONNE, { valeur: positif ? 'positif' : 'negatif' })
     res.json({ ok: true })
   } catch (erreur) {
     console.error('Feedback :', erreur.message)
@@ -1706,6 +1803,12 @@ app.post('/resolution/confirme', authentifier, async (req, res) => {
     await run(
       'UPDATE resolutions SET confirme_le = NOW(), resolu = $1 WHERE id = $2 AND utilisateur_id = $3 AND confirme_le IS NULL',
       [tientToujours, id, req.utilisateur.id])
+    // #017 : NORTH STAR — confirmation « toujours résolu » (tientToujours=true)
+    // vs relance « non résolu ». Compteurs agrégés purs, aucune méta, aucun
+    // lien utilisateur/session. Non bloquant.
+    trackEvent(tientToujours
+      ? EVENEMENTS.RESOLUTION_CONFIRMEE
+      : EVENEMENTS.RESOLUTION_RELANCE, {})
     res.json({ ok: true })
   } catch (erreur) {
     console.error('Resolution confirme :', erreur.message)
@@ -1834,6 +1937,43 @@ app.post('/chat', limiteurChat, authentifier, limiteurChatCompte, async (req, re
   historique.push({ role: 'user', content: contenuMessage })
   await run('INSERT INTO conversations (utilisateur_id, session_id, role, contenu) VALUES ($1, $2, $3, $4)',
     [utilisateur.id, id, 'user', texteAffiche])
+
+  // #017 : instrumentation ANONYME du message accepté (APRÈS toutes les
+  // gardes : auth, validations, quota, écriture). Aucune donnée perso :
+  //  - session_demarree si aucun sessionId valide n'a été fourni par le
+  //    client (= nouvelle session) ;
+  //  - message_envoye avec, en méta, UNIQUEMENT le niveau (enum fermé) et
+  //    un booléen « avec_image ». Jamais le contenu, ni l'utilisateur ;
+  //  - capture_envoyee si une image a été jointe (booléen, pas l'image) ;
+  //  - niveau_change si le curseur #018 fournit un niveau valide DIFFÉRENT
+  //    du niveau de profil (mesure #018, enum fermé, aucun lien user).
+  // Tous fire-and-forget (trackEvent n'est jamais await ici).
+  {
+    const sessionFournie = typeof req.body.sessionId === 'string' &&
+      UUID_REGEX.test(req.body.sessionId)
+    if (!sessionFournie) trackEvent(EVENEMENTS.SESSION_DEMARREE, {})
+
+    const nivProfilEvt = utilisateur.profil_pc &&
+      NIVEAUX.includes(utilisateur.profil_pc.niveau)
+      ? utilisateur.profil_pc.niveau : undefined
+    const nivChoisiEvt = typeof req.body.niveau === 'string' &&
+      NIVEAUX.includes(req.body.niveau)
+      ? req.body.niveau : undefined
+    const nivEffectif = nivChoisiEvt !== undefined ? nivChoisiEvt : nivProfilEvt
+
+    const metaMsg = { avec_image: !!image }
+    if (nivEffectif !== undefined) metaMsg.niveau = nivEffectif
+    trackEvent(EVENEMENTS.MESSAGE_ENVOYE, metaMsg)
+
+    if (image) trackEvent(EVENEMENTS.CAPTURE_ENVOYEE, {})
+
+    // niveau_change : le curseur in-chat impose un niveau valide qui DIFFÈRE
+    // du niveau de profil (déduit côté /chat, sans nouvelle route ni donnée
+    // perso, conformément au brief #018).
+    if (nivChoisiEvt !== undefined && nivChoisiEvt !== nivProfilEvt) {
+      trackEvent(EVENEMENTS.NIVEAU_CHANGE, { niveau: nivChoisiEvt })
+    }
+  }
 
   res.setHeader('Content-Type', 'text/event-stream')
   res.setHeader('Cache-Control', 'no-cache')
@@ -2356,6 +2496,38 @@ app.get('/paiement/annulation', (req, res) => {
 // Public et minimaliste (aucune fuite d'information). Vérifie réellement la
 // base. 200 = sain, 503 = dégradé. Utilisé par le health-check de l'hébergeur.
 const DEMARRE_LE = Date.now()
+
+// Vérification RÉELLE de l'envoi d'email (ping authentifié Brevo /v3/account
+// ou handshake SMTP) — mise en cache, rafraîchie périodiquement. `email:true`
+// dans /health ne signifiait QUE « variables présentes » : une clé Brevo
+// invalide/expirée ou un expéditeur non validé renvoyait 401 et l'échec
+// passait inaperçu (envoi non bloquant). Ici on expose l'état VRAI, sans
+// secret (le détail Brevo ne contient pas la clé). Non destructif.
+const etatEmail = { configure: mailer.estConfigure(), ok: null, detail: 'non vérifié', verifie_le: 0 }
+async function rafraichirEtatEmail () {
+  etatEmail.configure = mailer.estConfigure()
+  if (!etatEmail.configure) {
+    etatEmail.ok = false
+    etatEmail.detail = 'non configuré (BREVO_API_KEY / EMAIL_FROM absents)'
+    etatEmail.verifie_le = Date.now()
+    return
+  }
+  try {
+    await mailer.verifier()
+    etatEmail.ok = true
+    etatEmail.detail = 'clé valide (Brevo /v3/account 200)'
+  } catch (e) {
+    etatEmail.ok = false
+    // Message générique Brevo (ex. « API Brevo 401 : ... ») — pas de secret.
+    etatEmail.detail = String(e && e.message || e).slice(0, 200)
+    console.error('[EMAIL] vérification ÉCHOUÉE :', etatEmail.detail)
+  }
+  etatEmail.verifie_le = Date.now()
+}
+// Au boot (différé pour ne pas retarder l'écoute) puis toutes les 15 min.
+setTimeout(rafraichirEtatEmail, 4000).unref()
+setInterval(rafraichirEtatEmail, 15 * 60 * 1000).unref()
+
 app.get('/health', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store')
   try {
@@ -2368,8 +2540,10 @@ app.get('/health', async (req, res) => {
       // vérifier d'un coup d'œil si les intégrations sont câblées en prod.
       services: {
         db: true,
-        email: mailer.estConfigure(),
+        email: mailer.estConfigure(),     // variables présentes ?
         email_mode: mailer.mode(),
+        email_ok: etatEmail.ok,           // clé/expéditeur RÉELLEMENT valides ?
+        email_detail: etatEmail.detail,   // raison (sans secret) si KO
         paiement: paiement.estConfigure()
       }
     })
@@ -2528,6 +2702,10 @@ app.get('/playbooks/:slug', (req, res) => {
     // APP_URL en prod, sinon l'hôte de la requête. Aucun domaine en dur.
     const base = process.env.APP_URL ? process.env.APP_URL.replace(/\/+$/, '')
       : `${req.protocol}://${req.get('host')}`
+    // #017 : guide PUBLIC ouvert — `slug` est un identifiant de CONTENU
+    // public (déjà validé [a-z0-9-]{1,64}), non identifiant d'utilisateur,
+    // re-borné par metaSure. Aucune donnée perso. Non bloquant.
+    trackEvent(EVENEMENTS.PLAYBOOK_OUVERT, { slug })
     res.setHeader('Cache-Control', 'no-cache')
     res.type('html').send(rendrePlaybook(pb, slug, base))
   } catch (e) {
@@ -2537,6 +2715,92 @@ app.get('/playbooks/:slug', (req, res) => {
       '<!doctype html><meta charset="utf-8"><title>Guide indisponible — PC Helper</title>' +
       '<p>Guide momentanément indisponible. <a href="/playbooks.html">Tous les guides</a>.</p>'
     )
+  }
+})
+
+// ---------------------------------------------------------------------------
+// Dashboard métriques internes ANONYMES (#017) — SÛR PAR DÉFAUT.
+// Renvoie EXCLUSIVEMENT des agrégats (COUNT/GROUP BY) : jamais de ligne
+// brute, jamais de PII (il n'y en a aucune en base, cf. charte). Protection :
+//  - clé comparée en TEMPS CONSTANT (crypto.timingSafeEqual) à
+//    process.env.METRICS_KEY, longueurs différentes gérées sans court-circuit
+//    révélateur ;
+//  - si METRICS_KEY absente/vide => route 404 (DÉSACTIVÉE par défaut : sûr
+//    tant que le Directeur n'a pas posé la clé en prod Render) ;
+//  - aucune réponse ne révèle l'existence de la route (toujours 404 si
+//    refus) ; passe par les middlewares standards (pas de bypass rate-limit).
+// ACTION REQUISE DIRECTEUR : définir METRICS_KEY dans l'env Render pour
+// activer le dashboard. Sans clé => route 404.
+function cleMetricsValide (fournie) {
+  const attendue = process.env.METRICS_KEY
+  if (!attendue) return false // route désactivée par défaut (404)
+  // HMAC des deux valeurs avec une clé éphémère : on compare deux digests de
+  // longueur FIXE (32 o) -> crypto.timingSafeEqual est toujours applicable,
+  // aucune fuite de longueur ni court-circuit révélateur. Comparaison à
+  // temps constant garantie quelles que soient les tailles d'entrée.
+  const sel = crypto.randomBytes(32)
+  const h = (v) => crypto.createHmac('sha256', sel).update(String(v), 'utf8').digest()
+  return crypto.timingSafeEqual(h(fournie || ''), h(attendue))
+}
+
+app.get('/admin/metrics', async (req, res) => {
+  // Clé EN-TÊTE uniquement (jamais ?key= : éviterait toute fuite en logs/
+  // proxy/Referer/historique — durcissement F1 audit Sécurité #017).
+  const fournie = req.get('X-Metrics-Key')
+  if (!cleMetricsValide(fournie)) {
+    // Jamais 401/403 : on ne révèle pas l'existence de la route.
+    return res.status(404).json({ erreur: 'Introuvable' })
+  }
+  try {
+    // Tout en agrégat. Aucune colonne identifiante n'existe sur `evenements`.
+    const parType = await query(
+      'SELECT type, COUNT(*)::int AS total FROM evenements GROUP BY type ORDER BY total DESC'
+    )
+    const parJour = await query(`
+      SELECT type,
+             to_char(date_trunc('day', cree_le), 'YYYY-MM-DD') AS jour,
+             COUNT(*)::int AS total
+      FROM evenements
+      WHERE cree_le >= now() - INTERVAL '7 days'
+      GROUP BY type, jour
+      ORDER BY jour ASC
+    `)
+    const northStar = await query(`
+      SELECT to_char(date_trunc('week', cree_le), 'IYYY-"W"IW') AS semaine,
+             COUNT(*)::int AS total
+      FROM evenements
+      WHERE type = 'resolution_confirmee'
+        AND cree_le >= now() - INTERVAL '84 days'
+      GROUP BY semaine
+      ORDER BY semaine ASC
+    `)
+    const repartitionNiveau = await query(`
+      SELECT meta->>'niveau' AS niveau, COUNT(*)::int AS total
+      FROM evenements
+      WHERE type = 'message_envoye' AND meta ? 'niveau'
+      GROUP BY niveau
+      ORDER BY total DESC
+    `)
+    const topPlaybooks = await query(`
+      SELECT meta->>'slug' AS slug, COUNT(*)::int AS total
+      FROM evenements
+      WHERE type = 'playbook_ouvert' AND meta ? 'slug'
+      GROUP BY slug
+      ORDER BY total DESC
+      LIMIT 20
+    `)
+    res.setHeader('Cache-Control', 'no-store')
+    res.json({
+      genere_le: new Date().toISOString(),
+      par_type: parType,
+      sept_jours_par_jour: parJour,
+      north_star_par_semaine: northStar,
+      repartition_niveau: repartitionNiveau,
+      top_playbooks: topPlaybooks
+    })
+  } catch (erreur) {
+    console.error('Admin metrics :', erreur.message)
+    res.status(500).json({ erreur: 'Indisponible' })
   }
 })
 

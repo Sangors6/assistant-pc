@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Métriques internes — PC Helper</title>
+<style>
+  /* Page interne sobre, DA cohérente avec le site (aucun CDN/tiers, inline
+     conforme CSP). Affiche UNIQUEMENT des agrégats anonymes : aucune donnée
+     personnelle n'existe en base, aucune n'est affichée. */
+  :root {
+    --bg: #060910; --panel: rgba(10,15,28,0.92); --card: rgba(13,19,35,0.85);
+    --border: rgba(59,130,246,0.14); --blue: #2563eb; --text: #c7d4e6;
+    --muted: rgba(148,163,184,0.85); --accent: #60a5fa;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg);
+    color: var(--text); min-height: 100vh; padding: 32px 20px; }
+  .wrap { max-width: 920px; margin: 0 auto; }
+  h1 { font-size: 19px; font-weight: 700; letter-spacing: 0.3px; margin-bottom: 4px; }
+  .sub { font-size: 12px; color: var(--muted); margin-bottom: 24px; }
+  .auth { display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 16px; margin-bottom: 24px; }
+  .auth input { flex: 1; min-width: 220px; background: rgba(8,12,24,0.85);
+    border: 1px solid var(--border); color: var(--text); border-radius: 10px;
+    padding: 10px 13px; font-size: 13px; font-family: inherit; outline: none; }
+  .auth input:focus { border-color: rgba(59,130,246,0.45); }
+  .auth button { background: linear-gradient(135deg,#2563eb,#1d4ed8); color: #fff;
+    border: none; border-radius: 10px; padding: 10px 18px; font-size: 13px;
+    font-weight: 600; cursor: pointer; font-family: inherit; }
+  .auth button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .msg { font-size: 12.5px; color: #f87171; margin-bottom: 18px; min-height: 16px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(260px,1fr));
+    gap: 14px; }
+  .card { background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 18px; }
+  .card h2 { font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1.1px; color: var(--muted); margin-bottom: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid rgba(59,130,246,0.07); }
+  th { font-size: 10.5px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.6px; color: var(--muted); }
+  td:last-child, th:last-child { text-align: right;
+    font-family: 'JetBrains Mono', ui-monospace, monospace; }
+  td.k { color: var(--accent); }
+  .empty { color: var(--muted); font-size: 12.5px; padding: 6px 2px; }
+  footer { margin-top: 26px; font-size: 11px; color: var(--muted); line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Métriques internes</h1>
+  <p class="sub">Usage agrégé anonyme — aucune donnée personnelle (par conception).</p>
+
+  <div class="auth">
+    <input id="key" type="password" placeholder="Clé d'accès (METRICS_KEY)"
+      autocomplete="off" spellcheck="false">
+    <button id="go" type="button">Charger</button>
+  </div>
+  <div class="msg" id="msg"></div>
+
+  <div class="grid" id="grid"></div>
+
+  <footer>
+    Données strictement agrégées (compteurs / funnels). Aucun identifiant,
+    aucune IP, aucun contenu de message n'est collecté ni stocké.
+    Sans <code>METRICS_KEY</code> définie côté serveur, cette page n'a aucun accès.
+  </footer>
+</div>
+
+<script>
+(function () {
+  'use strict'
+  // La clé n'est gardée qu'en mémoire (variable de closure) — jamais en
+  // localStorage/sessionStorage, jamais persistée.
+  var cle = ''
+  var elKey = document.getElementById('key')
+  var elGo = document.getElementById('go')
+  var elMsg = document.getElementById('msg')
+  var elGrid = document.getElementById('grid')
+
+  function esc (v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]
+    })
+  }
+
+  function tableCard (titre, lignes, colK, colV) {
+    var rows = ''
+    if (!lignes || !lignes.length) {
+      rows = '<tr><td colspan="2" class="empty">Aucune donnée</td></tr>'
+    } else {
+      for (var i = 0; i < lignes.length; i++) {
+        var r = lignes[i]
+        rows += '<tr><td class="k">' + esc(r[colK]) + '</td><td>' +
+          esc(r[colV]) + '</td></tr>'
+      }
+    }
+    return '<div class="card"><h2>' + esc(titre) + '</h2><table><tbody>' +
+      rows + '</tbody></table></div>'
+  }
+
+  function rendre (d) {
+    var parts = []
+    parts.push(tableCard('Total par type', d.par_type, 'type', 'total'))
+    parts.push(tableCard('North Star (résolutions confirmées / semaine)',
+      d.north_star_par_semaine, 'semaine', 'total'))
+    parts.push(tableCard('Répartition niveau (messages)',
+      d.repartition_niveau, 'niveau', 'total'))
+    parts.push(tableCard('Top guides ouverts', d.top_playbooks, 'slug', 'total'))
+    // 7 jours par jour : on agrège lisiblement type x jour.
+    var sj = d.sept_jours_par_jour || []
+    var rows = ''
+    if (!sj.length) {
+      rows = '<tr><td colspan="3" class="empty">Aucune donnée</td></tr>'
+    } else {
+      for (var i = 0; i < sj.length; i++) {
+        rows += '<tr><td class="k">' + esc(sj[i].jour) + '</td><td>' +
+          esc(sj[i].type) + '</td><td>' + esc(sj[i].total) + '</td></tr>'
+      }
+    }
+    parts.push('<div class="card" style="grid-column:1/-1">' +
+      '<h2>7 derniers jours (par jour / type)</h2><table><thead><tr>' +
+      '<th>Jour</th><th>Type</th><th>Total</th></tr></thead><tbody>' +
+      rows + '</tbody></table></div>')
+    elGrid.innerHTML = parts.join('')
+  }
+
+  function charger () {
+    cle = elKey.value || ''
+    if (!cle) { elMsg.textContent = 'Saisis la clé d’accès.'; return }
+    elMsg.textContent = ''
+    elGo.disabled = true
+    elGo.textContent = 'Chargement…'
+    fetch('/admin/metrics', { headers: { 'X-Metrics-Key': cle } })
+      .then(function (r) {
+        if (r.status === 404) {
+          throw new Error('Accès refusé (clé invalide ou dashboard désactivé).')
+        }
+        if (!r.ok) throw new Error('Erreur ' + r.status + '.')
+        return r.json()
+      })
+      .then(function (d) { rendre(d) })
+      .catch(function (e) {
+        elGrid.innerHTML = ''
+        elMsg.textContent = e.message || 'Erreur.'
+      })
+      .then(function () {
+        elGo.disabled = false
+        elGo.textContent = 'Charger'
+      })
+  }
+
+  elGo.addEventListener('click', charger)
+  elKey.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') charger()
+  })
+})()
+</script>
+</body>
+</html>
