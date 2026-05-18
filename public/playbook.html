@@ -35,7 +35,8 @@
 
     body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
     #bg-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.5; }
-    #app { display: flex; flex-direction: column; flex: 1; position: relative; z-index: 1; }
+    #app { display: flex; flex-direction: column; flex: 1; position: relative; z-index: 1; animation: pageIn .5s cubic-bezier(.22,1,.36,1) both; }
+    @keyframes pageIn { from { opacity: 0; } to { opacity: 1; } }
 
     #topbar { display: flex; align-items: center; gap: 14px; padding: 14px 22px; border-bottom: 1px solid var(--border); background: linear-gradient(180deg, rgba(8,13,26,0.92), rgba(5,8,18,0.7)); backdrop-filter: blur(24px); flex-shrink: 0; position: relative; z-index: 10; }
     #topbar::after { content: ''; position: absolute; left: 8%; right: 8%; bottom: -1px; height: 1px; background: linear-gradient(to right, transparent, var(--blue) 35%, var(--cyan) 55%, transparent); opacity: 0.4; }
@@ -147,7 +148,7 @@
     }
     @media (prefers-reduced-motion: reduce) {
       * { scroll-behavior: auto !important; }
-      #node { animation: none !important; opacity: 1; transform: none; }
+      #app, #node { animation: none !important; opacity: 1; transform: none; }
       .ans:hover, .next-btn:hover, .end-btn:hover { transform: none; }
     }
   </style>
@@ -442,5 +443,12 @@
       }
     })();
   </script>
+  <script>/* Anti-régression bouton « Précédent » (leçon opérationnelle #19) :
+     sur restauration bfcache, un éventuel état de transition de sortie
+     resterait collé -> page figée. On lève tout état transitoire au
+     pageshow (le `load` ne se redéclenche pas en bfcache). */
+  window.addEventListener('pageshow', function () {
+    try { document.body.classList.remove('leaving', 'home-out'); } catch (_) {}
+  });</script>
 </body>
 </html>

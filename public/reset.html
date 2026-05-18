@@ -16,9 +16,12 @@
       overflow: hidden;
       background: radial-gradient(circle at 70% 38%, #071a32 0%, #03070d 50%, #02050a 100%);
       color: #f5f8ff;
-      animation: loginIn .6s ease both;
     }
-    @keyframes loginIn { from { opacity: 0; } to { opacity: 1; } }
+    #card { animation: pageIn .5s cubic-bezier(.22,1,.36,1) both; }
+    @keyframes pageIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @media (prefers-reduced-motion: reduce) {
+      #card { animation: none !important; opacity: 1; transform: none; }
+    }
     .bg-grid, .bg-noise, .bg-orb, .bg-glow { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
     .bg-grid {
       opacity: .14;
@@ -250,6 +253,10 @@
           data = await res.json()
           // Réponse volontairement uniforme (anti-énumération).
           afficherMessage(data.message, true)
+          // Le bouton avait été désactivé le temps de la requête : on le
+          // réactive (sinon il restait figé après un envoi réussi -> impossible
+          // de redemander un lien). Aucune logique back touchée.
+          bouton.disabled = false
         }
       } catch {
         afficherMessage('Erreur de connexion au serveur', false)
@@ -259,5 +266,16 @@
 
     document.addEventListener('keydown', (e) => { if (e.key === 'Enter') soumettre() })
   </script>
+  <script>/* Anti-régression bouton « Précédent » (leçon opérationnelle #19) :
+     sur restauration bfcache, un éventuel état de transition de sortie
+     resterait collé -> page figée. On lève systématiquement tout état
+     transitoire au pageshow (le `load` ne se redéclenche pas en bfcache). */
+  window.addEventListener('pageshow', function () {
+    try {
+      document.body.classList.remove('leaving', 'home-out');
+      var b = document.getElementById('bouton');
+      if (b) b.disabled = false;
+    } catch (_) {}
+  });</script>
 </body>
 </html>
