@@ -3,6 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Marque « JS actif » AVANT la 1re peinture : permet de masquer le
+       pré-rendu SEO #seo-fallback dès le rendu (il s'affichait ~0,5 s en
+       brut avant l'hydratation du guide). Sans JS / crawler : pas de
+       classe .js -> le fallback reste visible (SEO + accessibilité). -->
+  <script>document.documentElement.className += ' js';</script>
   <!-- SEO_HEAD : remplace par le serveur (route /playbooks/:slug). Valeurs
        par defaut ci-dessous = page chargee directement en statique (fallback
        client : le JS resout ?p=slug). -->
@@ -118,6 +123,15 @@
 
     /* Pre-rendu crawler : visible sans JS, masque des que l app monte. */
     #seo-fallback { margin-top: 24px; }
+    /* Avec JS (cas réel utilisateur) : masqué DÈS la 1re peinture — il
+       reste dans le DOM (texte lu par les crawlers / lecteurs d'écran)
+       mais n'est jamais montré en brut. Le JS le vide ensuite. Fin du
+       « flash de code » d'une demi-seconde au clic d'une question. */
+    html.js #seo-fallback {
+      position: absolute !important; width: 1px; height: 1px;
+      padding: 0; margin: -1px; overflow: hidden; border: 0;
+      clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+    }
     #seo-fallback h2 { font-size: 15px; color: #fff; margin: 20px 0 8px; }
     #seo-fallback h3 { font-size: 13.5px; color: #bcd4f5; margin: 14px 0 5px; }
     #seo-fallback p { font-size: 13px; color: var(--text-mid); line-height: 1.7; }
