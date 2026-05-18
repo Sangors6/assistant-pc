@@ -446,6 +446,15 @@
     #send-btn { width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0; background: linear-gradient(135deg, var(--blue), var(--blue-dark)); border: none; color: white; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 20px rgba(37,99,235,0.45); transition: all 0.15s; }
     #send-btn:hover { transform: scale(1.07) translateY(-1px); box-shadow: 0 0 32px rgba(37,99,235,0.65); }
     #send-btn:disabled { background: rgba(15,23,42,0.8); box-shadow: none; cursor: not-allowed; transform: none; }
+    /* Curseur de niveau d'explication (segmenté, discret, cohérent DA) */
+    #niveau-row { display: flex; align-items: center; gap: 10px; padding: 9px 14px 0; }
+    #niveau-label { font-size: 10px; color: rgba(71,85,105,0.5); letter-spacing: 0.3px; flex-shrink: 0; }
+    #niveau-seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 9px; background: rgba(37,99,235,0.05); border: 1px solid rgba(59,130,246,0.1); }
+    .niv-opt { appearance: none; -webkit-appearance: none; border: 1px solid transparent; background: transparent; color: rgba(148,163,184,0.7); font-family: inherit; font-size: 10.5px; font-weight: 500; letter-spacing: 0.2px; padding: 4px 11px; border-radius: 7px; cursor: pointer; transition: background .15s ease, color .15s ease, border-color .15s ease; white-space: nowrap; }
+    .niv-opt:hover { color: #93c5fd; background: rgba(37,99,235,0.08); }
+    .niv-opt[aria-checked="true"] { background: rgba(37,99,235,0.16); color: #cfe0fb; border-color: rgba(59,130,246,0.28); }
+    .niv-opt:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(37,99,235,0.55); }
+    @media (max-width: 560px) { #niveau-label { display: none; } #niveau-row { padding: 8px 12px 0; } .niv-opt { padding: 4px 9px; } }
     #input-bottom { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid rgba(59,130,246,0.06); padding: 7px 14px 10px; }
     #input-hint-left { font-size: 10px; color: rgba(71,85,105,0.35); letter-spacing: 0.3px; }
     #char-count { font-size: 10px; color: rgba(71,85,105,0.3); font-family: 'JetBrains Mono', monospace; }
@@ -1109,6 +1118,14 @@
             <div id="preview-size"></div>
           </div>
           <button id="preview-remove" onclick="retirerImage()" aria-label="Retirer l'image"><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg></button>
+        </div>
+        <div id="niveau-row">
+          <span id="niveau-label">Niveau d'explication</span>
+          <div id="niveau-seg" role="radiogroup" aria-label="Niveau d'explication">
+            <button type="button" class="niv-opt" role="radio" data-niveau="debutant" aria-checked="false" tabindex="-1">Débutant</button>
+            <button type="button" class="niv-opt" role="radio" data-niveau="intermediaire" aria-checked="false" tabindex="-1">Intermédiaire</button>
+            <button type="button" class="niv-opt" role="radio" data-niveau="avance" aria-checked="false" tabindex="-1">Expert</button>
+          </div>
         </div>
         <div id="input-top">
           <textarea id="input" placeholder="Pose ta question ici — ex. « Mon PC rame, que faire ? »" rows="1"></textarea>
@@ -2101,6 +2118,13 @@ function afficherTempsReponse(ms) {
       const body = { message: texte, sessionId }
       if (imageEnvoyee) body.image = { data: imageEnvoyee.data, mediaType: imageEnvoyee.mediaType }
       if (contexteMateriel) body.contexteMateriel = contexteMateriel
+      // Niveau d'explication choisi dans le chat (enum fermé). N'est ajouté
+      // que si le curseur a renvoyé une valeur valide ; sinon le corps reste
+      // strictement identique à l'historique (serveur -> fallback profil).
+      try {
+        var niv = typeof window.pchNiveauActuel === 'function' ? window.pchNiveauActuel() : null
+        if (niv === 'debutant' || niv === 'intermediaire' || niv === 'avance') body.niveau = niv
+      } catch (e) { /* curseur indispo : envoi inchangé */ }
 
       const res = await fetch('/chat', {
         method: 'POST',
@@ -2713,6 +2737,16 @@ Analyse cette configuration : est-elle équilibrée ? Quels sont les points faib
           profilCourant = data.profil_pc || null
           appliquerProfilCarte(profilCourant)
 
+          // Curseur de niveau : si l'utilisateur n'a pas encore fait de choix
+          // explicite dans le chat (localStorage absent), on s'aligne sur le
+          // niveau déclaré au questionnaire (profil_pc.niveau). Défensif :
+          // n'écrase jamais un choix explicite, ne casse rien si absent.
+          try {
+            if (profilCourant && typeof window.pchAppliquerNiveauProfil === 'function') {
+              window.pchAppliquerNiveauProfil(profilCourant.niveau)
+            }
+          } catch (e) { /* curseur indispo : le chat fonctionne sans */ }
+
           // Ouvre la modale composants PC (différée, sauf si déjà visible).
           function ouvrirPcSiBesoin(differe) {
             if (data.pc_onboarding_vu) return
@@ -2739,6 +2773,138 @@ Analyse cette configuration : est-elle équilibrée ? Quels sont les points faib
         })
         .catch(function () { /* profil indispo : carte garde l'état auto */ })
     }
+  })()
+</script>
+
+<script>
+  /* ───────────────────────────────────────────────────────────────────────
+     CURSEUR DE NIVEAU D'EXPLICATION — segmenté discret au-dessus du composer.
+     Enum fermé {debutant, intermediaire, avance} (jamais de texte libre).
+     - État initial : localStorage['pchNiveau'] si valide ; sinon le profil
+       (via window.pchAppliquerNiveauProfil, appelé par le GET /profil) ;
+       sinon défaut 'debutant'.
+     - Changement : persiste localStorage, MAJ visuelle immédiate, ZÉRO appel
+       réseau (s'applique aux messages suivants via le corps du POST /chat).
+     - Accessibilité : radiogroup ARIA, roving tabindex, flèches + Home/End,
+       Entrée/Espace, :focus-visible. Dégradation : si init échoue, le chat
+       fonctionne exactement comme avant (window.pchNiveauActuel renvoie null
+       -> le corps /chat n'embarque aucun champ niveau).
+     ─────────────────────────────────────────────────────────────────────── */
+  (function () {
+    var VALIDES = ['debutant', 'intermediaire', 'avance']
+    var DEFAUT = 'debutant'
+    var CLE = 'pchNiveau'
+    // Source de vérité en mémoire : tient même si localStorage est bloqué
+    // (mode privé / quota). Null tant que le composant n'a pas démarré ->
+    // /chat n'ajoute alors aucun champ niveau (comportement historique).
+    var courant = null
+    var choixExplicite = false   // l'utilisateur a-t-il cliqué/utilisé le clavier ?
+    var seg = null
+    var options = []
+
+    function lireStockage() {
+      try {
+        var v = window.localStorage.getItem(CLE)
+        return VALIDES.indexOf(v) !== -1 ? v : null
+      } catch (e) { return null }
+    }
+    function ecrireStockage(v) {
+      try { window.localStorage.setItem(CLE, v) } catch (e) { /* mode privé : mémoire seule */ }
+    }
+
+    function peindre() {
+      for (var i = 0; i < options.length; i++) {
+        var actif = options[i].getAttribute('data-niveau') === courant
+        options[i].setAttribute('aria-checked', actif ? 'true' : 'false')
+        options[i].tabIndex = actif ? 0 : -1
+      }
+    }
+
+    // Définit le niveau courant. `explicite` = action utilisateur (clic/clavier)
+    // -> persiste + verrouille contre un écrasement par le profil.
+    function definir(v, explicite, focus) {
+      if (VALIDES.indexOf(v) === -1) return
+      courant = v
+      if (explicite) { choixExplicite = true; ecrireStockage(v) }
+      peindre()
+      if (focus) {
+        for (var i = 0; i < options.length; i++) {
+          if (options[i].getAttribute('data-niveau') === v) { options[i].focus(); break }
+        }
+      }
+    }
+
+    // Appelé par le bootstrap /profil : ne s'applique QUE si l'utilisateur
+    // n'a fait aucun choix explicite ET qu'aucune valeur n'était stockée.
+    window.pchAppliquerNiveauProfil = function (niveauProfil) {
+      if (choixExplicite) return
+      if (lireStockage() !== null) return
+      if (VALIDES.indexOf(niveauProfil) !== -1) definir(niveauProfil, false, false)
+    }
+
+    // Lu par l'expéditeur /chat. Renvoie l'enum courant, ou null si le
+    // composant n'a pas pu démarrer (=> corps de requête inchangé).
+    window.pchNiveauActuel = function () {
+      return VALIDES.indexOf(courant) !== -1 ? courant : null
+    }
+
+    function init() {
+      seg = document.getElementById('niveau-seg')
+      if (!seg) return   // markup absent : on n'altère rien
+      options = Array.prototype.slice.call(seg.querySelectorAll('.niv-opt'))
+      if (!options.length) return
+
+      var stocke = lireStockage()
+      // localStorage prioritaire ; sinon défaut intelligent (le profil pourra
+      // encore l'ajuster via pchAppliquerNiveauProfil tant qu'aucun choix).
+      definir(stocke || DEFAUT, false, false)
+
+      for (var i = 0; i < options.length; i++) {
+        (function (btn) {
+          btn.addEventListener('click', function () {
+            definir(btn.getAttribute('data-niveau'), true, false)
+          })
+        })(options[i])
+      }
+
+      seg.addEventListener('keydown', function (e) {
+        var idx = -1
+        for (var j = 0; j < options.length; j++) {
+          if (options[j].getAttribute('data-niveau') === courant) { idx = j; break }
+        }
+        if (idx === -1) idx = 0
+        var k = e.key
+        if (k === 'ArrowRight' || k === 'ArrowDown') {
+          e.preventDefault()
+          definir(options[(idx + 1) % options.length].getAttribute('data-niveau'), true, true)
+        } else if (k === 'ArrowLeft' || k === 'ArrowUp') {
+          e.preventDefault()
+          definir(options[(idx - 1 + options.length) % options.length].getAttribute('data-niveau'), true, true)
+        } else if (k === 'Home') {
+          e.preventDefault()
+          definir(options[0].getAttribute('data-niveau'), true, true)
+        } else if (k === 'End') {
+          e.preventDefault()
+          definir(options[options.length - 1].getAttribute('data-niveau'), true, true)
+        } else if (k === ' ' || k === 'Enter' || k === 'Spacebar') {
+          e.preventDefault()
+          var t = e.target
+          if (t && t.getAttribute && t.getAttribute('data-niveau')) {
+            definir(t.getAttribute('data-niveau'), true, false)
+          }
+        }
+      })
+    }
+
+    try {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () {
+          try { init() } catch (e) { /* curseur indispo : chat inchangé */ }
+        })
+      } else {
+        init()
+      }
+    } catch (e) { /* curseur indispo : chat inchangé */ }
   })()
 </script>
 
@@ -2938,5 +3104,19 @@ Analyse cette configuration : est-elle équilibrée ? Quels sont les points faib
     }
   })()
 </script>
+<script>/* Fix bouton « Précédent » du navigateur : sur restauration bfcache,
+   l'overlay plein écran #nav-fx (z-index 100000) ou l'intro #dash-intro
+   pouvaient rester collés -> site figé/blanc. Le retrait au `load` ne se
+   déclenche PAS au retour bfcache : on neutralise donc explicitement ici. */
+window.addEventListener('pageshow', function (e) {
+  if (!e.persisted) return;
+  try {
+    document.body.classList.remove('leaving');
+    var fx = document.getElementById('nav-fx');
+    if (fx) { fx.style.transition = 'none'; fx.style.display = 'none'; fx.style.transform = 'translateX(100%)'; }
+    var di = document.getElementById('dash-intro');
+    if (di) di.remove();
+  } catch (_) {}
+});</script>
 </body>
 </html>

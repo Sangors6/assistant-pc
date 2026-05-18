@@ -2018,5 +2018,11 @@
     });
   })();
 </script>
+<script>/* Fix bouton « Précédent » : au retour via bfcache la page était
+   restaurée avec body.leaving (invisible/floutée/non-cliquable) et restait
+   figée. On lève systématiquement cet état transitoire au pageshow. */
+window.addEventListener('pageshow', function () {
+  try { document.body.classList.remove('leaving'); } catch (e) {}
+});</script>
 </body>
 </html>

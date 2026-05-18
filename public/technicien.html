@@ -1423,5 +1423,15 @@
 
     inputEl.focus()
   </script>
+<script>/* Fix bouton « Précédent » du navigateur : sur restauration bfcache,
+   l'overlay de transition #nav-fx pouvait rester collé -> page figée. Le
+   retrait au `load` ne se déclenche pas au retour bfcache : on neutralise ici. */
+window.addEventListener('pageshow', function (e) {
+  if (!e.persisted) return;
+  try {
+    var fx = document.getElementById('nav-fx');
+    if (fx) { fx.style.transition = 'none'; fx.style.display = 'none'; fx.style.transform = 'translateX(100%)'; }
+  } catch (_) {}
+});</script>
 </body>
 </html>

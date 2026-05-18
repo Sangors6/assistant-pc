@@ -473,5 +473,10 @@
 
     requestAnimationFrame(frame)
   </script>
+<script>/* Fix bouton « Précédent » (bfcache) : ne jamais rester figé sur
+   l'état de sortie body.leaving si la page est restaurée par le navigateur. */
+window.addEventListener('pageshow', function () {
+  try { document.body.classList.remove('leaving'); } catch (e) {}
+});</script>
 </body>
 </html>
