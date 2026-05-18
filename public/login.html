@@ -735,29 +735,30 @@
       window.location.href = '/app.html'
     }
   </script>
-<script>/* Fix bouton « Précédent » : au retour via bfcache la page était
-   restaurée avec body.leaving / body.home-out (carte invisible, floutée)
-   et restait figée. On lève systématiquement ces états au pageshow.
-
-   + Fix RÉGRESSION inscription : sur restauration bfcache (ou onglet laissé
-   ouvert longtemps), le script principal NE se relance PAS → le jeton
-   anti-bot #antibot-challenge restait PÉRIMÉ (> 30 min) → le serveur le
-   classait « bot » et renvoyait « email envoyé » SANS créer le compte ni
-   envoyer le mail de vérification. On re-demande donc un jeton frais dès
-   que la page (re)devient active : pageshow (reload + bfcache) et retour
-   d'onglet (visibilitychange visible). L'utilisateur met ensuite > 2,5 s
-   à remplir le formulaire → le min-âge anti-bot reste respecté. */
+<script>/* Fix bouton « Précédent » (bfcache) : lever l'état de sortie figé. */
 function pchRafraichirAntibot() {
   try {
     if (typeof chargerChallengeAntibot === 'function') chargerChallengeAntibot();
   } catch (e) {}
 }
-window.addEventListener('pageshow', function () {
-  try { document.body.classList.remove('leaving', 'home-out'); } catch (e) {}
-  pchRafraichirAntibot();
+window.addEventListener('pageshow', function (e) {
+  try { document.body.classList.remove('leaving', 'home-out'); } catch (_) {}
+  // Jeton anti-bot : ne le rafraîchir QUE sur restauration bfcache
+  // (persisted) — le script principal ne s'est pas relancé, le jeton serait
+  // périmé. Sur un chargement normal, le jeton vient d'être obtenu : ne PAS
+  // le réémettre (éviter un reset d'iat juste avant un envoi rapide).
+  if (e && e.persisted) pchRafraichirAntibot();
 });
-document.addEventListener('visibilitychange', function () {
-  if (document.visibilityState === 'visible') pchRafraichirAntibot();
-});</script>
+/* CAUSE RACINE du « plus aucun mail de vérification » :
+   l'ancien refresh sur `visibilitychange` réémettait le jeton (iat=maintenant)
+   au moment précis où l'utilisateur revient d'un autre onglet/gestionnaire de
+   mots de passe puis clique « S'inscrire » en < 2,5 s → le serveur jugeait
+   « trop rapide = bot » et renvoyait un faux succès SANS créer le compte ni
+   envoyer l'email. Remplacé par un rafraîchissement de FOND périodique,
+   DÉCOUPLÉ de l'action utilisateur : le jeton reste toujours « ni trop
+   jeune ni trop vieux » quel que soit le moment d'envoi.
+   (Infra email vérifiée OK de bout en bout : clé Brevo valide + envoi
+   transac accepté ; le seul point de blocage était ce faux positif.) */
+setInterval(pchRafraichirAntibot, 12 * 60 * 1000); // < max 30 min serveur
 </body>
 </html>
