@@ -737,9 +737,27 @@
   </script>
 <script>/* Fix bouton « Précédent » : au retour via bfcache la page était
    restaurée avec body.leaving / body.home-out (carte invisible, floutée)
-   et restait figée. On lève systématiquement ces états au pageshow. */
+   et restait figée. On lève systématiquement ces états au pageshow.
+
+   + Fix RÉGRESSION inscription : sur restauration bfcache (ou onglet laissé
+   ouvert longtemps), le script principal NE se relance PAS → le jeton
+   anti-bot #antibot-challenge restait PÉRIMÉ (> 30 min) → le serveur le
+   classait « bot » et renvoyait « email envoyé » SANS créer le compte ni
+   envoyer le mail de vérification. On re-demande donc un jeton frais dès
+   que la page (re)devient active : pageshow (reload + bfcache) et retour
+   d'onglet (visibilitychange visible). L'utilisateur met ensuite > 2,5 s
+   à remplir le formulaire → le min-âge anti-bot reste respecté. */
+function pchRafraichirAntibot() {
+  try {
+    if (typeof chargerChallengeAntibot === 'function') chargerChallengeAntibot();
+  } catch (e) {}
+}
 window.addEventListener('pageshow', function () {
   try { document.body.classList.remove('leaving', 'home-out'); } catch (e) {}
+  pchRafraichirAntibot();
+});
+document.addEventListener('visibilitychange', function () {
+  if (document.visibilityState === 'visible') pchRafraichirAntibot();
 });</script>
 </body>
 </html>
