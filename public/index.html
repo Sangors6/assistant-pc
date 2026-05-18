@@ -14,6 +14,11 @@
      toute animation lourde) pour éviter le flash de la page marketing. -->
 <script>try{if(localStorage.getItem('token')){window.location.replace('/app.html')}}catch(e){}</script>
 <script>if('serviceWorker' in navigator){addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){})})}</script>
+<!-- Entrée en fondu : on pose l'état voilé AVANT le rendu (sur <html>, en JS
+     uniquement) pour une arrivée fluide sans flash. Aucun CSS ne masque le
+     contenu sans JS : fallback no-JS = page immédiatement visible. Respecte
+     prefers-reduced-motion (aucun voile posé si l'utilisateur le demande). -->
+<script>try{if(!matchMedia('(prefers-reduced-motion: reduce)').matches){document.documentElement.classList.add('nav-enter')}}catch(e){}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -1253,11 +1258,35 @@
   }
   a.btn-ghost{justify-content:center}
 
-  /* ========== Transition de sortie vers le login (plomberie produit) ========== */
-  body{transition:opacity .42s cubic-bezier(.7,0,.84,0), filter .42s cubic-bezier(.7,0,.84,0)}
-  body.leaving{opacity:0;filter:blur(2px);pointer-events:none}
+  /* ========== Transition de page universelle (plomberie produit) ==========
+     Sortie : fondu + léger blur + très léger scale-down (la page « recule »
+     en douceur avant de céder la place). Courbe cubic-bezier(.4,0,.2,1) —
+     accélération franche puis arrivée posée, ressenti Apple/Linear/Stripe.
+     Entrée : fondu doux + remontée de 6px, courbe out-expo, sans blur (la
+     page « s'avance » vers l'utilisateur). Durées 400ms / 460ms : assez
+     court pour rester vif, assez long pour être perçu comme fluide. */
+  body{
+    transition:opacity .40s cubic-bezier(.4,0,.2,1),
+               filter .40s cubic-bezier(.4,0,.2,1),
+               transform .40s cubic-bezier(.4,0,.2,1);
+  }
+  /* will-change uniquement pendant les phases transitoires (pas de couche
+     composite permanente : perf/mémoire saine — UI/UX Pro Max règle 3). */
+  html.nav-enter body,body.leaving{will-change:opacity, filter, transform}
+  body.leaving{opacity:0;filter:blur(3px);transform:scale(.986);pointer-events:none}
+  /* Entrée : état voilé posé sur <html> AVANT le rendu (script de tête, JS
+     only). .nav-ready (posé en rAF après rendu, ou au retour bfcache) lève
+     le voile avec une courbe out-expo. Si JS off, .nav-enter n'est jamais
+     posé : la page est immédiatement visible (fallback no-JS intact). */
+  html.nav-enter body{opacity:0;transform:translateY(6px)}
+  html.nav-enter body.nav-ready{
+    opacity:1;transform:none;
+    transition:opacity .46s cubic-bezier(.16,1,.3,1),
+               transform .46s cubic-bezier(.16,1,.3,1);
+  }
   @media (prefers-reduced-motion: reduce){
     body{transition:none}
+    html.nav-enter body,html.nav-enter body.nav-ready{opacity:1 !important;transform:none !important;transition:none !important}
     .ambient .aurora .a1,.ambient .aurora .a2,.ambient .aurora .a3,
     .scanline,.shoot,.shoot.b,
     .hl-halo,.hl-pulse,.hl-beam,.hl-rings-grp,.hl-core,.hl-core-glow,
@@ -1974,35 +2003,134 @@
     } catch(e){}
   })();
 
-  // ============ Plomberie produit : garde d'auth + transition douce vers /login.html ============
+  // ============ Plomberie produit : garde d'auth + transition de page universelle ============
   // Filet de sécurité (la garde principale est dans le <head>, exécutée plus
-  // tôt) : si un token apparaît, on bascule sur l'app sans afficher la landing.
+  // tôt et NON retardée) : si un token apparaît, on bascule sur l'app sans
+  // afficher la landing. Conservé tel quel — la garde auth n'est jamais
+  // soumise à la transition.
   (function(){
     try { if (localStorage.getItem('token')) { window.location.replace('/app.html'); return; } } catch(e){}
 
-    // Transition de sortie sans son vers le login. Le href reste le fallback :
-    // si JS échoue ou est désactivé, la navigation fonctionne normalement.
     var reduce = false;
     try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch(e){}
-    var links = document.querySelectorAll('a[href="/login.html"]');
-    Array.prototype.forEach.call(links, function(a){
-      a.addEventListener('click', function(e){
-        // Respecte les clics modifiés (nouvel onglet, etc.)
-        if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-        if (document.body.classList.contains('leaving')) { e.preventDefault(); return; }
-        if (reduce) return; // navigation native immédiate, sans animation
-        e.preventDefault();
+
+    // ---- Entrée en fondu douce (chargement initial) ----
+    // L'état voilé (html.nav-enter) a déjà été posé par le script de tête,
+    // avant le rendu (zéro flash). On lève le voile à la frame suivante :
+    // body.nav-ready déclenche la transition out-expo.
+    if (!reduce) {
+      try {
+        requestAnimationFrame(function(){
+          requestAnimationFrame(function(){ document.body.classList.add('nav-ready'); });
+        });
+      } catch(e){ try { document.documentElement.classList.remove('nav-enter'); } catch(e2){} }
+    } else {
+      try { document.documentElement.classList.remove('nav-enter'); } catch(e){}
+    }
+
+    // ---- Helper centralisé : transition de sortie -> navigation ----
+    // Fade-out premium puis location.href. Idempotent (un seul déclenchement)
+    // + timeout anti-blocage : si la frame de transition ne part pas, on
+    // force la navigation à ~440ms quoi qu'il arrive.
+    var navigating = false;
+    function navigateSmooth(url){
+      if (navigating) return;
+      navigating = true;
+      if (reduce) { window.location.href = url; return; }
+      var go = function(){ window.location.href = url; };
+      var done = false;
+      var fire = function(){ if (done) return; done = true; go(); };
+      try {
+        document.body.classList.remove('nav-ready');
         document.body.classList.add('leaving');
-        setTimeout(function(){ window.location.href = '/login.html'; }, 420);
-      });
-    });
+      } catch(e){ fire(); return; }
+      // Navigation alignée sur la fin de la transition de sortie (~400ms CSS).
+      setTimeout(fire, 420);
+      // Filet anti-blocage : si quoi que ce soit retarde le timer principal.
+      setTimeout(fire, 440);
+    }
+
+    // ---- Listener délégué unique (capture) sur tout le document ----
+    // Couvre TOUS les <a href> internes (CTA, header, footer, légaux, docs,
+    // logo). Le href reste le fallback natif : si ce handler ne prévient pas
+    // le défaut (clic modifié, lien externe, ancre, JS off…), le navigateur
+    // navigue normalement.
+    document.addEventListener('click', function(e){
+      // Clics modifiés / non-primaires : on laisse le comportement natif.
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+
+      var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+      if (!a) return;
+
+      // Onglet/fenêtre séparés, téléchargement, lien marqué externe.
+      var target = (a.getAttribute('target') || '').toLowerCase();
+      if (target && target !== '_self') return;
+      if (a.hasAttribute('download')) return;
+      var rel = (a.getAttribute('rel') || '').toLowerCase();
+      if (rel.indexOf('external') !== -1) return;
+
+      var raw = a.getAttribute('href');
+      if (!raw) return;
+      var low = raw.trim().toLowerCase();
+      // Ancres pures, schémas non-navigants : on ne touche pas.
+      if (low.charAt(0) === '#' || low.indexOf('javascript:') === 0 ||
+          low.indexOf('mailto:') === 0 || low.indexOf('tel:') === 0 ||
+          low.indexOf('sms:') === 0 || low.indexOf('data:') === 0 ||
+          low.indexOf('blob:') === 0) return;
+
+      // Résolution absolue pour vérifier l'origine et distinguer une vraie
+      // navigation de page d'un simple scroll d'ancre sur la page courante.
+      var dest;
+      try { dest = new URL(a.href, window.location.href); } catch(e){ return; }
+      if (dest.origin !== window.location.origin) return; // origine externe
+      // Même page + seul le hash change -> scroll natif, pas de transition.
+      if (dest.pathname === window.location.pathname &&
+          dest.search === window.location.search &&
+          dest.hash) return;
+
+      // Déjà en transition : on neutralise le clic sans relancer.
+      if (document.body.classList.contains('leaving')) { e.preventDefault(); return; }
+      if (reduce) return; // navigation native immédiate, zéro animation
+
+      e.preventDefault();
+      navigateSmooth(dest.href);
+    }, true);
+
+    // Réarmement exposé pour le retour bfcache (script pageshow séparé) :
+    // remet l'état de navigation à zéro et rejoue l'entrée en fondu pour une
+    // arrivée cohérente côté ressenti, sans casser le fix « Précédent ».
+    window.__navResetOnShow = function(){
+      navigating = false;
+      try {
+        document.body.classList.remove('leaving');
+        if (!reduce) {
+          // Au retour bfcache, html.nav-enter est restauré tel quel : on
+          // remet juste le body voilé puis on rejoue la levée du voile.
+          document.documentElement.classList.add('nav-enter');
+          document.body.classList.remove('nav-ready');
+          requestAnimationFrame(function(){
+            requestAnimationFrame(function(){ document.body.classList.add('nav-ready'); });
+          });
+        } else {
+          document.documentElement.classList.remove('nav-enter');
+        }
+      } catch(e){ try { document.body.classList.remove('leaving'); } catch(e2){} }
+    };
   })();
 </script>
 <script>/* Fix bouton « Précédent » : au retour via bfcache la page était
    restaurée avec body.leaving (invisible/floutée/non-cliquable) et restait
-   figée. On lève systématiquement cet état transitoire au pageshow. */
+   figée. On lève systématiquement cet état transitoire au pageshow et on
+   réarme le helper de navigation (sinon « navigating » resterait verrouillé
+   après un retour bfcache et plus aucun lien ne déclencherait la transition).
+   Fallback robuste si le helper n'a pas pu s'initialiser. */
 window.addEventListener('pageshow', function () {
-  try { document.body.classList.remove('leaving'); } catch (e) {}
+  try {
+    if (typeof window.__navResetOnShow === 'function') { window.__navResetOnShow(); }
+    else { document.body.classList.remove('leaving'); }
+  } catch (e) {
+    try { document.body.classList.remove('leaving'); } catch (e2) {}
+  }
 });</script>
 </body>
 </html>
