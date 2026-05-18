@@ -1873,9 +1873,21 @@ app.post('/chat', limiteurChat, authentifier, limiteurChatCompte, async (req, re
   // régression possible, le prompt envoyé reste identique dans les deux cas.
   // Niveau déclaré au questionnaire (profil_pc.niveau, enum fermé). Absent
   // -> directiveNiveau('') renvoie '' -> prompt identique à l'historique.
-  const niveauUtilisateur = utilisateur.profil_pc &&
+  const niveauProfil = utilisateur.profil_pc &&
     NIVEAUX.includes(utilisateur.profil_pc.niveau)
     ? utilisateur.profil_pc.niveau : undefined
+
+  // Curseur de niveau choisi DANS le chat (champ optionnel `niveau`). Même
+  // durcissement que tout fragment de prompt : enum fermé strictement validé
+  // (string + NIVEAUX.includes), jamais de texte libre -> aucun vecteur
+  // d'injection. S'il est valide, il PRIME sur le profil (choix explicite et
+  // courant de l'utilisateur). Absent / non-string / hors enum -> on retombe
+  // sur niveauProfil : comportement RIGOUREUSEMENT identique à l'historique,
+  // y compris « sans niveau -> directiveNiveau('') -> prompt inchangé ».
+  const niveauChoisi = typeof req.body.niveau === 'string' &&
+    NIVEAUX.includes(req.body.niveau)
+    ? req.body.niveau : undefined
+  const niveauUtilisateur = niveauChoisi !== undefined ? niveauChoisi : niveauProfil
 
   let systemPayload
   try {
