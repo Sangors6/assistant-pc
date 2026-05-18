@@ -1197,6 +1197,13 @@ app.post('/auth/inscription', limiteurAuth, async (req, res) => {
       message: 'Trop d\'inscriptions simultanées, réessayez dans quelques minutes.'
     })
   }
+  const base = process.env.APP_URL ? process.env.APP_URL.replace(/\/+$/, '')
+    : `${req.protocol}://${req.get('host')}`
+  // Si l'INSERT échoue pour cause d'email déjà pris (typiquement un compte
+  // d'une tentative précédente JAMAIS confirmé), on déclenche un renvoi du
+  // lien de vérification APRÈS la réponse — fin de l'impasse historique (une
+  // 2e inscription d'un compte non vérifié relançait jadis dans le vide).
+  let renvoiSiDoublon = false
   try {
     const hash = await bcrypt.hash(motDePasse, 10)
     const ins = await run(
@@ -1210,8 +1217,6 @@ app.post('/auth/inscription', limiteurAuth, async (req, res) => {
         'INSERT INTO email_verifications (utilisateur_id, token, expire_le) VALUES ($1, $2, $3)',
         [ins.rows[0].id, hacherToken(tokenClair), expire]
       )
-      const base = process.env.APP_URL ? process.env.APP_URL.replace(/\/+$/, '')
-        : `${req.protocol}://${req.get('host')}`
       const lien = `${base}/verifier.html?token=${tokenClair}`
       // Non bloquant : la réponse ne doit pas dépendre de la latence SMTP/API
       // (anti-oracle temporel + robustesse).
@@ -1220,9 +1225,31 @@ app.post('/auth/inscription', limiteurAuth, async (req, res) => {
     }
   } catch (erreur) {
     // Réponse identique qu'un compte ait été créé ou non : pas d'énumération.
+    // Violation d'unicité Postgres (code 23505) sur l'email => compte déjà
+    // existant : on prévoit un renvoi best-effort (post-réponse) au cas où il
+    // ne serait pas encore confirmé. renvoyerVerificationSiNonVerifie est un
+    // no-op strict si le compte est déjà vérifié/inexistant => zéro fuite.
+    if (exigeVerif && (erreur.code === '23505' || /duplicat|unique/i.test(erreur.message || ''))) {
+      renvoiSiDoublon = true
+    }
     console.error('Inscription :', erreur.message)
   }
+  // Réponse d'abord (latence constante, aucun oracle), travail ensuite : un
+  // éventuel renvoi sur doublon non vérifié est strictement post-réponse et
+  // non bloquant — aucune différence observable avec une 1re inscription.
   res.json(reponseUniforme)
+  // F-RT1 (Red Team) : ce chemin de renvoi DOIT consommer le MÊME budget
+  // anti-amplification email global que /auth/verifier-renvoi et
+  // /auth/reset-demande (sinon mail-bombing d'une cible via boucle de
+  // ré-inscription distribuée, 120/h au lieu de 60/h). Garde-fou appliqué
+  // ICI (une seule fois par chemin) — pas dans le helper partagé, pour ne
+  // pas double-décompter le budget de /auth/verifier-renvoi (qui le vérifie
+  // déjà). Saturé => pas de renvoi (fail-safe) ; réponse uniforme déjà
+  // partie => aucune énumération, aucun oracle.
+  if (renvoiSiDoublon && antibotPlafondEmailOk()) {
+    renvoyerVerificationSiNonVerifie(emailN, base)
+      .catch((e) => console.error('Renvoi vérif (ré-inscription) :', e.message))
+  }
 })
 
 app.post('/auth/connexion', limiteurAuth, async (req, res) => {
@@ -1377,37 +1404,75 @@ app.post('/auth/verifier-confirme', limiteurAuth, limiteurTokenConfirme, async (
   }
 })
 
-// Renvoi du lien de vérification. Réponse uniforme (anti-énumération),
-// non bloquant. N'agit que si le compte existe ET n'est pas déjà vérifié.
-app.post('/auth/verifier-renvoi', limiteurAuth, async (req, res) => {
-  const { email } = req.body
-  const reponseUniforme = { message: 'Si un compte non confirmé existe pour cette adresse, un nouvel email vient d\'être envoyé.' }
-  res.json(reponseUniforme)
-  if (typeof email !== 'string' || !email) return
-  if (antibotHoneypotRempli(req.body) || !antibotPlafondEmailOk()) return
-  const emailN = normaliserEmail(email)
+// Helper interne : renvoie un email de vérification À LA SEULE CONDITION que
+// le compte existe ET ne soit PAS vérifié ET que l'email soit configuré.
+// Sinon NO-OP strict (aucune trace ni latence différenciante : tout le travail
+// est fait par les appelants APRÈS res.json). Jamais de throw remonté à la
+// requête (les appelants l'enveloppent déjà ; double sécurité interne ici).
+// Token : clair généré localement, haché (SHA-256) en base, expiration +24 h,
+// usage unique atomique — un nouveau renvoi invalide le(s) lien(s) de vérif
+// précédent(s) non consommé(s) du même utilisateur (1 seul lien actif, modèle
+// 3944a68). `base` est passé par l'appelant pour rester strictement identique
+// à la logique APP_URL/req de /auth/inscription (lien forgé à l'identique).
+async function renvoyerVerificationSiNonVerifie (emailN, base) {
   try {
     const u = await one('SELECT id, email, verifie FROM utilisateurs WHERE email = $1', [emailN])
-    if (u && u.verifie === false && mailer.estConfigure()) {
-      const tokenClair = crypto.randomUUID()
-      const expire = new Date(Date.now() + 24 * 60 * 60 * 1000)
-      // F-15 : un seul lien de vérification actif à la fois.
-      await run(
-        'UPDATE email_verifications SET utilise = TRUE WHERE utilisateur_id = $1 AND utilise = FALSE',
-        [u.id]
-      )
-      await run(
-        'INSERT INTO email_verifications (utilisateur_id, token, expire_le) VALUES ($1, $2, $3)',
-        [u.id, hacherToken(tokenClair), expire]
-      )
-      const base = process.env.APP_URL ? process.env.APP_URL.replace(/\/+$/, '')
-        : `${req.protocol}://${req.get('host')}`
-      mailer.envoyerEmailVerification(u.email, `${base}/verifier.html?token=${tokenClair}`)
-        .catch((e) => console.error('Renvoi vérification :', e.message))
-    }
+    if (!u || u.verifie !== false || !mailer.estConfigure()) return
+    const tokenClair = crypto.randomUUID()
+    const expire = new Date(Date.now() + 24 * 60 * 60 * 1000) // +24 h
+    // F-15 / 3944a68 : un seul lien de vérification actif à la fois — on
+    // invalide atomiquement les tokens de vérif précédents non consommés
+    // avant d'insérer le nouveau (réduit la fenêtre d'abus si fuite d'un
+    // ancien email ; cohérent avec reset-demande et /auth/verifier-confirme).
+    await run(
+      'UPDATE email_verifications SET utilise = TRUE WHERE utilisateur_id = $1 AND utilise = FALSE',
+      [u.id]
+    )
+    await run(
+      'INSERT INTO email_verifications (utilisateur_id, token, expire_le) VALUES ($1, $2, $3)',
+      [u.id, hacherToken(tokenClair), expire]
+    )
+    const lien = `${base}/verifier.html?token=${tokenClair}`
+    // Non bloquant : la réponse HTTP est déjà partie chez l'appelant ; la
+    // latence ne dépend jamais de l'envoi SMTP/API (anti-oracle + robustesse).
+    mailer.envoyerEmailVerification(u.email, lien)
+      .catch((e) => console.error('Renvoi vérification :', e.message))
   } catch (erreur) {
+    // Jamais propagé : aucune différence observable selon l'état du compte.
     console.error('Renvoi vérification :', erreur.message)
   }
+}
+
+// Renvoi du lien de vérification. Réponse uniforme (anti-énumération),
+// renvoyée IMMÉDIATEMENT puis travail APRÈS (anti-oracle temporel + non
+// bloquant, schéma identique à /auth/reset-demande). N'agit que si le compte
+// existe ET n'est pas déjà vérifié. Anti-amplification : limiteurAuth (IP) +
+// honeypot + jeton anti-bot (usage unique, anti-rejeu) + plafond email global.
+app.post('/auth/verifier-renvoi', limiteurAuth, async (req, res) => {
+  const { email } = req.body
+  // Calcul de `base` AVANT res.json (req encore sûr d'usage) afin de forger le
+  // lien exactement comme /auth/inscription, sans dépendre de req plus tard.
+  const base = process.env.APP_URL ? process.env.APP_URL.replace(/\/+$/, '')
+    : `${req.protocol}://${req.get('host')}`
+  const reponseUniforme = { message: 'Si un compte non confirmé existe pour cette adresse, un nouvel email vient d\'être envoyé. Vérifie ta boîte et tes spams.' }
+  res.json(reponseUniforme)
+  if (typeof email !== 'string' || !email) return
+  // Honeypot rempli => bot : on s'arrête (réponse uniforme déjà partie).
+  if (antibotHoneypotRempli(req.body)) return
+  // Jeton anti-bot : même exigence qu'à l'inscription (jeton de temps signé,
+  // usage unique). Invalide/absent => on traite comme bot, sans envoi, MÊME
+  // réponse. Valide => on brûle le nonce (anti-rejeu strict).
+  const jetonAntibot = (req.body && typeof req.body.challenge === 'string') ? req.body.challenge : ''
+  const verifJeton = antibotVerifierJeton(jetonAntibot)
+  if (!verifJeton.ok) return
+  antibotMarquerNonce(verifJeton.nonce)
+  // Anti-amplification : budget email global SÉPARÉ (mail-bombing d'une
+  // adresse cible non couvert par le rate-limit par IP). Saturé => stop
+  // silencieux (réponse uniforme déjà renvoyée — aucune énumération).
+  if (!antibotPlafondEmailOk()) return
+  const emailN = normaliserEmail(email)
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailN) || emailN.length > 254) return
+  await renvoyerVerificationSiNonVerifie(emailN, base)
 })
 
 // Déconnexion serveur : révoque le token courant (vraie invalidation).

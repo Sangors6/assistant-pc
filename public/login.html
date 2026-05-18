@@ -663,14 +663,22 @@
         const data = await res.json()
 
         if (!res.ok) {
-          // Compte non confirmé : message clair + lien vers le renvoi.
+          // Compte non confirmé : message clair + bouton de renvoi qui
+          // appelle réellement /auth/verifier-renvoi (anti-énumération côté
+          // serveur). Dégradation gracieuse si le DOM échoue.
           if (data.erreur === 'non_verifie') {
             afficherMessage(data.message || 'Compte non confirmé. Vérifie tes emails.', false)
-            const m = document.getElementById('message')
-            const a = document.createElement('a')
-            a.href = '/verifier.html'; a.textContent = ' Renvoyer le lien'
-            a.style.cssText = 'color:#1a6eff;text-decoration:none;display:block;margin-top:6px;font-size:12px'
-            m.appendChild(a)
+            try {
+              const m = document.getElementById('message')
+              const b = document.createElement('button')
+              b.type = 'button'
+              b.textContent = 'Renvoyer l’email de confirmation'
+              b.setAttribute('aria-label', 'Renvoyer l’email de confirmation')
+              b.style.cssText = 'margin-top:8px;background:none;border:0;padding:4px 0;color:#1a6eff;font:inherit;font-size:12px;cursor:pointer;text-decoration:underline;display:block'
+              b.addEventListener('click', function () { renvoyerVerification(email, b) })
+              m.appendChild(b)
+              b.focus()
+            } catch { /* message texte déjà affiché : suffisant */ }
             return
           }
           afficherMessage(data.erreur || 'Erreur', false)
@@ -713,6 +721,34 @@
 
       } catch {
         afficherMessage('Erreur de connexion au serveur', false)
+      }
+    }
+
+    // Renvoi de l'email de confirmation. POST /auth/verifier-renvoi avec le
+    // jeton anti-bot + honeypot (mêmes garde-fous que l'inscription). Le
+    // serveur répond toujours de façon uniforme (anti-énumération) : on
+    // affiche simplement son message. Jeton à usage unique => on en redemande
+    // un après usage. Tolérant aux pannes (jamais d'état figé).
+    async function renvoyerVerification(email, bouton) {
+      if (!email) { afficherMessage('Saisis d’abord ton email.', false); return }
+      if (bouton) { bouton.disabled = true; bouton.textContent = 'Envoi en cours…' }
+      const challenge = (document.getElementById('antibot-challenge') || {}).value || ''
+      const website = (document.getElementById('website') || {}).value || ''
+      try {
+        const res = await fetch('/auth/verifier-renvoi', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, challenge, website })
+        })
+        const data = await res.json().catch(() => ({}))
+        afficherMessage(data.message || 'Si un compte non confirmé existe pour cette adresse, un nouvel email vient d’être envoyé. Vérifie ta boîte et tes spams.', true)
+      } catch {
+        afficherMessage('Erreur de connexion au serveur', false)
+      } finally {
+        // Jeton de temps à usage unique côté serveur : on en redemande un
+        // pour qu'un second renvoi reste valide.
+        chargerChallengeAntibot()
+        if (bouton) { bouton.disabled = false; bouton.textContent = 'Renvoyer l’email de confirmation' }
       }
     }
 
