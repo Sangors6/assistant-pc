@@ -449,3 +449,147 @@ test('CONTRAT : app.html n’a AUCUN audio swoosh (son uniquement à l’aller)'
   assert.ok(!/snd-swoosh/.test(APP_HTML), 'app.html ne doit pas réintroduire le swoosh')
 })
 
+/* --- Anti-bot inscription (F-14/RT-002) — non destructif ------------------ */
+
+test('GET /auth/challenge → 200 + jeton signé, no-store', async () => {
+  const r = await fetch(`${BASE}/auth/challenge`)
+  assert.equal(r.status, 200)
+  assert.equal(r.headers.get('cache-control'), 'no-store')
+  const j = await r.json()
+  assert.equal(typeof j.jeton, 'string')
+  assert.match(j.jeton, /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/, 'format <payload>.<hmac>')
+})
+
+test('inscription honeypot rempli → 200 réponse uniforme (aucune fuite de détection)', async () => {
+  const r = await fetch(`${BASE}/auth/inscription`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    // website (honeypot) rempli + jeton absent : doit répondre EXACTEMENT
+    // comme un succès, sans jamais révéler la détection ni créer de compte.
+    body: JSON.stringify({ email: 'bot_smoke@nulle.part', motDePasse: 'Zq7v-Tn4_Wx9pK2!aL', website: 'http://spam' })
+  })
+  assert.equal(r.status, 200)
+  const j = await r.json()
+  assert.match(j.message, /si l'adresse est valide/i)
+})
+
+test('inscription sans jeton → 200 réponse uniforme (jeton manquant traité comme bot, non révélé)', async () => {
+  const r = await fetch(`${BASE}/auth/inscription`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'sansjeton_smoke@nulle.part', motDePasse: 'Zq7v-Tn4_Wx9pK2!aL' })
+  })
+  assert.equal(r.status, 200)
+  const j = await r.json()
+  assert.match(j.message, /si l'adresse est valide/i)
+})
+
+test('CONTRAT RT-D1 : plafond global inscription = coupe-circuit 429 explicite (pas de faux succès)', () => {
+  const S = readFileSync(join(RACINE, 'server.js'), 'utf8')
+  // Seuil monté en constante claire à 120/h.
+  assert.match(S, /ANTIBOT_PLAFOND_GLOBAL_INSCRIPTION\s*=\s*120/,
+    'seuil global inscription doit être la constante 120/h')
+  // Plafond email reste à 60/h (reset/verif), inchangé.
+  assert.match(S, /ANTIBOT_PLAFOND_EMAIL\s*=\s*60/,
+    'plafond email reset/verif doit rester 60/h')
+  // Saturation → 429 trop_de_demandes (jamais la réponse uniforme de succès).
+  assert.match(S, /if \(!antibotPlafondOk\(\)\) \{[\s\S]{0,200}?res\.status\(429\)\.json\(\{[\s\S]{0,120}?erreur: 'trop_de_demandes'/,
+    'plafond saturé doit renvoyer 429 trop_de_demandes')
+  // Garde-fou anti-régression : le faux succès silencieux ne doit plus exister
+  // dans ce bloc (return res.json(reponseUniforme) juste après le plafond).
+  assert.ok(!/if \(!antibotPlafondOk\(\)\) \{[\s\S]{0,200}?res\.json\(reponseUniforme\)/.test(S),
+    'le plafond saturé ne doit PLUS renvoyer un faux succès uniforme')
+  // Alerte opérateur au franchissement, dédupliquée (une fois par fenêtre).
+  assert.match(S, /\[ALERTE ANTIBOT\] plafond global inscription atteint/,
+    'une alerte opérateur doit être émise au franchissement')
+})
+
+test('CONTRAT RT-Q1 : quota remboursé UNIQUEMENT si rien livré (contenuLivre)', () => {
+  const S = readFileSync(join(RACINE, 'server.js'), 'utf8')
+  // Le flag existe et est armé après émission d'un chunk.
+  assert.ok(S.includes('let contenuLivre = false'),
+    'flag contenuLivre doit être déclaré')
+  assert.ok(S.includes('contenuLivre = true'),
+    'contenuLivre doit passer à true après un chunk livré')
+  // Tout remboursement de quota est désormais gardé par !contenuLivre :
+  // aucun libererQuota inconditionnel ne doit subsister dans les 2 routes SSE.
+  const nbGarde = (S.match(/if \(!contenuLivre\) await libererQuota/g) || []).length
+  assert.ok(nbGarde >= 6,
+    `tous les remboursements doivent être gardés par !contenuLivre (trouvés: ${nbGarde})`)
+})
+
+test('CONTRAT Q-4 : HMAC challenge à séparation de domaine (préfixe de contexte)', () => {
+  const S = readFileSync(join(RACINE, 'server.js'), 'utf8')
+  assert.match(S, /ANTIBOT_HMAC_CONTEXTE\s*=\s*'pchallenge:v1:'/,
+    'constante de contexte HMAC challenge attendue')
+  // Le préfixe doit être appliqué côté signature ET vérification.
+  const occ = (S.match(/ANTIBOT_HMAC_CONTEXTE \+ p/g) || []).length
+  assert.equal(occ, 2,
+    'le préfixe de contexte doit être utilisé en signature ET en vérification')
+})
+
+test('CONTRAT Q-2 : GET /auth/challenge protégé par un rate-limit', () => {
+  const S = readFileSync(join(RACINE, 'server.js'), 'utf8')
+  assert.match(S, /app\.get\('\/auth\/challenge', limiteurChallenge,/,
+    '/auth/challenge doit passer par limiteurChallenge')
+  assert.ok(S.includes('const limiteurChallenge = rateLimit('),
+    'limiteurChallenge doit être défini')
+})
+
+test('login.html : honeypot + input challenge + fetch /auth/challenge présents', () => {
+  const L = readFileSync(join(RACINE, 'public', 'login.html'), 'utf8')
+  for (const h of ['id="website"', 'id="antibot-challenge"', "fetch('/auth/challenge'",
+    'aria-hidden="true"', 'tabindex="-1"']) {
+    assert.ok(L.includes(h), `hook anti-bot manquant dans login.html : ${h}`)
+  }
+})
+
+/* --- Pages légales (RGPD/LCEN) — servies statiquement, non destructif ----- */
+
+test('pages légales servies (200) + contenu clé', async () => {
+  const cas = [
+    ['/mentions-legales.html', /Mentions légales/i],
+    ['/confidentialite.html', /confidentialité/i],
+    ['/cgu.html', /Conditions générales/i],
+    ['/cookies.html', /cookies/i]
+  ]
+  for (const [url, motif] of cas) {
+    const r = await fetch(`${BASE}${url}`)
+    assert.equal(r.status, 200, `${url} doit être servi`)
+    assert.match(r.headers.get('content-type') || '', /text\/html/)
+    const t = await r.text()
+    assert.match(t, motif, `${url} contenu attendu`)
+  }
+})
+
+test('confidentialité : ancre #securite présente (lien footer "Sécurité")', async () => {
+  const t = await (await fetch(`${BASE}/confidentialite.html`)).text()
+  assert.match(t, /id="securite"/)
+})
+
+test('CGU : clause "ne remplace pas un professionnel" + "aucune garantie de résultat"', async () => {
+  const t = await (await fetch(`${BASE}/cgu.html`)).text()
+  assert.match(t, /NE REMPLACE PAS/i)
+  assert.match(t, /aucune garantie de résultat/i)
+})
+
+test('sitemap.xml : 4 pages légales listées + XML toujours bien formé', async () => {
+  const x = await (await fetch(`${BASE}/sitemap.xml`)).text()
+  for (const p of ['/mentions-legales.html', '/confidentialite.html', '/cgu.html', '/cookies.html']) {
+    assert.ok(x.includes(p), `${p} absent du sitemap`)
+  }
+  assert.equal((x.match(/<loc>/g) || []).length, (x.match(/<\/loc>/g) || []).length)
+})
+
+test('index.html : liens légaux du footer ne sont plus des href="#"', () => {
+  const I = readFileSync(join(RACINE, 'public', 'index.html'), 'utf8')
+  for (const h of ['/confidentialite.html', '/cgu.html', '/cookies.html',
+    '/mentions-legales.html', 'confidentialite.html#securite']) {
+    assert.ok(I.includes(h), `lien légal attendu dans index.html : ${h}`)
+  }
+  // RT-Q (qualité) : le lien Contact mailto:[email] (placeholder brut cassé)
+  // a été remplacé par /mentions-legales.html → il ne doit PLUS réapparaître.
+  assert.ok(!I.includes('mailto:[email]'),
+    'le lien Contact cassé mailto:[email] ne doit plus être présent')
+})
+

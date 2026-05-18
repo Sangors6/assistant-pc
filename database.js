@@ -130,6 +130,15 @@ async function initDb() {
   // de PC Helper. DEFAULT FALSE -> le questionnaire s'affiche une fois pour
   // les comptes existants comme nouveaux. Additif, idempotent, non destructif.
   await pool.query(`ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS questionnaire_vu BOOLEAN DEFAULT FALSE`)
+  // Quota gratuit JOURNALIER (décision fondateur 2026-05-18 : 20 messages/jour,
+  // remis à zéro chaque jour — borne le coût IA sans bloquer définitivement).
+  // msg_jour = compteur du jour ; msg_jour_date = jour (UTC) de référence du
+  // compteur : si <> aujourd'hui, le compteur est considéré comme remis à 0
+  // (logique atomique côté reserverQuota, cf. server.js). messages_utilises
+  // reste le TOTAL cumulé (stats /profil) — sémantique inchangée. Additif,
+  // idempotent, non destructif : comptes existants démarrent à 0/NULL.
+  await pool.query(`ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS msg_jour INTEGER DEFAULT 0`)
+  await pool.query(`ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS msg_jour_date DATE`)
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_conv_user ON conversations(utilisateur_id)`)
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_conv_session ON conversations(utilisateur_id, session_id)`)
   // Sert exactement les requêtes chaudes : historique et chargement du

@@ -67,6 +67,18 @@ const limiteurTokenConfirme = rateLimit({
   validate: { keyGeneratorIpFallback: false }
 })
 
+// Limiteur LÉGER dédié à GET /auth/challenge (Q-2) : anti-DoS et
+// anti-pré-collecte massive de jetons HMAC. Bucket SÉPARÉ de limiteurAuth
+// (volontaire) : la page login charge le challenge à l'ouverture ; partager
+// le bucket connexion/inscription pénaliserait un usage légitime (rechargements
+// répétés). 60/15 min/IP est très large pour un humain, mais coupe net une
+// récolte automatisée de jetons par IP.
+const limiteurChallenge = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  message: { erreur: 'Trop de requêtes. Réessaie dans quelques minutes.' }
+})
+
 const app = express()
 app.disable('x-powered-by') // ne pas révéler la stack (Express)
 // Derrière le proxy de l'hébergeur (Render/Railway/Vercel...) : indispensable
@@ -132,7 +144,7 @@ if (!/^sk-ant-/.test(process.env.ANTHROPIC_API_KEY.trim())) {
   process.exit(1)
 }
 
-const LIMITE_GRATUIT = 999999
+const LIMITE_GRATUIT = 20
 const DUMMY_HASH = '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy'
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -187,6 +199,64 @@ function purgerResets() {
 }
 setTimeout(purgerResets, 60 * 1000).unref()
 setInterval(purgerResets, 60 * 60 * 1000).unref()
+
+// ---------------------------------------------------------------------------
+// Quota du plan gratuit — RÉSERVATION ATOMIQUE (corrige F-06).
+//
+// Le compteur messages_utilises est partagé par compte entre /chat et
+// /technicien (sémantique inchangée). L'ancien schéma « SELECT puis, après
+// succès IA, UPDATE +1 » était sujet à une course : N requêtes concurrentes
+// passaient toutes le SELECT avant le moindre incrément et dépassaient le
+// plafond. On réserve donc le quota AVANT d'appeler l'IA via un UPDATE
+// conditionnel atomique (la base est l'unique source de vérité).
+//
+//   reserverQuota(id) :
+//     - 0 ligne renvoyée  -> quota déjà atteint (compte gratuit)        => null
+//     - ligne renvoyée    -> quota réservé, RETURNING = compte réel exact
+//
+//   libererQuota(id) : décrémente (borné >= 0) si l'appel IA a échoué
+//     durement APRÈS réservation — on ne consomme pas le quota sur erreur
+//     serveur, ce qui préserve au mieux la sémantique « débité au succès ».
+//
+// Le `plan <> 'gratuit'` laisse les plans payants illimités (RETURNING reste
+// renvoyé : le compteur réel circule jusqu'au SSE done).
+// Quota JOURNALIER (20 msg/jour, décision fondateur 2026-05-18). Atomicité
+// = un seul UPDATE conditionnel (verrou de ligne PostgreSQL, anti-race F-06).
+// La remise à zéro est implicite : si msg_jour_date <> aujourd'hui (UTC), le
+// CASE repart à 1 et le WHERE autorise (compteur du jour précédent ignoré).
+// messages_utilises reste le TOTAL cumulé (stats /profil, sémantique inchangée).
+async function reserverQuota(utilisateurId) {
+  const r = await one(
+    `UPDATE utilisateurs
+        SET msg_jour = CASE WHEN msg_jour_date = CURRENT_DATE THEN msg_jour + 1 ELSE 1 END,
+            msg_jour_date = CURRENT_DATE,
+            messages_utilises = messages_utilises + 1
+      WHERE id = $1
+        AND (plan <> 'gratuit'
+             OR msg_jour_date IS DISTINCT FROM CURRENT_DATE
+             OR msg_jour < $2)
+      RETURNING msg_jour`,
+    [utilisateurId, LIMITE_GRATUIT]
+  )
+  return r ? r.msg_jour : null
+}
+
+async function libererQuota(utilisateurId) {
+  try {
+    await run(
+      `UPDATE utilisateurs
+          SET msg_jour = CASE WHEN msg_jour_date = CURRENT_DATE
+                              THEN GREATEST(msg_jour - 1, 0) ELSE msg_jour END,
+              messages_utilises = GREATEST(messages_utilises - 1, 0)
+        WHERE id = $1`,
+      [utilisateurId]
+    )
+  } catch (e) {
+    // Best effort : un échec de décrément n'est pas bloquant (au pire un
+    // message « perdu » côté quota, jamais une erreur visible utilisateur).
+    console.error('Libération quota :', e.message)
+  }
+}
 
 // Politique de mot de passe + vérification Have I Been Pwned (k-anonymat)
 function validerMotDePasse(mdp) {
@@ -836,6 +906,157 @@ async function authentifier(req, res, next) {
   }
 }
 
+// ===========================================================================
+// ANTI-BOT INSCRIPTION (corrige F-14 / RT-002) — défense en profondeur,
+// 100 % hors-ligne (aucun CAPTCHA, aucun service tiers, aucun CDN, CSP-safe).
+//
+// Trois couches indépendantes :
+//   (a) HONEYPOT : champ leurre `website` dans le formulaire, invisible pour
+//       un humain (hors écran + aria-hidden + tabindex=-1) mais rempli par
+//       les bots qui complètent aveuglément tous les champs.
+//   (b) JETON DE TEMPS SIGNÉ : GET /auth/challenge délivre un jeton HMAC
+//       (clé = JWT_SECRET) encodant {iat, nonce}. Le formulaire le rejoue à
+//       la soumission. Le serveur exige : signature valide, âge réaliste
+//       (>= MIN, <= MAX), nonce jamais déjà consommé (anti-rejeu).
+//   (c) PLAFOND GLOBAL : compteur fenêtre glissante TOUTES IP confondues —
+//       borne une attaque distribuée que le rate-limit par IP ne voit pas.
+//
+// RÈGLE ANTI-ÉNUMÉRATION (cruciale) : en cas de détection bot on renvoie
+// EXACTEMENT la réponse uniforme de succès (même JSON, même statut, latence
+// comparable) SANS créer de compte ni envoyer d'email. La détection n'est
+// JAMAIS révélée (ni au bot, ni dans un canal observable).
+
+// (b) Durée minimale entre l'affichage du formulaire et la soumission.
+// Un humain met plusieurs secondes à lire/saisir email + mot de passe ;
+// un bot soumet en < 1 s. 2,5 s est conservateur (aucun faux positif
+// humain observé) — VALEUR À ARBITRER PAR LE FONDATEUR si besoin.
+const ANTIBOT_AGE_MIN_MS = 2500
+const ANTIBOT_AGE_MAX_MS = 30 * 60 * 1000 // 30 min : jeton « périmé » au-delà
+// Nonces déjà consommés (anti-rejeu). TTL = âge max du jeton : au-delà la
+// signature est de toute façon refusée, inutile de garder le nonce. Même
+// esprit que jtiRevoques (purge périodique, mémoire, sans risque au reboot).
+const antibotNoncesUtilises = new Map() // nonce -> expiration (ms epoch)
+function antibotNonceVu (nonce) {
+  const exp = antibotNoncesUtilises.get(nonce)
+  if (exp === undefined) return false
+  if (Date.now() >= exp) { antibotNoncesUtilises.delete(nonce); return false }
+  return true
+}
+function antibotMarquerNonce (nonce) {
+  antibotNoncesUtilises.set(nonce, Date.now() + ANTIBOT_AGE_MAX_MS)
+}
+setInterval(() => {
+  const now = Date.now()
+  for (const [n, exp] of antibotNoncesUtilises) if (now >= exp) antibotNoncesUtilises.delete(n)
+}, 10 * 60 * 1000).unref()
+
+// Signature HMAC-SHA256 du jeton de temps. Le secret réutilise JWT_SECRET
+// (déjà garanti présent et >= 32 car. au démarrage). SÉPARATION DE DOMAINE
+// (Q-4, défense en profondeur) : le message signé est préfixé par une
+// constante de contexte propre au challenge anti-bot, distincte de tout
+// usage JWT — un jeton challenge ne peut JAMAIS être confondu/réutilisé
+// comme un autre artefact signé avec la même clé. Format compact, base64url
+// sans littéral exotique : "<payloadB64url>.<sigB64url>".
+const ANTIBOT_HMAC_CONTEXTE = 'pchallenge:v1:'
+function antibotSignerJeton () {
+  const payload = JSON.stringify({ iat: Date.now(), nonce: crypto.randomBytes(12).toString('hex') })
+  const p = Buffer.from(payload).toString('base64url')
+  const sig = crypto.createHmac('sha256', JWT_SECRET).update(ANTIBOT_HMAC_CONTEXTE + p).digest('base64url')
+  return p + '.' + sig
+}
+// Renvoie { ok, raison }. ok=false => traiter comme bot (silencieusement).
+function antibotVerifierJeton (jeton) {
+  if (typeof jeton !== 'string' || jeton.length < 8 || jeton.length > 512) {
+    return { ok: false, raison: 'absent' }
+  }
+  const pt = jeton.indexOf('.')
+  if (pt <= 0) return { ok: false, raison: 'format' }
+  const p = jeton.slice(0, pt)
+  const sig = jeton.slice(pt + 1)
+  const attendue = crypto.createHmac('sha256', JWT_SECRET).update(ANTIBOT_HMAC_CONTEXTE + p).digest('base64url')
+  // Comparaison à temps constant (anti-timing). Tailles différentes => rejet.
+  let sigBuf, attBuf
+  try { sigBuf = Buffer.from(sig); attBuf = Buffer.from(attendue) } catch { return { ok: false, raison: 'sig' } }
+  if (sigBuf.length !== attBuf.length || !crypto.timingSafeEqual(sigBuf, attBuf)) {
+    return { ok: false, raison: 'sig' }
+  }
+  let donnees
+  try { donnees = JSON.parse(Buffer.from(p, 'base64url').toString('utf8')) } catch { return { ok: false, raison: 'payload' } }
+  const { iat, nonce } = donnees || {}
+  if (typeof iat !== 'number' || typeof nonce !== 'string' || !nonce) {
+    return { ok: false, raison: 'payload' }
+  }
+  const age = Date.now() - iat
+  if (age < ANTIBOT_AGE_MIN_MS) return { ok: false, raison: 'trop_rapide' }
+  if (age > ANTIBOT_AGE_MAX_MS) return { ok: false, raison: 'trop_vieux' }
+  if (antibotNonceVu(nonce)) return { ok: false, raison: 'rejeu' }
+  return { ok: true, nonce }
+}
+
+// (c) Plafond global d'inscriptions, fenêtre glissante en mémoire, TOUTES IP
+// confondues. SIMPLE COUPE-CIRCUIT en complément de limiteurAuth (par IP) et
+// des couches honeypot/jeton (la vraie défense anti-bot). Au franchissement
+// on renvoie une erreur 429 EXPLICITE, non énumérante, identique pour tous
+// (cf. /auth/inscription) — JAMAIS une fausse réussite silencieuse, sinon un
+// attaquant saturant le compteur ferme l'inscription pour tous les vrais
+// utilisateurs (qui se croient inscrits et ne réessaient jamais : RT-D1).
+const ANTIBOT_PLAFOND_GLOBAL_INSCRIPTION = 120 // inscriptions/h, toutes IP
+const ANTIBOT_FENETRE_MS = 60 * 60 * 1000 // 1 h glissante
+const antibotHorodatages = [] // timestamps (ms) des inscriptions récentes
+// Anti-spam log : on n'alerte l'opérateur qu'une fois par fenêtre saturée
+// (pas à chaque requête refusée), réarmé dès que le compteur redescend.
+let antibotPlafondAlerteEmise = false
+// true => on est SOUS le plafond et on enregistre l'événement (à n'appeler
+// qu'une fois la décision « tentative légitime » prise). false => saturé :
+// l'appelant DOIT renvoyer une erreur explicite (jamais un faux succès).
+function antibotPlafondOk () {
+  const limite = Date.now() - ANTIBOT_FENETRE_MS
+  while (antibotHorodatages.length && antibotHorodatages[0] < limite) antibotHorodatages.shift()
+  if (antibotHorodatages.length >= ANTIBOT_PLAFOND_GLOBAL_INSCRIPTION) {
+    if (!antibotPlafondAlerteEmise) {
+      antibotPlafondAlerteEmise = true
+      console.error(
+        '[ALERTE ANTIBOT] plafond global inscription atteint (' +
+        ANTIBOT_PLAFOND_GLOBAL_INSCRIPTION + '/h, toutes IP) — ' +
+        'inscriptions refusées (429) jusqu\'à décrue du compteur. ' +
+        'Vérifier une éventuelle attaque distribuée.'
+      )
+    }
+    return false
+  }
+  antibotPlafondAlerteEmise = false // sous le plafond : on réarme l'alerte
+  antibotHorodatages.push(Date.now())
+  return true
+}
+
+// Plafond global SÉPARÉ pour les routes qui déclenchent un email sur
+// simple saisie d'adresse (reset-demande, verifier-renvoi) : borne une
+// attaque d'amplification email (envois massifs / mail-bombing) que le
+// rate-limit par IP ne couvre pas. Compteur distinct de l'inscription
+// pour qu'un abus d'envoi ne consomme pas le budget d'inscription.
+const ANTIBOT_PLAFOND_EMAIL = 60
+const antibotEmailHorodatages = []
+function antibotPlafondEmailOk () {
+  const limite = Date.now() - ANTIBOT_FENETRE_MS
+  while (antibotEmailHorodatages.length && antibotEmailHorodatages[0] < limite) antibotEmailHorodatages.shift()
+  if (antibotEmailHorodatages.length >= ANTIBOT_PLAFOND_EMAIL) return false
+  antibotEmailHorodatages.push(Date.now())
+  return true
+}
+
+// Détection honeypot : champ leurre `website`. Un humain ne le voit pas donc
+// ne le remplit jamais ; toute valeur non vide => bot.
+function antibotHoneypotRempli (body) {
+  return body && typeof body.website === 'string' && body.website.trim() !== ''
+}
+
+// Jeton de temps signé, sans état serveur (l'anti-rejeu seul est en mémoire).
+// Public, idempotent, non authentifié — appelé au chargement de login.html.
+app.get('/auth/challenge', limiteurChallenge, (req, res) => {
+  res.set('Cache-Control', 'no-store')
+  res.json({ jeton: antibotSignerJeton() })
+})
+
 app.post('/auth/inscription', limiteurAuth, async (req, res) => {
   const { email, motDePasse } = req.body
   if (!email || !motDePasse) return res.status(400).json({ erreur: 'Email et mot de passe requis' })
@@ -848,9 +1069,40 @@ app.post('/auth/inscription', limiteurAuth, async (req, res) => {
   if (await motDePasseCompromis(motDePasse)) {
     return res.status(400).json({ erreur: 'Ce mot de passe figure dans des fuites de données connues. Choisis-en un autre.' })
   }
+
   // Vérification d'email exigée seulement si l'envoi est configuré. En local
   // sans email, on auto-vérifie (verifie=TRUE) pour ne pas bloquer le dev.
   const exigeVerif = mailer.estConfigure()
+  const reponseUniforme = { message: exigeVerif
+    ? 'Si l\'adresse est valide, un email de confirmation vient d\'être envoyé. Vérifie ta boîte (et les spams).'
+    : 'Si l\'adresse est valide, le compte est créé. Tu peux te connecter.' }
+
+  // --- ANTI-BOT (3 couches). En cas de détection : MÊME réponse uniforme
+  // que le succès, aucun compte créé, aucun email. On exécute d'abord un
+  // bcrypt « à blanc » (comme /auth/connexion sur compte inexistant) pour
+  // que la latence reste comparable au chemin nominal — pas d'oracle.
+  const jetonAntibot = (req.body && typeof req.body.challenge === 'string') ? req.body.challenge : ''
+  const verifJeton = antibotVerifierJeton(jetonAntibot)
+  const estBot = antibotHoneypotRempli(req.body) || !verifJeton.ok
+  if (estBot) {
+    await bcrypt.compare(motDePasse, DUMMY_HASH)
+    return res.json(reponseUniforme)
+  }
+  // Jeton valide : on brûle le nonce (usage unique strict, anti-rejeu).
+  antibotMarquerNonce(verifJeton.nonce)
+  // Plafond global (toutes IP) APRÈS les couches a/b : on ne « consomme »
+  // un crédit du plafond que pour une tentative jugée légitime, sinon un
+  // flot de bots épuiserait le plafond et bloquerait les vrais usagers.
+  // Saturé => erreur EXPLICITE 429 (jamais un faux succès silencieux) : un
+  // utilisateur légitime comprend qu'il doit RÉESSAYER (RT-D1). La réponse
+  // ne dépend QUE du compteur global, jamais d'un compte/email → aucune
+  // énumération possible (identique pour tout le monde).
+  if (!antibotPlafondOk()) {
+    return res.status(429).json({
+      erreur: 'trop_de_demandes',
+      message: 'Trop d\'inscriptions simultanées, réessayez dans quelques minutes.'
+    })
+  }
   try {
     const hash = await bcrypt.hash(motDePasse, 10)
     const ins = await run(
@@ -876,9 +1128,7 @@ app.post('/auth/inscription', limiteurAuth, async (req, res) => {
     // Réponse identique qu'un compte ait été créé ou non : pas d'énumération.
     console.error('Inscription :', erreur.message)
   }
-  res.json({ message: exigeVerif
-    ? 'Si l\'adresse est valide, un email de confirmation vient d\'être envoyé. Vérifie ta boîte (et les spams).'
-    : 'Si l\'adresse est valide, le compte est créé. Tu peux te connecter.' })
+  res.json(reponseUniforme)
 })
 
 app.post('/auth/connexion', limiteurAuth, async (req, res) => {
@@ -934,6 +1184,9 @@ app.post('/auth/reset-demande', limiteurAuth, async (req, res) => {
   // Le handler continue de s'exécuter après res.json (Express le permet).
   res.json(reponseUniforme)
   if (typeof email !== 'string' || !email) return
+  // Anti-amplification email : honeypot + plafond global d'envois. Réponse
+  // déjà renvoyée (uniforme) ; on s'arrête simplement avant tout envoi.
+  if (antibotHoneypotRempli(req.body) || !antibotPlafondEmailOk()) return
   const emailN = normaliserEmail(email)
   try {
     const u = await one('SELECT id, email FROM utilisateurs WHERE email = $1', [emailN])
@@ -1037,6 +1290,7 @@ app.post('/auth/verifier-renvoi', limiteurAuth, async (req, res) => {
   const reponseUniforme = { message: 'Si un compte non confirmé existe pour cette adresse, un nouvel email vient d\'être envoyé.' }
   res.json(reponseUniforme)
   if (typeof email !== 'string' || !email) return
+  if (antibotHoneypotRempli(req.body) || !antibotPlafondEmailOk()) return
   const emailN = normaliserEmail(email)
   try {
     const u = await one('SELECT id, email, verifie FROM utilisateurs WHERE email = $1', [emailN])
@@ -1503,9 +1757,12 @@ app.post('/chat', limiteurChat, authentifier, limiteurChatCompte, async (req, re
 
   const utilisateur = await one('SELECT * FROM utilisateurs WHERE id = $1', [req.utilisateur.id])
 
-  if (utilisateur.plan === 'gratuit' && utilisateur.messages_utilises >= LIMITE_GRATUIT) {
-    return res.status(403).json({ erreur: 'limite_atteinte' })
-  }
+  // NOTE quota : plus de pré-check « cumulé » ici (la limite est désormais
+  // JOURNALIÈRE, remise à zéro par jour UTC). La vérité unique = l'UPDATE
+  // conditionnel atomique reserverQuota() ci-dessous, exécuté AVANT tout
+  // appel IA / écriture (403 fail-fast, zéro coût). Comparer la date côté
+  // JS serait piégeux (fuseau de la colonne DATE pg) : on laisse la base
+  // trancher avec CURRENT_DATE. Coût d'un appel bloqué = lectures DB seules.
 
   // Matériel DÉCLARÉ (profil_pc persistant, saisi via la modale) fusionné
   // avec la télémétrie AUTO envoyée par le client. Si aucun profil n'est
@@ -1565,6 +1822,14 @@ app.post('/chat', limiteurChat, authentifier, limiteurChatCompte, async (req, re
     contenuMessage = message
   }
 
+  // RÉSERVATION ATOMIQUE du quota AVANT tout appel IA / écriture (F-06,
+  // anti-race). C'est cet UPDATE conditionnel qui fait foi. 0 ligne =>
+  // quota épuisé => 403 fail-fast, AUCUN coût Anthropic, rien de persisté.
+  const compteReserve = await reserverQuota(utilisateur.id)
+  if (compteReserve === null) {
+    return res.status(403).json({ erreur: 'limite_atteinte' })
+  }
+
   const texteAffiche = message || '[Image envoyée]'
   historique.push({ role: 'user', content: contenuMessage })
   await run('INSERT INTO conversations (utilisateur_id, session_id, role, contenu) VALUES ($1, $2, $3, $4)',
@@ -1586,6 +1851,15 @@ app.post('/chat', limiteurChat, authentifier, limiteurChatCompte, async (req, re
   const TIMEOUT_MS = 30000
   let texteReponse = ''
   let premierChunk = false
+  // RT-Q1 (CRITIQUE) : vrai marqueur « du contenu IA a été LIVRÉ au client ».
+  // Distinct de premierChunk (qui ne dit que « un chunk a été généré »).
+  // Passe à true uniquement APRÈS un res.write() de chunk effectivement émis
+  // (client encore connecté). Tant qu'il est false, aucun octet de réponse
+  // utile n'a quitté le serveur => un remboursement de quota est légitime.
+  // Dès qu'il est true, la valeur a été rendue ET le coût Anthropic est
+  // engagé => on NE rembourse PLUS, même si le client coupe ensuite (sinon
+  // messages IA gratuits illimités en coupant la connexion au dernier chunk).
+  let contenuLivre = false
   let timedOut = false
   // Coupe l'appel si l'IA ne répond pas dans les 30 s.
   const minuteur = setTimeout(() => { timedOut = true; ac.abort() }, TIMEOUT_MS)
@@ -1626,6 +1900,9 @@ app.post('/chat', limiteurChat, authentifier, limiteurChatCompte, async (req, re
         texteReponse += chunk
         premierChunk = true
         res.write(`data: ${JSON.stringify({ type: 'chunk', text: chunk })}\n\n`)
+        // Chunk émis vers un client encore connecté (clientParti testé en
+        // tête de boucle) : du contenu IA a été LIVRÉ → quota non remboursable.
+        contenuLivre = true
       }
     }
   }
@@ -1646,18 +1923,38 @@ app.post('/chat', limiteurChat, authentifier, limiteurChatCompte, async (req, re
       clearTimeout(minuteur)
     }
 
-    if (clientParti) return // rien à persister, réponse incomplète
+    if (clientParti) {
+      // Client parti avant la fin. RT-Q1 : on ne rembourse QUE si rien n'a
+      // été livré. Si au moins un chunk a atteint le client (contenuLivre),
+      // la valeur a été rendue + le coût API est engagé → quota CONSERVÉ
+      // (sinon contournement infini en coupant au dernier chunk).
+      if (!contenuLivre) await libererQuota(utilisateur.id)
+      return
+    }
 
     await run('INSERT INTO conversations (utilisateur_id, session_id, role, contenu) VALUES ($1, $2, $3, $4)',
       [utilisateur.id, id, 'assistant', texteReponse])
-    await run('UPDATE utilisateurs SET messages_utilises = messages_utilises + 1 WHERE id = $1', [utilisateur.id])
-
-    res.write(`data: ${JSON.stringify({ type: 'done', messagesUtilises: utilisateur.messages_utilises + 1 })}\n\n`)
+    // Quota DÉJÀ débité (réservation atomique en amont) : on renvoie le
+    // compte réel exact issu du RETURNING, pas une estimation locale.
+    res.write(`data: ${JSON.stringify({ type: 'done', messagesUtilises: compteReserve })}\n\n`)
     res.end()
 
   } catch (erreur) {
-    if (clientParti) return
-    if (ac.signal.aborted && !timedOut) return // déconnexion volontaire
+    if (clientParti) {
+      // Déconnexion client en plein stream. RT-Q1 : remboursement UNIQUEMENT
+      // si aucun chunk n'avait été livré. Déjà du contenu rendu → quota gardé.
+      if (!contenuLivre) await libererQuota(utilisateur.id)
+      return
+    }
+    if (ac.signal.aborted && !timedOut) {
+      // Abort « volontaire » (non-timeout). RT-Q1 : idem, ne rembourse que
+      // si rien n'a été livré (un abort après livraison ne doit pas créditer).
+      if (!contenuLivre) await libererQuota(utilisateur.id)
+      return
+    }
+    // Vraie erreur serveur/IA après réservation. RT-Q1 : on ne rembourse que
+    // si rien n'a été livré au client (sinon valeur rendue + coût engagé).
+    if (!contenuLivre) await libererQuota(utilisateur.id)
 
     const status = erreur?.status
     const typeApi = erreur?.error?.error?.type
@@ -1822,9 +2119,8 @@ app.post('/technicien', limiteurChat, authentifier, limiteurChatCompte, async (r
 
   const utilisateur = await one('SELECT * FROM utilisateurs WHERE id = $1', [req.utilisateur.id])
 
-  if (utilisateur.plan === 'gratuit' && utilisateur.messages_utilises >= LIMITE_GRATUIT) {
-    return res.status(403).json({ erreur: 'limite_atteinte' })
-  }
+  // Quota JOURNALIER : pas de pré-check cumulé (cf. /chat) — reserverQuota()
+  // atomique ci-dessous fait foi, AVANT tout coût IA (compteur partagé chat).
 
   // Même fusion matériel déclaré/auto que /chat (cf. fusionnerMateriel).
   contexteMateriel = fusionnerMateriel(
@@ -1883,6 +2179,12 @@ app.post('/technicien', limiteurChat, authentifier, limiteurChatCompte, async (r
     contenuMessage = message
   }
 
+  // Réservation atomique du quota (partagé avec /chat) AVANT appel IA — F-06.
+  const compteReserve = await reserverQuota(utilisateur.id)
+  if (compteReserve === null) {
+    return res.status(403).json({ erreur: 'limite_atteinte' })
+  }
+
   const texteAffiche = message || '[Image envoyée]'
   historique.push({ role: 'user', content: contenuMessage })
   await run("INSERT INTO conversations (utilisateur_id, session_id, role, contenu, canal) VALUES ($1, $2, $3, $4, 'technicien')",
@@ -1902,6 +2204,9 @@ app.post('/technicien', limiteurChat, authentifier, limiteurChatCompte, async (r
   const TIMEOUT_MS = 30000
   let texteReponse = ''
   let premierChunk = false
+  // RT-Q1 (CRITIQUE) : voir route /chat. true dès qu'un chunk IA a été LIVRÉ
+  // au client → quota non remboursable (anti-contournement infini du quota).
+  let contenuLivre = false
   let timedOut = false
   const minuteur = setTimeout(() => { timedOut = true; ac.abort() }, TIMEOUT_MS)
 
@@ -1924,6 +2229,8 @@ app.post('/technicien', limiteurChat, authentifier, limiteurChatCompte, async (r
         texteReponse += chunk
         premierChunk = true
         res.write(`data: ${JSON.stringify({ type: 'chunk', text: chunk })}\n\n`)
+        // Chunk livré à un client encore connecté → quota non remboursable.
+        contenuLivre = true
       }
     }
   }
@@ -1942,20 +2249,26 @@ app.post('/technicien', limiteurChat, authentifier, limiteurChatCompte, async (r
       clearTimeout(minuteur)
     }
 
-    if (clientParti) return
+    if (clientParti) {
+      // RT-Q1 : ne rembourser que si rien n'a été livré au client.
+      if (!contenuLivre) await libererQuota(utilisateur.id)
+      return
+    }
 
     await run("INSERT INTO conversations (utilisateur_id, session_id, role, contenu, canal) VALUES ($1, $2, $3, $4, 'technicien')",
       [utilisateur.id, id, 'assistant', texteReponse])
-    await run('UPDATE utilisateurs SET messages_utilises = messages_utilises + 1 WHERE id = $1', [utilisateur.id])
 
     techDispo()  // échange abouti → technicien « en ligne »
 
-    res.write(`data: ${JSON.stringify({ type: 'done', messagesUtilises: utilisateur.messages_utilises + 1 })}\n\n`)
+    // Quota déjà réservé atomiquement : compte réel exact (anti-race F-06).
+    res.write(`data: ${JSON.stringify({ type: 'done', messagesUtilises: compteReserve })}\n\n`)
     res.end()
 
   } catch (erreur) {
-    if (clientParti) return
-    if (ac.signal.aborted && !timedOut) return
+    // RT-Q1 : tous les chemins de remboursement conditionnés à « rien livré ».
+    if (clientParti) { if (!contenuLivre) await libererQuota(utilisateur.id); return }
+    if (ac.signal.aborted && !timedOut) { if (!contenuLivre) await libererQuota(utilisateur.id); return }
+    if (!contenuLivre) await libererQuota(utilisateur.id)
 
     const status = erreur?.status
     const typeApi = erreur?.error?.error?.type

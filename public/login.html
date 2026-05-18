@@ -424,6 +424,18 @@
     .footer-item svg { width: 13px; height: 13px; stroke: #1a6eff; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     .footer-item b { color: #aebfda; font-weight: 700; }
 
+    .legal-mini {
+      margin-top: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 6px 14px;
+      font-size: 11px;
+      color: #46587a;
+    }
+    .legal-mini a { color: #46587a; text-decoration: none; transition: color .15s; }
+    .legal-mini a:hover { color: #8fb4ff; }
+
     @media (max-width: 920px) {
       .shell { grid-template-columns: 1fr; width: auto; gap: 0; }
       .brandside { display: none; }
@@ -512,6 +524,16 @@
       </div>
 
       <div id="form-zone">
+      <!-- Anti-bot (honeypot) : leurre invisible pour l'humain (hors écran,
+           non focusable, ignoré des lecteurs d'écran). Un bot qui remplit
+           tous les champs le complète -> détecté côté serveur. Ne JAMAIS
+           passer en display:none seul (certains bots ignorent les champs
+           cachés ainsi ; ici positionnement hors flux + a11y neutralisée). -->
+      <div aria-hidden="true" style="position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden">
+        <label for="website">Ne pas remplir ce champ</label>
+        <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+      </div>
+      <input type="hidden" id="antibot-challenge">
       <div class="field">
         <label class="field-label">Email</label>
         <div class="field-input">
@@ -549,11 +571,33 @@
         <div class="footer-item"><svg viewBox="0 0 24 24"><path d="M5 12l4 4L19 7"/></svg> <b>0 faille</b></div>
         <div class="footer-item"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z"/></svg> <b>&lt; 30 s</b></div>
       </div>
+      <nav class="legal-mini" aria-label="Liens légaux">
+        <a href="/confidentialite.html">Confidentialité</a>
+        <a href="/cgu.html">CGU</a>
+        <a href="/cookies.html">Cookies</a>
+        <a href="/mentions-legales.html">Mentions légales</a>
+      </nav>
     </div>
   </div>
 
   <script>
     let modeActuel = 'connexion'
+
+    // Anti-bot : récupère un jeton de temps signé (HMAC serveur) au plus tôt.
+    // L'âge minimal exigé côté serveur impose un délai réaliste de saisie ;
+    // ce fetch n'est jamais bloquant pour l'UX (le formulaire reste utilisable
+    // même si l'appel échoue — le serveur traitera alors la tentative comme
+    // suspecte de façon transparente, sans message d'erreur exposé).
+    async function chargerChallengeAntibot() {
+      try {
+        const r = await fetch('/auth/challenge', { cache: 'no-store' })
+        if (!r.ok) return
+        const d = await r.json()
+        const champ = document.getElementById('antibot-challenge')
+        if (champ && d && typeof d.jeton === 'string') champ.value = d.jeton
+      } catch { /* silencieux : aucune dégradation visible */ }
+    }
+    chargerChallengeAntibot()
 
     // Affiche un message en rejouant l'animation d'apparition à chaque appel.
     function afficherMessage(texte, succes) {
@@ -604,11 +648,16 @@
 
       const url = modeActuel === 'connexion' ? '/auth/connexion' : '/auth/inscription'
 
+      // Champs anti-bot envoyés à l'inscription (ignorés par /auth/connexion
+      // qui ne lit qu'email + motDePasse) : jeton de temps signé + honeypot.
+      const challenge = (document.getElementById('antibot-challenge') || {}).value || ''
+      const website = (document.getElementById('website') || {}).value || ''
+
       try {
         const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, motDePasse: mdp })
+          body: JSON.stringify({ email, motDePasse: mdp, challenge, website })
         })
 
         const data = await res.json()
@@ -632,6 +681,9 @@
           changerTab('connexion')
           // Message renvoyé par le serveur (confirmation par email requise).
           afficherMessage(data.message || 'Compte créé. Vérifie tes emails pour le confirmer.', true)
+          // Le jeton de temps est à usage unique (anti-rejeu serveur) : on en
+          // redemande un pour qu'une éventuelle 2e inscription reste valide.
+          chargerChallengeAntibot()
         } else {
           localStorage.setItem('token', data.token)
           localStorage.setItem('email', data.email)
