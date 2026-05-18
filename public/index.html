@@ -1888,52 +1888,14 @@
     svg.innerHTML = html;
   })();
 
-  // ============ Mouse-reactive parallax for hero PC stage ============
-  (function(){
-    const stage = document.getElementById('pcStage');
-    const heroR = document.getElementById('heroRight');
-    const ambAurora = document.getElementById('ambAurora');
-    const constellation = document.getElementById('constellation');
-    if (!heroR || !stage) return;
-    const hero = document.querySelector('.hero');
-    let tx = 0, ty = 0, cx = 0, cy = 0;
-    // Spotlight : cible (sx,sy) en % du bloc .hero + valeur lissée (csx,csy).
-    let sx = 50, sy = 30, csx = 50, csy = 30;
-    const damp = 0.08;
-    // Rect du hero mis en cache (recalculé seulement au resize/scroll, JAMAIS
-    // par mousemove ni par frame) -> zéro reflow en boucle (ancien code :
-    // getBoundingClientRect à chaque mousemove = layout thrash).
-    let hr = hero ? hero.getBoundingClientRect() : null;
-    const majRect = () => { if (hero) hr = hero.getBoundingClientRect(); };
-    window.addEventListener('resize', majRect, { passive: true });
-    window.addEventListener('scroll', majRect, { passive: true });
-    window.addEventListener('mousemove', (e)=>{
-      const w = window.innerWidth, h = window.innerHeight;
-      tx = (e.clientX / w - .5);
-      ty = (e.clientY / h - .5);
-      if (hr && hr.width && hr.height) {
-        sx = (e.clientX - hr.left) / hr.width  * 100;
-        sy = (e.clientY - hr.top)  / hr.height * 100;
-      }
-    }, { passive: true });
-    function tick(){
-      cx += (tx - cx) * damp;
-      cy += (ty - cy) * damp;
-      // Lissage du spotlight via le MÊME damping (plus de transition CSS sur
-      // un gradient -> plus de cross-fade rectangulaire = plus de « carré »).
-      csx += (sx - csx) * damp;
-      csy += (sy - csy) * damp;
-      stage.style.transform = `rotateX(${-cy*5}deg) rotateY(${cx*8}deg)`;
-      if (ambAurora) ambAurora.style.transform = `translate(${-cx*40}px, ${-cy*25}px)`;
-      if (constellation) constellation.style.transform = `translate(${-cx*40}px, ${-cy*25}px)`;
-      if (hero) {
-        hero.style.setProperty('--mx', csx.toFixed(2) + '%');
-        hero.style.setProperty('--my', csy.toFixed(2) + '%');
-      }
-      requestAnimationFrame(tick);
-    }
-    tick();
-  })();
+  // ============ Effet curseur RETIRÉ (demande fondateur) ============
+  // L'ancien effet réactif à la souris (parallaxe #pcStage / aurora /
+  // constellation + halo .hero::before suivant le curseur) est désactivé :
+  // aucun listener mousemove, aucune boucle rAF, aucun transform piloté par
+  // la souris. Les éléments gardent leur état CSS par défaut ; le halo
+  // .hero::before reste à sa position statique (var --mx/--my = 50%/30%) et
+  // les animations d'ambiance autonomes (aurora, etc.) sont conservées —
+  // elles ne dépendent pas du curseur. Bloc neutralisé volontairement.
 
   // ============ Rotating subtitle phrase ============
   (function(){
